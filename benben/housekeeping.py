@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 TRANSIENT_DIRS = [
     "build",
-    "benort.egg-info",
+    "benben.egg-info",
     ".pytest_cache",
 ]
 
@@ -39,7 +39,7 @@ def clean_transient_paths(root: Path | None = None) -> None:
 
 
 def auto_clean_on_import() -> None:
-    if os.environ.get("BENORT_DISABLE_AUTO_CLEAN"):
+    if os.environ.get("BENBEN_DISABLE_AUTO_CLEAN"):
         return
     clean_transient_paths()
 

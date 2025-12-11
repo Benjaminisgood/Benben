@@ -1,4 +1,4 @@
-"""Runtime workspace registry for `.benort` packages."""
+"""Runtime workspace registry for `.benben` packages."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .oss_client import (
     upload_workspace_package,
     workspace_package_exists,
 )
-from .package import BenortPackage, create_package
+from .package import BenbenPackage, create_package
 from .oss_client import is_configured as oss_is_configured
 
 WorkspaceMode = Literal["local", "cloud"]
@@ -35,7 +35,7 @@ class WorkspaceHandle:
     display_name: str
     source: str
     local_path: str
-    package: BenortPackage
+    package: BenbenPackage
     remote_key: Optional[str] = None
     locked: bool = False
     unlocked: bool = True
@@ -66,13 +66,13 @@ _LOCK = threading.RLock()
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _PORTABLE_HANDLE_ID: Optional[str] = None
 _PORTABLE_ERROR: Optional[str] = None
-_SHARED_REGISTRY_DIR = Path(tempfile.gettempdir()) / "benort_workspace_registry"
+_SHARED_REGISTRY_DIR = Path(tempfile.gettempdir()) / "benben_workspace_registry"
 
 
 def _resolve_remote_cache_ttl_seconds() -> int:
     """How long to trust remote cache files when metadata is unavailable."""
 
-    env_seconds = os.environ.get("BENORT_REMOTE_CACHE_TTL_SECONDS")
+    env_seconds = os.environ.get("BENBEN_REMOTE_CACHE_TTL_SECONDS")
     if env_seconds:
         try:
             seconds = int(env_seconds)
@@ -80,7 +80,7 @@ def _resolve_remote_cache_ttl_seconds() -> int:
                 return seconds
         except ValueError:
             pass
-    env_days = os.environ.get("BENORT_REMOTE_CACHE_TTL_DAYS")
+    env_days = os.environ.get("BENBEN_REMOTE_CACHE_TTL_DAYS")
     if env_days:
         try:
             days_value = int(env_days)
@@ -95,12 +95,12 @@ REMOTE_CACHE_TTL_SECONDS = _resolve_remote_cache_ttl_seconds()
 
 
 def _remote_cache_dir() -> Path:
-    env_dir = (os.environ.get("BENORT_REMOTE_CACHE_DIR") or "").strip()
+    env_dir = (os.environ.get("BENBEN_REMOTE_CACHE_DIR") or "").strip()
     candidates = []
     if env_dir:
         candidates.append(Path(env_dir).expanduser())
-    candidates.append(Path.home() / ".cache" / "benort" / "remote_workspaces")
-    candidates.append(Path(tempfile.gettempdir()) / "benort_remote_workspaces")
+    candidates.append(Path.home() / ".cache" / "benben" / "remote_workspaces")
+    candidates.append(Path(tempfile.gettempdir()) / "benben_remote_workspaces")
     for candidate in candidates:
         try:
             candidate.mkdir(parents=True, exist_ok=True)
@@ -111,13 +111,13 @@ def _remote_cache_dir() -> Path:
 
 
 def _ensure_suffix(path: str) -> str:
-    if path.endswith(".benort"):
+    if path.endswith(".benben"):
         return path
-    return f"{path}.benort"
+    return f"{path}.benben"
 
 
 def _derive_display_name(path: Path) -> str:
-    return path.name.replace(".benort", "")
+    return path.name.replace(".benben", "")
 
 
 def _sanitize_remote_name(name: str) -> str:
@@ -138,16 +138,16 @@ def _normalize_remote_name_for_open(name: str) -> str:
     if not parts:
         raise ValueError("无效的工作区名")
     normalized = "/".join(parts)
-    if not normalized.lower().endswith(".benort"):
-        normalized = f"{normalized}.benort"
+    if not normalized.lower().endswith(".benben"):
+        normalized = f"{normalized}.benben"
     return normalized
 
 
 def _remote_cache_path(name: str) -> Path:
     normalized = _normalize_remote_name_for_open(name)
-    safe = secure_filename(normalized.replace("/", "__")) or "workspace.benort"
-    if not safe.lower().endswith(".benort"):
-        safe = f"{safe}.benort"
+    safe = secure_filename(normalized.replace("/", "__")) or "workspace.benben"
+    if not safe.lower().endswith(".benben"):
+        safe = f"{safe}.benben"
     return _remote_cache_dir() / safe
 
 
@@ -323,7 +323,7 @@ def _recover_workspace(workspace_id: str) -> WorkspaceHandle:
             raise WorkspaceNotFoundError(workspace_id)
         local_hint = record.get("local_path") or ""
         temp_path = _prepare_remote_workspace(remote_key, local_hint=local_hint or None)
-        package = BenortPackage(str(temp_path))
+        package = BenbenPackage(str(temp_path))
         handle = WorkspaceHandle(
             workspace_id=workspace_id,
             mode="cloud",
@@ -340,7 +340,7 @@ def _recover_workspace(workspace_id: str) -> WorkspaceHandle:
         normalized = Path(_ensure_suffix(local_path)).expanduser().resolve()
         if not normalized.exists():
             raise WorkspaceNotFoundError(workspace_id)
-        package = BenortPackage(str(normalized))
+        package = BenbenPackage(str(normalized))
         handle = WorkspaceHandle(
             workspace_id=workspace_id,
             mode="local",
@@ -365,7 +365,7 @@ def discover_local_workspaces(
     exists = target.exists()
     workspaces: List[dict] = []
     if exists:
-        iterator = target.rglob("*.benort") if recursive else target.glob("*.benort")
+        iterator = target.rglob("*.benben") if recursive else target.glob("*.benben")
         for path in iterator:
             if not path.is_file():
                 continue
@@ -478,7 +478,7 @@ def open_local_workspace(path: str) -> WorkspaceHandle:
     normalized = Path(_ensure_suffix(path)).expanduser().resolve()
     if not normalized.exists():
         raise FileNotFoundError(f"Workspace file not found: {normalized}")
-    package = BenortPackage(str(normalized))
+    package = BenbenPackage(str(normalized))
     workspace_id = uuid.uuid4().hex
     handle = WorkspaceHandle(
         workspace_id=workspace_id,
@@ -534,7 +534,7 @@ def open_remote_workspace(path: str) -> WorkspaceHandle:
         raise RuntimeError("未配置 OSS，无法打开远程工作区")
     remote_name = _normalize_remote_name_for_open(path)
     temp_path = _prepare_remote_workspace(remote_name)
-    package = BenortPackage(str(temp_path))
+    package = BenbenPackage(str(temp_path))
     workspace_id = uuid.uuid4().hex
     handle = WorkspaceHandle(
         workspace_id=workspace_id,
@@ -579,7 +579,7 @@ def get_workspace(workspace_id: str) -> WorkspaceHandle:
     return _register(recovered)
 
 
-def get_workspace_package(workspace_id: str) -> BenortPackage:
+def get_workspace_package(workspace_id: str) -> BenbenPackage:
     handle = get_workspace(workspace_id)
     if handle.locked and not handle.unlocked:
         raise WorkspaceLockedError(workspace_id)
@@ -632,7 +632,7 @@ def ensure_portable_workspace_loaded() -> Optional[WorkspaceHandle]:
     """Ensure env-configured portable workspaces are registered."""
 
     global _PORTABLE_HANDLE_ID, _PORTABLE_ERROR
-    path = (os.environ.get("BENORT_PORTABLE_WORKSPACE") or "").strip()
+    path = (os.environ.get("BENBEN_PORTABLE_WORKSPACE") or "").strip()
     if not path:
         return None
     with _LOCK:
@@ -643,7 +643,7 @@ def ensure_portable_workspace_loaded() -> Optional[WorkspaceHandle]:
     except Exception as exc:
         _PORTABLE_ERROR = str(exc)
         return None
-    display_name = (os.environ.get("BENORT_PORTABLE_WORKSPACE_NAME") or "").strip()
+    display_name = (os.environ.get("BENBEN_PORTABLE_WORKSPACE_NAME") or "").strip()
     if display_name:
         handle.display_name = display_name
     _PORTABLE_HANDLE_ID = handle.workspace_id
@@ -660,7 +660,7 @@ def portable_workspace_context() -> dict[str, Optional[object]]:
         return {"workspace": payload, "error": None}
     if _PORTABLE_ERROR:
         return {"workspace": None, "error": _PORTABLE_ERROR}
-    if (os.environ.get("BENORT_PORTABLE_WORKSPACE") or "").strip():
+    if (os.environ.get("BENBEN_PORTABLE_WORKSPACE") or "").strip():
         return {"workspace": None, "error": "无法打开内置工作区，请检查文件路径是否存在"}
     return {"workspace": None, "error": None}
 
@@ -687,5 +687,5 @@ __all__ = [
     "portable_workspace_context",
 ]
 
-if os.environ.get("BENORT_PORTABLE_WORKSPACE"):
+if os.environ.get("BENBEN_PORTABLE_WORKSPACE"):
     ensure_portable_workspace_loaded()

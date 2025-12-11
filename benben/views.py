@@ -60,7 +60,7 @@ from .llm import (
     list_llm_providers,
     resolve_llm_config,
 )
-from .package import AssetRecord, BenortPackage, WorkspaceVersionConflict
+from .package import AssetRecord, BenbenPackage, WorkspaceVersionConflict
 from .workspace import (
     WorkspaceHandle,
     WorkspaceLockedError,
@@ -83,7 +83,7 @@ from .workspace import (
 )
 from .rag import RagUnavailableError, ensure_markdown_index, search_markdown
 
-bp = Blueprint("benort", __name__)
+bp = Blueprint("benben", __name__)
 
 try:  # pragma: no cover - optional dependency
     from pdf2image import convert_from_path  # type: ignore
@@ -111,7 +111,7 @@ _RAG_CHUNK_OVERLAP = 180
 _RAG_TOP_K = 5
 
 _ASSISTANT_SYSTEM_PROMPT = (
-    "You are a concise, detail-oriented private assistant for my Benort workspace. "
+    "You are a concise, detail-oriented private assistant for my Benben workspace. "
     "Prefer answers grounded in the provided Markdown snippets. "
     "If context is missing or insufficient, be explicit that you are replying without RAG and avoid fabricating workspace details."
 )
@@ -291,12 +291,12 @@ def _env_flag_enabled(name: str) -> bool:
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-_WORKSPACE_CACHE_ROOT = Path(tempfile.gettempdir()) / "benort_workspace_cache"
-_WORKSPACE_CACHE_TTL_SECONDS = _resolve_cache_env_seconds("BENORT_CACHE_TTL_SECONDS", 3 * 24 * 3600, 3600)
-_WORKSPACE_CACHE_SWEEP_INTERVAL_SECONDS = _resolve_cache_env_seconds("BENORT_CACHE_SWEEP_INTERVAL", 3600, 300)
+_WORKSPACE_CACHE_ROOT = Path(tempfile.gettempdir()) / "benben_workspace_cache"
+_WORKSPACE_CACHE_TTL_SECONDS = _resolve_cache_env_seconds("BENBEN_CACHE_TTL_SECONDS", 3 * 24 * 3600, 3600)
+_WORKSPACE_CACHE_SWEEP_INTERVAL_SECONDS = _resolve_cache_env_seconds("BENBEN_CACHE_SWEEP_INTERVAL", 3600, 300)
 _WORKSPACE_CACHE_CLEANER_LOCK = threading.Lock()
 _WORKSPACE_CACHE_CLEANER_STARTED = False
-_WORKSPACE_CACHE_CLEANUP_DISABLED = _env_flag_enabled("BENORT_DISABLE_WORKSPACE_CACHE_CLEANUP")
+_WORKSPACE_CACHE_CLEANUP_DISABLED = _env_flag_enabled("BENBEN_DISABLE_WORKSPACE_CACHE_CLEANUP")
 
 
 def _remove_stale_cache_entry(path: Path, cutoff_ts: float) -> None:
@@ -366,7 +366,7 @@ def _workspace_cache_cleaner_loop() -> None:
         try:
             _sweep_workspace_cache_once()
         except Exception as exc:
-            print(f"[benort] workspace cache cleanup error: {exc}")
+            print(f"[benben] workspace cache cleanup error: {exc}")
         time.sleep(_WORKSPACE_CACHE_SWEEP_INTERVAL_SECONDS)
 
 
@@ -425,7 +425,7 @@ def _load_workspace_handle() -> Optional[dict]:
     return handle.to_dict()
 
 
-def _require_workspace_package() -> BenortPackage | None:
+def _require_workspace_package() -> BenbenPackage | None:
     workspace_id = _workspace_id_from_request()
     if not workspace_id:
         return None
@@ -435,7 +435,7 @@ def _require_workspace_package() -> BenortPackage | None:
         return None
 
 
-def _resolve_workspace_context() -> tuple[Optional[str], Optional[BenortPackage], bool]:
+def _resolve_workspace_context() -> tuple[Optional[str], Optional[BenbenPackage], bool]:
     workspace_id = _workspace_id_from_request()
     if not workspace_id:
         return None, None, False
@@ -448,7 +448,7 @@ def _resolve_workspace_context() -> tuple[Optional[str], Optional[BenortPackage]
     return workspace_id, package, False
 
 
-def _require_workspace_package_response() -> tuple[Optional[str], Optional[BenortPackage], Optional[Any]]:
+def _require_workspace_package_response() -> tuple[Optional[str], Optional[BenbenPackage], Optional[Any]]:
     """Ensure the current request is bound to a workspace."""
 
     workspace_id, package, locked = _resolve_workspace_context()
@@ -470,7 +470,7 @@ def _workspace_locked_response(message: Optional[str] = None):
     return jsonify(payload), 423
 
 
-def _require_workspace_project_response() -> tuple[Optional[str], Optional[BenortPackage], Optional[dict], Optional[Any]]:
+def _require_workspace_project_response() -> tuple[Optional[str], Optional[BenbenPackage], Optional[dict], Optional[Any]]:
     """Ensure the current request has a workspace and return its exported project."""
 
     workspace_id, package, error = _require_workspace_package_response()
@@ -486,7 +486,7 @@ def _workspace_asset_url(workspace_id: str, asset: AssetRecord, filename: Option
     download_name = filename or asset.name or f"{asset.asset_id}.bin"
     safe_name = secure_filename(download_name) or download_name or asset.asset_id
     return url_for(
-        "benort.download_workspace_asset",
+        "benben.download_workspace_asset",
         workspace_id=workspace_id,
         scope=asset.scope,
         asset_id=asset.asset_id,
@@ -494,7 +494,7 @@ def _workspace_asset_url(workspace_id: str, asset: AssetRecord, filename: Option
     )
 
 
-def _workspace_asset_payload(workspace_id: str, asset: AssetRecord, package: BenortPackage, handle: Optional[WorkspaceHandle] = None) -> dict[str, object]:
+def _workspace_asset_payload(workspace_id: str, asset: AssetRecord, package: BenbenPackage, handle: Optional[WorkspaceHandle] = None) -> dict[str, object]:
     target_handle = handle
     if target_handle is None:
         try:
@@ -520,7 +520,7 @@ def _workspace_asset_payload(workspace_id: str, asset: AssetRecord, package: Ben
     }
 
 
-def _workspace_project_label(package: BenortPackage, project: Optional[dict] = None) -> str:
+def _workspace_project_label(package: BenbenPackage, project: Optional[dict] = None) -> str:
     if isinstance(project, dict):
         name = project.get("project")
         if isinstance(name, str) and name.strip():
@@ -536,14 +536,14 @@ def _asset_oss_info(asset: AssetRecord) -> Optional[dict]:
     return None
 
 
-def _workspace_project_meta(package: BenortPackage) -> dict:
+def _workspace_project_meta(package: BenbenPackage) -> dict:
     meta = package.get_meta_value("project", {})
     if isinstance(meta, dict):
         return meta
     return {}
 
 
-def _workspace_oss_context(workspace_id: str, package: BenortPackage) -> Optional[dict[str, Any]]:
+def _workspace_oss_context(workspace_id: str, package: BenbenPackage) -> Optional[dict[str, Any]]:
     if not oss_is_configured():
         return None
     try:
@@ -628,7 +628,7 @@ def _oss_category_for_scope(scope: str) -> Optional[str]:
     return None
 
 
-def _stub_oss_url(workspace_id: str, package: BenortPackage, asset: AssetRecord) -> Optional[str]:
+def _stub_oss_url(workspace_id: str, package: BenbenPackage, asset: AssetRecord) -> Optional[str]:
     """Return a synthetic OSS URL for link insertion even when not uploaded."""
 
     ctx = _workspace_oss_context(workspace_id, package)
@@ -665,18 +665,18 @@ def _mark_local_flag(asset: AssetRecord, enabled: bool) -> None:
     asset.metadata["hasLocal"] = bool(enabled)
 
 
-def _update_asset_local_flag(package: BenortPackage, asset: AssetRecord, enabled: bool) -> None:
+def _update_asset_local_flag(package: BenbenPackage, asset: AssetRecord, enabled: bool) -> None:
     _mark_local_flag(asset, enabled)
     package.update_asset_metadata(asset.asset_id, asset.metadata, replace=True)
 
 
 def _clear_asset_local_data(
-    package: BenortPackage,
+    package: BenbenPackage,
     asset: AssetRecord,
     handle: Optional[WorkspaceHandle] = None,
     workspace_id: Optional[str] = None,
 ) -> None:
-    """Remove local payload to shrink .benort when cloud workspace explicitly关闭本地存储。"""
+    """Remove local payload to shrink .benben when cloud workspace explicitly关闭本地存储。"""
 
     if not asset:
         return
@@ -724,7 +724,7 @@ def _sync_cloud_workspace_state(workspace_id: str, handle: Optional[WorkspaceHan
 
 def _oss_sync_asset(
     workspace_id: str,
-    package: BenortPackage,
+    package: BenbenPackage,
     asset: AssetRecord,
     *,
     data: Optional[bytes] = None,
@@ -770,7 +770,7 @@ def _oss_sync_asset(
 
 def _oss_delete_asset(
     workspace_id: str,
-    package: BenortPackage,
+    package: BenbenPackage,
     *,
     asset: Optional[AssetRecord] = None,
     name: Optional[str] = None,
@@ -821,19 +821,19 @@ def _write_workspace_asset(asset: AssetRecord, dest_root: Path) -> Path | None:
     return target
 
 
-def _iter_workspace_asset_bytes(package: BenortPackage, scope: str):
+def _iter_workspace_asset_bytes(package: BenbenPackage, scope: str):
     for asset in package.list_assets(scope, include_data=True):
         if asset.data is None:
             continue
         yield _workspace_asset_rel_path(asset), asset.data
 
 
-def _create_workspace_snapshot(package: BenortPackage, safe_name: str) -> tuple[Path, Path]:
-    """Copy the current workspace into a temporary `.benort` for download."""
+def _create_workspace_snapshot(package: BenbenPackage, safe_name: str) -> tuple[Path, Path]:
+    """Copy the current workspace into a temporary `.benben` for download."""
 
     sanitized = secure_filename(safe_name or "") or "workspace"
-    temp_dir = Path(tempfile.mkdtemp(prefix="benort_export_bundle_"))
-    snapshot_path = temp_dir / f"{sanitized}.benort"
+    temp_dir = Path(tempfile.mkdtemp(prefix="benben_export_bundle_"))
+    snapshot_path = temp_dir / f"{sanitized}.benben"
     try:
         package.snapshot_to(snapshot_path)
     except Exception:
@@ -843,8 +843,8 @@ def _create_workspace_snapshot(package: BenortPackage, safe_name: str) -> tuple[
 
 
 @contextmanager
-def _workspace_runtime_dirs(package: BenortPackage):
-    base_dir = Path(tempfile.mkdtemp(prefix="benort_workspace_export_"))
+def _workspace_runtime_dirs(package: BenbenPackage):
+    base_dir = Path(tempfile.mkdtemp(prefix="benben_workspace_export_"))
     attachments_dir = base_dir / "attachments"
     resources_dir = base_dir / "resources"
     build_dir = base_dir / "build"
@@ -1443,7 +1443,7 @@ def _format_assistant_user_message(message: str, contexts: list[dict]) -> str:
 def _build_rag_contexts(
     query: str,
     workspace_id: str,
-    package: BenortPackage,
+    package: BenbenPackage,
     llm_config: dict,
     headers: dict,
     embedding_model: str,
@@ -1875,7 +1875,7 @@ def assistant_query():
     )
 
 
-def _list_workspace_learning_prompts(package: BenortPackage) -> tuple[list[dict], dict[str, dict], set[str]]:
+def _list_workspace_learning_prompts(package: BenbenPackage) -> tuple[list[dict], dict[str, dict], set[str]]:
     stored = package.list_learning_prompts()
     custom: list[dict] = []
     overrides: dict[str, dict] = {}
@@ -1897,7 +1897,7 @@ def _list_workspace_learning_prompts(package: BenortPackage) -> tuple[list[dict]
     return custom, overrides, removed
 
 
-def _list_workspace_learning_records(package: BenortPackage) -> list[dict]:
+def _list_workspace_learning_records(package: BenbenPackage) -> list[dict]:
     grouped: dict[str, dict] = {}
     for row in package.list_learning_records():
         key = row.get("input") or ""
@@ -1932,7 +1932,7 @@ def _list_workspace_learning_records(package: BenortPackage) -> list[dict]:
     return list(grouped.values())
 
 
-def _merge_learning_prompts(package: BenortPackage) -> tuple[list[dict], dict]:
+def _merge_learning_prompts(package: BenbenPackage) -> tuple[list[dict], dict]:
     custom_prompts, overrides, removed = _list_workspace_learning_prompts(package)
     combined: list[dict] = []
     for default_prompt in LEARNING_ASSISTANT_DEFAULT_PROMPTS:
@@ -1964,7 +1964,7 @@ def _merge_learning_prompts(package: BenortPackage) -> tuple[list[dict], dict]:
     return combined, prompts_meta
 
 
-def _export_learning_payload(package: BenortPackage) -> dict:
+def _export_learning_payload(package: BenbenPackage) -> dict:
     prompts_meta = _merge_learning_prompts(package)[1]
     records = _list_workspace_learning_records(package)
     return {
@@ -2795,14 +2795,14 @@ def export_learning_records():
 
 @bp.route("/export_project_bundle", methods=["GET"])
 def export_project_bundle():
-    """导出当前工作区的 `.benort` 文件。"""
+    """导出当前工作区的 `.benben` 文件。"""
 
     _, package, project, error = _require_workspace_project_response()
     if error:
         return error
     include_code = bool(_parse_bool_flag(request.args.get("include_code")))
     if include_code:
-        return api_error("工作区便携包功能已下线，仅支持导出 .benort 工作区", 410)
+        return api_error("工作区便携包功能已下线，仅支持导出 .benben 工作区", 410)
     project_label = _workspace_project_label(package, project)
     safe_label = secure_filename(project_label) or "workspace"
     try:
@@ -2815,7 +2815,7 @@ def export_project_bundle():
         shutil.rmtree(temp_dir, ignore_errors=True)
         return response
 
-    download_name = f"{safe_label}.benort"
+    download_name = f"{safe_label}.benben"
     mimetype = "application/octet-stream"
     file_path = snapshot_path
 

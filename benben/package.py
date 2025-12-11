@@ -1,4 +1,4 @@
-"""SQLite-backed `.benort` workspace container helpers."""
+"""SQLite-backed `.benben` workspace container helpers."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from .template_store import get_default_markdown_template, get_default_template
 def _resolve_learning_record_ttl_seconds() -> int:
     """Resolve how long non-favorited learning records should be kept."""
 
-    env_seconds = os.environ.get("BENORT_LEARNING_RECORD_TTL_SECONDS")
+    env_seconds = os.environ.get("BENBEN_LEARNING_RECORD_TTL_SECONDS")
     if env_seconds:
         try:
             seconds = int(env_seconds)
@@ -29,7 +29,7 @@ def _resolve_learning_record_ttl_seconds() -> int:
                 return seconds
         except ValueError:
             pass
-    env_days = os.environ.get("BENORT_LEARNING_RECORD_TTL_DAYS")
+    env_days = os.environ.get("BENBEN_LEARNING_RECORD_TTL_DAYS")
     if env_days:
         try:
             days_value = int(env_days)
@@ -265,8 +265,8 @@ class AssetRecord:
             return 0
 
 
-class BenortPackage:
-    """High-level helper for reading/writing `.benort` SQLite databases."""
+class BenbenPackage:
+    """High-level helper for reading/writing `.benben` SQLite databases."""
 
     def __init__(self, path: str):
         self.path = Path(path).expanduser().resolve()
@@ -1307,7 +1307,7 @@ class BenortPackage:
         return asset
 
     def snapshot_to(self, dest_path: str | Path) -> str:
-        """Create a consistent copy of the current `.benort` database."""
+        """Create a consistent copy of the current `.benben` database."""
 
         target = Path(dest_path).expanduser().resolve()
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1395,8 +1395,8 @@ class BenortPackage:
         }
 
 
-def create_package(path: str, project_name: Optional[str] = None) -> BenortPackage:
-    package = BenortPackage(path)
+def create_package(path: str, project_name: Optional[str] = None) -> BenbenPackage:
+    package = BenbenPackage(path)
     project_name = project_name or Path(path).stem
     package.initialize_defaults(project_name)
     return package
@@ -1404,7 +1404,7 @@ def create_package(path: str, project_name: Optional[str] = None) -> BenortPacka
 
 __all__ = [
     "AssetRecord",
-    "BenortPackage",
+    "BenbenPackage",
     "PageRecord",
     "create_package",
     "WorkspaceVersionConflict",

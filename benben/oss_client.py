@@ -189,8 +189,8 @@ def _normalize_workspace_listing_dir(name: Optional[str]) -> str:
 
 def _sanitize_workspace_name(name: str) -> str:
     base = secure_filename(name or "") or "workspace"
-    if not base.lower().endswith(".benort"):
-        base = f"{base}.benort"
+    if not base.lower().endswith(".benben"):
+        base = f"{base}.benben"
     return base
 
 
@@ -330,7 +330,7 @@ def list_workspace_packages(subdir: Optional[str] = None) -> Dict[str, object]:
         if not rel_inside_dir:
             continue
         cleaned_rel = rel_inside_dir.strip("/")
-        if not cleaned_rel or not cleaned_rel.lower().endswith(".benort"):
+        if not cleaned_rel or not cleaned_rel.lower().endswith(".benben"):
             continue
         ts_raw = getattr(obj, "last_modified", None)
         iso_ts = None

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Benort</title>
+  <title>Benben</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -10,12 +10,12 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
   <script>
-    window.BENORT_COMPONENT_LIBRARY = {{ (component_library or {})|tojson }};
-    window.BENORT_UI_THEME = {{ (ui_theme or {})|tojson }};
-    window.BENORT_LLM_PROVIDERS = {{ (llm_providers or [])|tojson }};
-    window.BENORT_LLM_DEFAULT = {{ (llm_default_state or {})|tojson }};
-    window.BENORT_DEFAULT_WORKSPACE = {{ (default_workspace or none)|tojson }};
-    window.BENORT_PORTABLE_ERROR = {{ (portable_workspace_error or "")|tojson }};
+    window.BENBEN_COMPONENT_LIBRARY = {{ (component_library or {})|tojson }};
+    window.BENBEN_UI_THEME = {{ (ui_theme or {})|tojson }};
+    window.BENBEN_LLM_PROVIDERS = {{ (llm_providers or [])|tojson }};
+    window.BENBEN_LLM_DEFAULT = {{ (llm_default_state or {})|tojson }};
+    window.BENBEN_DEFAULT_WORKSPACE = {{ (default_workspace or none)|tojson }};
+    window.BENBEN_PORTABLE_ERROR = {{ (portable_workspace_error or "")|tojson }};
   </script>
   <style>
     /* CSS 基础讲解：每个规则都像 “选择器 { 属性: 值; }”，用分号隔开。变量写作 --name 在 :root 定义，引用时用 var(--name, 备选值) */
@@ -2256,14 +2256,14 @@
     <div class="modal-content p-4 p-md-5">
       <div class="workspace-overlay-header mb-4 text-center text-md-start">
         <h1 class="workspace-modal-title mb-2">选择工作区</h1>
-        <p class="mb-0 text-muted">打开或创建一个 <code>.benort</code> 文件以开始编辑。</p>
+        <p class="mb-0 text-muted">打开或创建一个 <code>.benben</code> 文件以开始编辑。</p>
       </div>
       <div class="workspace-overlay-actions">
         <div class="workspace-form p-3 mb-3" id="local-workspace-browser">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
               <h5 class="mb-1">本地工作区</h5>
-              <p class="text-muted small mb-0">应用会自动扫描项目根目录下的 <code>.benort</code> 文件。</p>
+              <p class="text-muted small mb-0">应用会自动扫描项目根目录下的 <code>.benben</code> 文件。</p>
             </div>
             <div class="d-flex gap-2">
               <button type="button" class="btn btn-outline-secondary btn-sm" id="local-workspace-refresh">刷新列表</button>
@@ -2278,7 +2278,7 @@
             <span class="badge workspace-badge">根目录</span>
           </div>
           <div class="mb-2">
-            <label for="local-workspace-create-name" class="form-label small text-muted">文件名（自动追加 <code>.benort</code>）</label>
+            <label for="local-workspace-create-name" class="form-label small text-muted">文件名（自动追加 <code>.benben</code>）</label>
             <input type="text" class="form-control" id="local-workspace-create-name" placeholder="my-project" autocomplete="off">
           </div>
           <div class="mb-3">
@@ -2309,7 +2309,7 @@
       <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3">
         <div>
           <h2 class="h4 mb-1">远程工作区</h2>
-          <p class="text-muted mb-0">列出 OSS 中的 <code>.benort</code> 文件，可直接打开或创建。</p>
+          <p class="text-muted mb-0">列出 OSS 中的 <code>.benben</code> 文件，可直接打开或创建。</p>
         </div>
         <div class="d-flex gap-2">
           <button type="button" class="btn btn-outline-secondary" id="remote-workspace-refresh">刷新</button>
@@ -2327,7 +2327,7 @@
         <div class="mb-2">
           <label for="remote-workspace-create-name" class="form-label small text-muted">文件名</label>
           <input type="text" class="form-control" id="remote-workspace-create-name" placeholder="my-workspace" autocomplete="off">
-          <div class="form-text">系统会自动添加 <code>.benort</code> 后缀。</div>
+          <div class="form-text">系统会自动添加 <code>.benben</code> 后缀。</div>
         </div>
         <div class="mb-3">
           <label for="remote-workspace-create-display" class="form-label small text-muted">显示名称（可选）</label>
@@ -2347,7 +2347,7 @@
       <ul class="navbar-nav me-auto mb-2 mb-lg-0 nav-flex-wrap w-100">
         <li class="nav-item">
           <div class="dropdown">
-            <button class="btn btn-outline-primary fw-semibold px-3 js-nav-btn nav-btn" id="project-dropdown" data-bs-toggle="dropdown" aria-expanded="false">Benort</button>
+            <button class="btn btn-outline-primary fw-semibold px-3 js-nav-btn nav-btn" id="project-dropdown" data-bs-toggle="dropdown" aria-expanded="false">Benben</button>
             <ul class="dropdown-menu" id="project-menu" aria-labelledby="project-dropdown">
               <li><h6 class="dropdown-header">工作区</h6></li>
               <li><span class="dropdown-item-text text-muted">当前：未选择</span></li>
@@ -3520,7 +3520,7 @@
           </div>
           <div class="form-check">
             <input class="form-check-input" type="radio" name="exportOption" id="exportProjectDataOption" value="project_bundle_data">
-            <label class="form-check-label" for="exportProjectDataOption">导出 工作区文件（.benort）</label>
+            <label class="form-check-label" for="exportProjectDataOption">导出 工作区文件（.benben）</label>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="radio" name="exportOption" id="exportAudioOption" value="audio">
@@ -3916,7 +3916,7 @@ function jumpToPage(targetIdx) {
 }
 
   
-  const COMPONENT_LIBRARY = window.BENORT_COMPONENT_LIBRARY || {};
+  const COMPONENT_LIBRARY = window.BENBEN_COMPONENT_LIBRARY || {};
   let markdownImageModalInstance = null;
   let markdownTableModalInstance = null;
 
@@ -4159,7 +4159,7 @@ function jumpToPage(targetIdx) {
       }
     });
   }
-  let pendingDefaultWorkspace = window.BENORT_DEFAULT_WORKSPACE || null;
+  let pendingDefaultWorkspace = window.BENBEN_DEFAULT_WORKSPACE || null;
   let defaultWorkspaceApplied = false;
   let registeredWorkspaces = [];
   let workspaceAutoRestoreAttempted = false;
@@ -4274,7 +4274,7 @@ function jumpToPage(targetIdx) {
     updateProjectButtonLabel();
   }
 
-  const WORKSPACE_COOKIE_NAME = 'benortWorkspace';
+  const WORKSPACE_COOKIE_NAME = 'benbenWorkspace';
   const WORKSPACE_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
 
   function readWorkspacePreference(){
@@ -4488,7 +4488,7 @@ function jumpToPage(targetIdx) {
       return true;
     }
     if(!options.silent){
-      promptWorkspaceSelection('请先通过“打开本地工作区”选择 .benort 文件');
+      promptWorkspaceSelection('请先通过“打开本地工作区”选择 .benben 文件');
     }
     return false;
   }
@@ -4515,7 +4515,7 @@ function jumpToPage(targetIdx) {
       loadProject();
     } else {
       clearWorkspacePreference();
-      promptWorkspaceSelection('请通过“打开本地工作区”按钮选择 .benort 文件');
+      promptWorkspaceSelection('请通过“打开本地工作区”按钮选择 .benben 文件');
     }
   }
 
@@ -4565,7 +4565,7 @@ function jumpToPage(targetIdx) {
       const items = Array.isArray(data.workspaces) ? data.workspaces : [];
       renderRemoteWorkspaceList(items);
       if(remoteWorkspaceStatusEl){
-        remoteWorkspaceStatusEl.textContent = items.length ? '' : '当前 OSS 下暂无 .benort 工作区';
+        remoteWorkspaceStatusEl.textContent = items.length ? '' : '当前 OSS 下暂无 .benben 工作区';
         remoteWorkspaceStatusEl.classList.remove('text-danger');
       }
     }catch(e){
@@ -4583,7 +4583,7 @@ function jumpToPage(targetIdx) {
     if(!remoteWorkspaceListEl) return;
     remoteWorkspaceListEl.innerHTML = '';
     if(!Array.isArray(items) || !items.length){
-      remoteWorkspaceListEl.innerHTML = '<div class="list-group-item text-muted text-center">暂无 .benort 工作区，可在下方创建</div>';
+      remoteWorkspaceListEl.innerHTML = '<div class="list-group-item text-muted text-center">暂无 .benben 工作区，可在下方创建</div>';
       return;
     }
     items.forEach(item => {
@@ -4669,7 +4669,7 @@ function jumpToPage(targetIdx) {
     if(!localWorkspaceListEl) return;
     localWorkspaceListEl.innerHTML = '';
     if(!Array.isArray(items) || !items.length){
-      localWorkspaceListEl.innerHTML = '<div class="list-group-item text-muted text-center">未发现 .benort 文件</div>';
+      localWorkspaceListEl.innerHTML = '<div class="list-group-item text-muted text-center">未发现 .benben 文件</div>';
       return;
     }
     items.forEach(item => {
@@ -4747,7 +4747,7 @@ function jumpToPage(targetIdx) {
     if(!trimmed) return '';
     const sanitizedName = trimmed.replace(/[\\/]+/g, '-');
     if(!sanitizedName) return '';
-    const ensured = sanitizedName.toLowerCase().endsWith('.benort') ? sanitizedName : `${sanitizedName}.benort`;
+    const ensured = sanitizedName.toLowerCase().endsWith('.benben') ? sanitizedName : `${sanitizedName}.benben`;
     if(!localWorkspaceRootPath){
       return ensured;
     }
@@ -4785,7 +4785,7 @@ function jumpToPage(targetIdx) {
           localWorkspaceStatusEl.classList.add('text-danger');
         } else if(Array.isArray(data.workspaces) && !data.workspaces.length){
           const baseLabel = localWorkspaceRootPath ? `（${localWorkspaceRootPath}）` : '';
-          localWorkspaceStatusEl.textContent = `项目根目录${baseLabel}下未找到 .benort 文件`;
+          localWorkspaceStatusEl.textContent = `项目根目录${baseLabel}下未找到 .benben 文件`;
           localWorkspaceStatusEl.classList.remove('text-danger');
         } else {
           const baseLabel = localWorkspaceRootPath ? `扫描路径：${localWorkspaceRootPath}` : '';
@@ -5180,7 +5180,7 @@ function jumpToPage(targetIdx) {
       createRemoteWorkspaceEntry(name, displayName);
     });
   }
-  let llmProviders = Array.isArray(window.BENORT_LLM_PROVIDERS) ? window.BENORT_LLM_PROVIDERS.slice() : [];
+  let llmProviders = Array.isArray(window.BENBEN_LLM_PROVIDERS) ? window.BENBEN_LLM_PROVIDERS.slice() : [];
   function ensureDefaultProviders(){
     const list = Array.isArray(llmProviders) ? llmProviders : [];
     const idSet = new Set(list.map(p => (p && typeof p.id === 'string') ? p.id.toLowerCase() : ''));
@@ -5199,7 +5199,7 @@ function jumpToPage(targetIdx) {
     return llmProviders;
   }
   ensureDefaultProviders();
-  const llmDefaultState = (window.BENORT_LLM_DEFAULT && typeof window.BENORT_LLM_DEFAULT === 'object') ? {...window.BENORT_LLM_DEFAULT} : {};
+  const llmDefaultState = (window.BENBEN_LLM_DEFAULT && typeof window.BENBEN_LLM_DEFAULT === 'object') ? {...window.BENBEN_LLM_DEFAULT} : {};
   let llmSettings = {};
   const llmManageBtn = document.getElementById('llm-manage-btn');
   const llmProviderLabelEl = document.getElementById('llm-provider-label');
@@ -6915,7 +6915,7 @@ function jumpToPage(targetIdx) {
   }
 
   function applyNavbarTheme() {
-    const theme = window.BENORT_UI_THEME || {};
+    const theme = window.BENBEN_UI_THEME || {};
     const config = theme.navbar_buttons || {};
     const skin = (document.body.getAttribute('data-ui-skin') || theme.skin || 'default').toLowerCase();
     const colorMode = (theme.color_mode || 'light').toLowerCase();
@@ -7029,16 +7029,16 @@ function jumpToPage(targetIdx) {
       navbar.classList.toggle('navbar-dark', isDark);
       navbar.classList.toggle('navbar-light', !isDark);
     }
-    window.BENORT_UI_THEME = window.BENORT_UI_THEME || {};
-    window.BENORT_UI_THEME.color_mode = normalized;
+    window.BENBEN_UI_THEME = window.BENBEN_UI_THEME || {};
+    window.BENBEN_UI_THEME.color_mode = normalized;
     syncAccentThemeTokens();
     applyNavbarTheme();
-    window.applyBenortColorMode = applyColorMode;
+    window.applyBenbenColorMode = applyColorMode;
   }
 
   /* === UI config (skins, ratios, font tiers) === */
-  const UI_CONFIG_STORAGE_KEY = 'benort.ui.config';
-  const envTheme = window.BENORT_UI_THEME || {};
+  const UI_CONFIG_STORAGE_KEY = 'benben.ui.config';
+  const envTheme = window.BENBEN_UI_THEME || {};
   const envSkin = (envTheme.skin || 'default').toLowerCase();
   const envColor = (envTheme.color_mode || 'light').toLowerCase();
   const envTier = (envTheme.fontSize || envTheme.tier || envTheme.navDensity || '').toLowerCase();
@@ -7163,11 +7163,11 @@ function jumpToPage(targetIdx) {
     const navPad = UI_NAV_PADDING[merged.fontSize] || UI_NAV_PADDING.standard;
     document.documentElement.style.setProperty('--nav-btn-padding-y', `${navPad.y}px`);
     document.documentElement.style.setProperty('--nav-btn-padding-x', `${navPad.x}px`);
-    window.BENORT_UI_THEME = window.BENORT_UI_THEME || {};
-    window.BENORT_UI_THEME.skin = skin;
-    window.BENORT_UI_THEME.color_mode = resolvedColorMode;
-    window.BENORT_UI_THEME.pane_ratio = merged.paneRatio;
-    window.BENORT_UI_THEME.paneRatio = merged.paneRatio;
+    window.BENBEN_UI_THEME = window.BENBEN_UI_THEME || {};
+    window.BENBEN_UI_THEME.skin = skin;
+    window.BENBEN_UI_THEME.color_mode = resolvedColorMode;
+    window.BENBEN_UI_THEME.pane_ratio = merged.paneRatio;
+    window.BENBEN_UI_THEME.paneRatio = merged.paneRatio;
     const envNavbarColor = (envNavbar.color || '').toString().trim();
     const navbarColor = ['auto', 'skin', 'default', ''].includes(envNavbarColor.toLowerCase())
       ? (UI_SKIN_PRIMARY[skin] || 'primary')
@@ -7175,7 +7175,7 @@ function jumpToPage(targetIdx) {
     const navbarPalette = Array.isArray(envNavbar.palette)
       ? envNavbar.palette.filter(c => !!c && c.toString().trim().toLowerCase() !== 'auto')
       : [];
-    window.BENORT_UI_THEME.navbar_buttons = {
+    window.BENBEN_UI_THEME.navbar_buttons = {
       style: (envNavbar.style || 'uniform').toLowerCase() === 'palette' ? 'palette' : 'uniform',
       variant: (envNavbar.variant || 'outline').toLowerCase() === 'solid' ? 'solid' : 'outline',
       color: navbarColor,
@@ -9038,7 +9038,7 @@ function syncMarkdownEditorToPreview(container) {
   updateModeToggleUI();
   const initialColorMode = document.body.classList.contains('theme-dark')
     ? 'dark'
-    : (document.body.getAttribute('data-bs-theme') || (window.BENORT_UI_THEME && window.BENORT_UI_THEME.color_mode) || 'light');
+    : (document.body.getAttribute('data-bs-theme') || (window.BENBEN_UI_THEME && window.BENBEN_UI_THEME.color_mode) || 'light');
   applyColorMode(initialColorMode);
   
   document.getElementById('edit-template').onclick = function() {
@@ -9268,7 +9268,7 @@ function syncMarkdownEditorToPreview(container) {
         return res.json().then(data=>{throw new Error(data.error||'导出失败')});
       }).then(({blob, res}) => {
         const projectSlug = (typeof currentProject === 'string' && currentProject.trim()) ? currentProject.trim() : 'workspace';
-        let filename = `${projectSlug}.benort`;
+        let filename = `${projectSlug}.benben`;
         const disposition = res.headers.get('Content-Disposition');
         if (disposition) {
           const match = disposition.match(/filename="?([^";]+)"?/i);
@@ -9284,7 +9284,7 @@ function syncMarkdownEditorToPreview(container) {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        showStatus('.benort 工作区已导出', 'success', 3000);
+        showStatus('.benben 工作区已导出', 'success', 3000);
       }).catch(e=>alert('导出失败：'+e.message));
       return;
     }
@@ -9714,7 +9714,7 @@ function syncMarkdownEditorToPreview(container) {
 })();
 
   function openProjectCreateModal(){
-    promptWorkspaceSelection('请通过“选择工作区”面板新建 .benort 文件');
+    promptWorkspaceSelection('请通过“选择工作区”面板新建 .benben 文件');
   }
 
   function openProjectRenameModal(){
@@ -9932,8 +9932,8 @@ function syncMarkdownEditorToPreview(container) {
 
 // 初始化工作区 UI
 updateWorkspaceUi();
-if(window.BENORT_PORTABLE_ERROR && window.BENORT_PORTABLE_ERROR.trim()){
-  showStatus(window.BENORT_PORTABLE_ERROR, 'danger', 6000);
+if(window.BENBEN_PORTABLE_ERROR && window.BENBEN_PORTABLE_ERROR.trim()){
+  showStatus(window.BENBEN_PORTABLE_ERROR, 'danger', 6000);
 }
 applyDefaultWorkspaceIfNeeded();
 (async () => {
@@ -9944,7 +9944,7 @@ applyDefaultWorkspaceIfNeeded();
       loadProject();
     }
   } else {
-    promptWorkspaceSelection('请通过“打开本地工作区”按钮选择 .benort 文件');
+    promptWorkspaceSelection('请通过“打开本地工作区”按钮选择 .benben 文件');
   }
 })();
 

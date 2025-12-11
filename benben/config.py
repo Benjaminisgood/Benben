@@ -1131,31 +1131,31 @@ COMPONENT_LIBRARY = {
     ],
 }
 
-_ui_skin = (os.environ.get("BENORT_UI_SKIN") or "default").strip().lower()
+_ui_skin = (os.environ.get("BENBEN_UI_SKIN") or "default").strip().lower()
 if _ui_skin not in {"default", "pastel", "paper", "ocean", "forest", "sunset", "slate"}:
     _ui_skin = "default"
 
-_ui_tier = (os.environ.get("BENORT_UI_TIER") or "standard").strip().lower()
+_ui_tier = (os.environ.get("BENBEN_UI_TIER") or "standard").strip().lower()
 if _ui_tier not in {"compact", "standard", "relaxed"}:
     _ui_tier = "standard"
 
-_ui_pane_ratio = (os.environ.get("BENORT_UI_PANE_RATIO") or "balanced").strip().lower()
+_ui_pane_ratio = (os.environ.get("BENBEN_UI_PANE_RATIO") or "balanced").strip().lower()
 if _ui_pane_ratio not in {"editor-wide", "balanced", "preview-wide", "equal"}:
     _ui_pane_ratio = "balanced"
 
-_ui_color_mode = (os.environ.get("BENORT_COLOR_MODE") or "light").strip().lower()
+_ui_color_mode = (os.environ.get("BENBEN_COLOR_MODE") or "light").strip().lower()
 if _ui_color_mode not in {"light", "dark"}:
     _ui_color_mode = "light"
 
-_navbar_style = (os.environ.get("BENORT_NAVBAR_STYLE") or "uniform").strip().lower()
+_navbar_style = (os.environ.get("BENBEN_NAVBAR_STYLE") or "uniform").strip().lower()
 if _navbar_style not in {"uniform", "palette"}:
     _navbar_style = "uniform"
 
-_navbar_variant = (os.environ.get("BENORT_NAVBAR_VARIANT") or "outline").strip().lower()
+_navbar_variant = (os.environ.get("BENBEN_NAVBAR_VARIANT") or "outline").strip().lower()
 if _navbar_variant not in {"outline", "solid"}:
     _navbar_variant = "outline"
 
-_navbar_palette_env = os.environ.get("BENORT_NAVBAR_PALETTE") or "primary,success,warning,danger,info"
+_navbar_palette_env = os.environ.get("BENBEN_NAVBAR_PALETTE") or "primary,success,warning,danger,info"
 _navbar_palette = [c.strip().lower() for c in _navbar_palette_env.split(",") if c.strip()] or ["primary"]
 
 UI_THEME = {
@@ -1166,10 +1166,10 @@ UI_THEME = {
     "pane_ratio": _ui_pane_ratio,
     "paneRatio": _ui_pane_ratio,
     "navbar_buttons": {
-        "preset": (os.environ.get("BENORT_NAVBAR_PRESET") or "modern").strip().lower(),
+        "preset": (os.environ.get("BENBEN_NAVBAR_PRESET") or "modern").strip().lower(),
         "style": _navbar_style,  # uniform | palette
         "variant": _navbar_variant,  # outline | solid
-        "color": (os.environ.get("BENORT_NAVBAR_COLOR") or "auto").strip(),
+        "color": (os.environ.get("BENBEN_NAVBAR_COLOR") or "auto").strip(),
         "palette": _navbar_palette,
     },
 }
