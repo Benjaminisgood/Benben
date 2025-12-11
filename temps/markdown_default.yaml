@@ -1,0 +1,122 @@
+type: markdown
+css: |
+  /* 现代默认版：均衡的段落行距 + 清晰的层级与链接强调，仅聚焦文体结构，不设置全局背景 */
+  .markdown-note {
+    font-family: "Inter", "Helvetica Neue", "PingFang SC", system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--shell-text, #0f172a);
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  .markdown-note h1,
+  .markdown-note h2,
+  .markdown-note h3,
+  .markdown-note h4 {
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 1.6em 0 0.55em;
+  }
+  .markdown-note h1 { font-size: 2.2em; letter-spacing: -0.01em; }
+  .markdown-note h2 { font-size: 1.8em; letter-spacing: -0.01em; }
+  .markdown-note h3 { font-size: 1.35em; }
+  .markdown-note h4 { font-size: 1.1em; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .markdown-note a {
+    color: color-mix(in srgb, var(--accent, #2563eb) 82%, var(--shell-text, #0f172a));
+    text-decoration: underline;
+    text-decoration-thickness: 0.12em;
+    text-underline-offset: 0.15em;
+  }
+  .markdown-note a:hover {
+    color: color-mix(in srgb, var(--accent-strong, #1d4ed8) 88%, var(--shell-text, #0f172a));
+  }
+
+  .markdown-note p,
+  .markdown-note ul,
+  .markdown-note ol {
+    margin: 0 0 1.05em;
+  }
+  .markdown-note ul,
+  .markdown-note ol {
+    padding-left: 1.25em;
+  }
+  .markdown-note li + li {
+    margin-top: 0.25em;
+  }
+
+  .markdown-note blockquote {
+    border-left: 3px solid color-mix(in srgb, var(--accent, #2563eb) 70%, currentColor);
+    padding: 0.85em 1.05em;
+    margin: 1.3em 0;
+    color: color-mix(in srgb, currentColor 82%, transparent);
+    background: color-mix(in srgb, currentColor 6%, transparent);
+  }
+
+  .markdown-note code {
+    font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.95em;
+    padding: 0.12em 0.35em;
+    border-radius: 0.28rem;
+    background: color-mix(in srgb, currentColor 12%, transparent);
+  }
+  .markdown-note pre {
+    margin: 1.2em 0;
+    padding: 1em 1.1em;
+    border-radius: 0.65rem;
+    border: 1px solid color-mix(in srgb, var(--surface-border, #cbd5e1) 70%, currentColor 30%);
+    background: color-mix(in srgb, currentColor 6%, transparent);
+    overflow-x: auto;
+  }
+  .markdown-note pre code {
+    display: block;
+    padding: 0;
+    background: transparent;
+  }
+
+  .markdown-note table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+    font-size: 0.98em;
+  }
+  .markdown-note th,
+  .markdown-note td {
+    border: 1px solid color-mix(in srgb, var(--surface-border, #cbd5e1) 80%, currentColor 20%);
+    padding: 0.65em 0.8em;
+    text-align: left;
+    vertical-align: middle;
+  }
+  .markdown-note th {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .markdown-note hr {
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--surface-border, #cbd5e1) 75%, currentColor 25%);
+    margin: 2em 0;
+  }
+
+  .markdown-note figure {
+    margin: 1.5rem auto;
+    text-align: center;
+  }
+  .markdown-note figcaption {
+    margin-top: 0.6rem;
+    font-size: 0.9rem;
+    color: color-mix(in srgb, currentColor 70%, transparent);
+  }
+
+  .markdown-note .markdown-callout {
+    border-radius: 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 30%, currentColor);
+    padding: 1rem 1.2rem;
+    margin: 1.2rem 0;
+  }
+  .markdown-note .markdown-callout-title {
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.02em;
+  }
+wrapperClass: markdown-note
