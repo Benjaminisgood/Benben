@@ -5,11 +5,11 @@
 !.gitignore
 !README.md
 !pyproject.toml
-!benort.sh
+!benben.sh
 
 # 保留的源代码及脚本目录
-!benort/
-!benort/**
+!benben/
+!benben/**
 !scripts/
 !scripts/**
 !temps/

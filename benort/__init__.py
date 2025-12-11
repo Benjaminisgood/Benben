@@ -1,4 +1,4 @@
-"""Benort 项目管理器的 Flask 应用工厂。"""
+"""Benben 项目管理器的 Flask 应用工厂。"""
 
 import os
 
@@ -8,7 +8,7 @@ from flask import Flask
 # 读取 .env 配置以加载 OPENAI_API_KEY 等敏感信息
 load_dotenv()
 
-# 默认启用调试模式，便于直接 `flask --app benort run`
+# 默认启用调试模式，便于直接 `flask --app benben run`
 os.environ.setdefault("FLASK_DEBUG", "1")
 
 from .config import init_app_config

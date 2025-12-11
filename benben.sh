@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# chmod +x /Users/benserver/.local/bin/benort
-# benort start|stop|status|restart|ip
+# chmod +x /Users/benserver/.local/bin/benben
+# benben start|stop|status|restart|ip
 
 set -euo pipefail
 
-PROJECT_PATH="/Users/ben/Desktop/Benote"
+PROJECT_PATH="/Users/ben/Desktop/Benben"
 cd "$PROJECT_PATH"
 
 VENV_PATH="$PROJECT_PATH/venv"
@@ -110,7 +110,7 @@ case "${1:-}" in
       -b 0.0.0.0:5004 \
       --timeout "$GUNICORN_TIMEOUT" \
       --graceful-timeout "$GUNICORN_GRACEFUL_TIMEOUT" \
-      benort:app > "$LOG_FILE" 2>&1 &
+      benben:app > "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     sleep 2
 

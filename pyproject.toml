@@ -3,10 +3,10 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["benort"]
+packages = ["benben"]
 
 [project]
-name = "benort"
+name = "benben"
 version = "0.1.0"
 description = "Beamer AI 演讲稿编辑平台"
 requires-python = ">=3.11"
