@@ -1,4 +1,4 @@
-# Benben(Benben/Benote)
+# Benben
 
 Benben 是一个围绕 LaTeX Beamer 演示创作构建的全栈平台：后端基于 Flask，前端使用单页 `editor.html` 整合 CodeMirror、PDF.js、Markdown 渲染与 Bootstrap 交互，同时对接主流 LLM、TTS 能力。除了传统的幻灯片编写，它也适合写讲稿、学术笔记甚至博客。
 
