@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-PROJECT_PATH="/Users/ben/Desktop/Benben"
+PROJECT_PATH="/Users/benserver/Desktop/Benben"
 cd "$PROJECT_PATH"
 
 VENV_PATH="$PROJECT_PATH/venv"

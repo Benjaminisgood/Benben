@@ -4103,6 +4103,7 @@ function jumpToPage(targetIdx) {
   const attachmentUrlIndex = new Map();
   let attachmentIndexPromise = null;
   let attachmentIndexWorkspaceId = '';
+  let latexPasteLocalNoticeShown = false;
   const SCRIPT_ROOT = {{ request.script_root|tojson }} || '';
   function buildApiUrl(path){
     if(!path) return SCRIPT_ROOT || '';
@@ -4159,6 +4160,9 @@ function jumpToPage(targetIdx) {
       }
     });
   }
+  onWorkspaceChange(() => {
+    latexPasteLocalNoticeShown = false;
+  });
   let pendingDefaultWorkspace = window.BENBEN_DEFAULT_WORKSPACE || null;
   let defaultWorkspaceApplied = false;
   let registeredWorkspaces = [];
@@ -8736,8 +8740,17 @@ function syncMarkdownEditorToPreview(container) {
     }
     withWorkspacePayload(fd);
     const storage = getAttachmentStorageTarget();
-    if(storage){
-      fd.append('storage', storage);
+    let storageChoice = storage;
+    const latexMode = currentEditMode === 'latex';
+    if (latexMode && storage !== 'local') {
+      storageChoice = storage === 'oss' ? 'both' : 'local';
+      if (!latexPasteLocalNoticeShown && workspaceIsCloud()) {
+        latexPasteLocalNoticeShown = true;
+        showStatus('LaTeX 模式下已同时保存本地副本，确保编译可用', 'info', 2600);
+      }
+    }
+    if(storageChoice){
+      fd.append('storage', storageChoice);
     }
     const res = await fetch(buildApiUrl('/attachments/upload'), {method: 'POST', body: fd});
     const parsed = await parseJsonSafe(res);
@@ -8756,23 +8769,28 @@ function syncMarkdownEditorToPreview(container) {
     if (!payload || typeof payload !== 'object') {
       return {snippet: '', filename: '', warning: '上传结果无效'};
     }
+    const attachments = Array.isArray(payload.attachments) ? payload.attachments : [];
+    attachments.forEach(item => rememberAttachmentUrl(item));
     rememberAttachmentUrl(payload);
-    const filename = payload.filename || payload.name || 'pasted-image';
-    const marker = payload.assetId || filename;
+    const fallbackAttachment = attachments.find(item => item && typeof item === 'object') || {};
+    const filename = payload.filename || payload.name || fallbackAttachment.filename || fallbackAttachment.name || 'pasted-image';
+    const marker = payload.assetId || fallbackAttachment.assetId || filename;
     if (payload.markdown && typeof payload.markdown === 'string') {
       return {snippet: payload.markdown.endsWith('\n') ? payload.markdown : `${payload.markdown}\n`, filename};
     }
-    const localUrl = payload.localUrl || '';
+    const localUrl = payload.localUrl || fallbackAttachment.localUrl || '';
     const isCloudWorkspace = workspaceIsCloud();
-    const preferredUrl = payload.ossUrl || payload.url || localUrl;
+    const preferredUrl = payload.ossUrl || payload.url || fallbackAttachment.ossUrl || fallbackAttachment.preferredUrl || fallbackAttachment.url || localUrl;
     const mode = (typeof currentEditMode === 'string' && currentEditMode === 'markdown') ? 'markdown' : 'latex';
     if (mode === 'latex') {
-      if (!localUrl) {
+      const latexSource = localUrl || preferredUrl;
+      if (!latexSource) {
         return {snippet: '', filename, warning: '图片已上传，但缺少本地路径，无法在 LaTeX 中引用。'};
       }
-      const latexPath = urlToLatexPath(localUrl);
+      const latexPath = urlToLatexPath(latexSource);
       const snippet = `\\begin{center}\n  \\includegraphics[width=0.7\\textwidth]{${latexPath}}\n\\end{center}\n`;
-      return {snippet, filename};
+      const warning = localUrl ? '' : '图片缺少本地副本，LaTeX 编译可能无法找到文件。';
+      return {snippet, filename, warning};
     }
     if (!preferredUrl) {
       return {snippet: '', filename, warning: '图片已上传，但缺少可用链接。'};
