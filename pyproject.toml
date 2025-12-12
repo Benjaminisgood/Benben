@@ -8,8 +8,8 @@ packages = ["benben"]
 [project]
 name = "benben"
 version = "0.1.0"
-description = "Beamer AI 演讲稿编辑平台"
-requires-python = ">=3.11"
+description = "Ben的本本"
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "flask==3.0.2",
     "openai==1.35.0",
