@@ -1886,6 +1886,82 @@
     #tabsModal #page-tabs .page-tab:active {
       cursor: grabbing;
     }
+    /* 关系目录弹窗尺寸与背景 */
+    #relationCatalogModal .modal-dialog {
+      max-width: min(1080px, 98vw);
+    }
+    #relationCatalogModal .modal-body {
+      background: var(--surface-1);
+    }
+    /* 模式提示小圆角标签 */
+    .relation-mode-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.2rem 0.9rem;
+      border-radius: 999px;
+      font-weight: 700;
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--shell-text);
+      border: 1px solid color-mix(in srgb, var(--accent-strong) 35%, transparent);
+    }
+    /* 关系图外壳，带网格背景与阴影 */
+    .relation-graph-wrapper {
+      position: relative;
+      border: 1px solid var(--surface-border);
+      border-radius: 1rem;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 94%, transparent) 0%, color-mix(in srgb, var(--accent) 6%, transparent) 100%);
+      box-shadow: 0 18px 38px color-mix(in srgb, var(--accent) 18%, transparent);
+      overflow: hidden;
+      min-height: clamp(360px, 60vh, 640px);
+    }
+    /* SVG 画布占满父级高度 */
+    .relation-graph-canvas {
+      width: 100%;
+      height: clamp(380px, 62vh, 620px);
+      display: block;
+    }
+    /* 空状态提示 */
+    .relation-graph-empty {
+      position: absolute;
+      inset: 0.5rem;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1.25rem;
+      border-radius: 0.85rem;
+      border: 1px dashed color-mix(in srgb, var(--accent) 32%, transparent);
+      background: color-mix(in srgb, var(--surface-1) 86%, var(--accent) 8%);
+      color: var(--preview-muted);
+      pointer-events: none;
+    }
+    /* 右上角简要说明 */
+    .relation-legend {
+      color: var(--preview-muted);
+    }
+    /* LaTeX 目录列表样式 */
+    .relation-toc-list .list-group-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--surface-border);
+      background: color-mix(in srgb, var(--surface-1) 95%, var(--accent) 5%);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .relation-toc-list .list-group-item:hover,
+    .relation-toc-list .list-group-item:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 16%, transparent);
+      outline: none;
+    }
+    .relation-toc-list .page-label {
+      color: var(--preview-muted);
+      font-size: 0.95rem;
+    }
     /* workspace-modal 的 dialog 确保在大屏时有空隙，并用 flex 让内容撑满 */
     .workspace-modal .modal-dialog {
       max-width: min(960px, calc(100% - 2rem));
@@ -2378,6 +2454,9 @@
         <li class="nav-item d-flex align-items-center">
           <button class="btn btn-outline-primary me-2 js-nav-btn" id="project-search-btn" title="检索当前项目">检索</button>
         </li>
+        <li class="nav-item d-flex align-items-center">
+          <button class="btn btn-outline-primary me-2 js-nav-btn" id="relation-catalog-btn" title="查看关系目录">关系目录</button>
+        </li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="mode-switch-btn" title="切换LaTeX/Markdown">模式</button></li>
         <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="add-page" title="添加新页">加页</button></li>
         <li class="nav-item"><button class="btn btn-outline-warning me-2 js-nav-btn" id="insert-component" title="插入常用组件">插入</button></li>
@@ -2689,6 +2768,43 @@
               <div id="search-results" class="list-group"></div>
             </div>
             <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal fade" id="relationCatalogModal" tabindex="-1" aria-labelledby="relationCatalogModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <div>
+                <h5 class="modal-title" id="relationCatalogModalLabel">关系目录</h5>
+                <div class="text-muted small" id="relation-mode-hint">Markdown 展示关系图，LaTeX 展示跨页目录。</div>
+              </div>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div id="relation-markdown-panel">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                  <span class="relation-mode-pill">Markdown 关系图</span>
+                  <span class="relation-legend small">节点为页面主标题，连线表示跨页标题跳转。</span>
+                </div>
+                <div class="relation-graph-wrapper">
+                  <div id="relation-graph-empty" class="relation-graph-empty d-none">暂无关系图数据</div>
+                  <svg id="relation-graph-canvas" class="relation-graph-canvas" role="img" aria-label="页面关系图"></svg>
+                </div>
+              </div>
+              <div id="relation-latex-panel" class="d-none">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                  <span class="relation-mode-pill">LaTeX 目录</span>
+                  <span class="text-muted small">点击标题即可跳转到对应页面</span>
+                </div>
+                <div id="relation-latex-list" class="list-group relation-toc-list"></div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <div class="text-muted small me-auto" id="relation-catalog-footnote">根据当前模式展示关系信息</div>
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
             </div>
           </div>
@@ -3610,6 +3726,7 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
   marked.setOptions({
     breaks: true,
@@ -4085,6 +4202,7 @@ function jumpToPage(targetIdx) {
   let remoteMetaInFlight = false;
   let pendingSaveCallbacks = [];
   let searchModalInstance = null;
+  let relationCatalogModalInstance = null;
   let searchResultsCache = [];
   let searchQueryCache = '';
   let searchAbortController = null;
@@ -8448,6 +8566,379 @@ function syncMarkdownEditorToPreview(container) {
     }
   }
 
+  function normalizeHeadingLabel(text) {
+    if (!text) return '';
+    let normalized = String(text);
+    normalized = normalized.replace(/<[^>]+>/g, '');
+    normalized = normalized.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    normalized = normalized.replace(/[`*_]+/g, '');
+    normalized = normalized.replace(/\s+/g, ' ');
+    return normalized.trim();
+  }
+
+  function extractMarkdownPrimaryHeading(md) {
+    if (!md || !md.trim()) return '';
+    let tokens;
+    try {
+      tokens = marked.lexer(md);
+    } catch (err) {
+      console.warn('解析 Markdown 标题失败', err);
+      return '';
+    }
+    let best = null;
+    tokens.forEach(token => {
+      if (!token || token.type !== 'heading') return;
+      const depth = typeof token.depth === 'number' ? token.depth : 6;
+      const text = normalizeHeadingLabel(token.text || '');
+      if (!text) return;
+      if (!best || depth < best.depth) {
+        best = {depth, text};
+      }
+    });
+    return best ? best.text : '';
+  }
+
+  function resolveMarkdownTargetPageIndex(target) {
+    if (!target) return null;
+    if (typeof target.pageIndex === 'number' && target.pageIndex >= 0 && target.pageIndex < pagesData.length) {
+      return target.pageIndex;
+    }
+    if (target.pageId) {
+      const found = findPageIndexById(target.pageId);
+      if (found !== -1) return found;
+    }
+    return null;
+  }
+
+  function collectMarkdownLinkTargets(md, sourceIndex) {
+    if (!md || !md.trim()) return [];
+    let tokens;
+    try {
+      tokens = marked.lexer(md);
+    } catch (err) {
+      console.warn('解析 Markdown 链接失败', err);
+      return [];
+    }
+    const targets = new Set();
+    const handleHref = (href) => {
+      const target = parseMarkdownInternalLink(href);
+      const idx = resolveMarkdownTargetPageIndex(target);
+      if (idx === null || idx === sourceIndex || idx < 0 || idx >= pagesData.length) return;
+      targets.add(idx);
+    };
+    const visit = (token) => {
+      if (!token || typeof token !== 'object') return;
+      if (token.type === 'link' && token.href) {
+        handleHref(token.href);
+      }
+      if (token.href && token.type === 'image') {
+        handleHref(token.href);
+      }
+      if (Array.isArray(token.tokens)) {
+        token.tokens.forEach(visit);
+      }
+      if (Array.isArray(token.items)) {
+        token.items.forEach(item => {
+          if (item && Array.isArray(item.tokens)) {
+            item.tokens.forEach(visit);
+          }
+        });
+      }
+      if (Array.isArray(token.children)) {
+        token.children.forEach(visit);
+      }
+    };
+    tokens.forEach(visit);
+    if (tokens.links && typeof tokens.links === 'object') {
+      Object.keys(tokens.links).forEach(key => {
+        const entry = tokens.links[key];
+        if (entry && entry.href) handleHref(entry.href);
+      });
+    }
+    return Array.from(targets);
+  }
+
+  function buildMarkdownRelationGraphData() {
+    if (!Array.isArray(pagesData)) return {nodes: [], links: []};
+    const nodes = pagesData.map((page, idx) => {
+      const pageId = page && typeof page.pageId === 'string' && page.pageId.trim() ? page.pageId.trim() : `page-${idx + 1}`;
+      const label = extractMarkdownPrimaryHeading(page?.notes || '') || `第 ${idx + 1} 页`;
+      return {id: pageId, label, pageIndex: idx, degree: 0};
+    });
+    const links = [];
+    const seen = new Set();
+    pagesData.forEach((page, idx) => {
+      const targets = collectMarkdownLinkTargets(page?.notes || '', idx);
+      targets.forEach(targetIdx => {
+        const minIdx = Math.min(idx, targetIdx);
+        const maxIdx = Math.max(idx, targetIdx);
+        const key = `${minIdx}-${maxIdx}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const sourceNode = nodes[minIdx];
+        const targetNode = nodes[maxIdx];
+        if (sourceNode && targetNode) {
+          links.push({source: sourceNode.id, target: targetNode.id});
+          sourceNode.degree += 1;
+          targetNode.degree += 1;
+        }
+      });
+    });
+    return {nodes, links};
+  }
+
+  function truncateRelationLabel(label, max = 22) {
+    const text = (label || '').trim();
+    if (text.length <= max) return text;
+    return text.slice(0, Math.max(max - 1, 0)) + '…';
+  }
+
+  function renderMarkdownRelationGraph() {
+    const svgEl = document.getElementById('relation-graph-canvas');
+    const emptyEl = document.getElementById('relation-graph-empty');
+    if (!svgEl) return;
+    if (emptyEl) {
+      emptyEl.textContent = '加载中…';
+      emptyEl.classList.add('d-none');
+    }
+    if (typeof window.d3 === 'undefined') {
+      if (emptyEl) {
+        emptyEl.textContent = '图形库未加载，暂无法绘制关系图';
+        emptyEl.classList.remove('d-none');
+      }
+      return;
+    }
+    const {nodes, links} = buildMarkdownRelationGraphData();
+    const wrapper = svgEl.parentElement;
+    const rect = wrapper ? wrapper.getBoundingClientRect() : {width: 960, height: 560};
+    const width = Math.max(rect.width || 960, 640);
+    const height = Math.max(rect.height || 560, 400);
+    svgEl.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svgEl.setAttribute('width', '100%');
+    svgEl.setAttribute('height', height);
+    const svg = d3.select(svgEl);
+    svg.selectAll('*').remove();
+
+    if (!nodes.length) {
+      if (emptyEl) {
+        emptyEl.textContent = '当前工作区暂无页面，无法生成关系图';
+        emptyEl.classList.remove('d-none');
+      }
+      return;
+    }
+    if (emptyEl) {
+      if (!links.length) {
+        emptyEl.textContent = '未检测到跨页跳转，仍可点击节点快速切换页面';
+        emptyEl.classList.remove('d-none');
+      } else {
+        emptyEl.textContent = '';
+        emptyEl.classList.add('d-none');
+      }
+    }
+
+    const radius = Math.min(width, height) * 0.34;
+    nodes.forEach((node, idx) => {
+      const angle = (idx / Math.max(nodes.length, 1)) * Math.PI * 2;
+      node.x = width / 2 + Math.cos(angle) * radius;
+      node.y = height / 2 + Math.sin(angle) * radius;
+    });
+
+    const simulation = d3.forceSimulation(nodes)
+      .force('charge', d3.forceManyBody().strength(-360))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(d => 26 + Math.min(d.degree || 0, 8) * 2.6));
+    if (links.length) {
+      simulation.force('link', d3.forceLink(links).id(d => d.id).distance(140).strength(0.9));
+    }
+
+    const link = svg.append('g')
+      .attr('stroke', 'rgba(100, 116, 139, 0.65)')
+      .attr('stroke-width', 1.2)
+      .selectAll('line')
+      .data(links)
+      .enter()
+      .append('line')
+      .attr('stroke-linecap', 'round');
+
+    const node = svg.append('g')
+      .selectAll('g')
+      .data(nodes)
+      .enter()
+      .append('g')
+      .call(d3.drag()
+        .on('start', event => {
+          if (!event.active) simulation.alphaTarget(0.25).restart();
+          event.subject.fx = event.subject.x;
+          event.subject.fy = event.subject.y;
+        })
+        .on('drag', event => {
+          event.subject.fx = event.x;
+          event.subject.fy = event.y;
+        })
+        .on('end', event => {
+          if (!event.active) simulation.alphaTarget(0);
+          event.subject.fx = null;
+          event.subject.fy = null;
+        })
+      );
+
+    node.append('circle')
+      .attr('r', d => 24 + Math.min(d.degree || 0, 8) * 2.4)
+      .style('fill', 'var(--accent)')
+      .attr('fill-opacity', 0.88)
+      .style('stroke', 'var(--accent-strong)')
+      .attr('stroke-width', 1.6);
+
+    node.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', 4)
+      .style('fill', 'var(--shell-text)')
+      .attr('font-size', '12px')
+      .text(d => truncateRelationLabel(d.label));
+
+    node.append('title')
+      .text(d => `${d.label}（第 ${d.pageIndex + 1} 页）`);
+
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    simulation.on('tick', () => {
+      link
+        .attr('x1', d => clamp(d.source.x, 0, width))
+        .attr('y1', d => clamp(d.source.y, 0, height))
+        .attr('x2', d => clamp(d.target.x, 0, width))
+        .attr('y2', d => clamp(d.target.y, 0, height));
+      node.attr('transform', d => {
+        d.x = clamp(d.x, 36, width - 36);
+        d.y = clamp(d.y, 36, height - 36);
+        return `translate(${d.x},${d.y})`;
+      });
+    });
+
+    node.on('click', (_, d) => {
+      setEditMode('markdown');
+      jumpToPage(d.pageIndex);
+      const modalEl = document.getElementById('relationCatalogModal');
+      if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+    });
+  }
+
+  function cleanLatexHeadingText(raw) {
+    if (!raw) return '';
+    let text = raw.replace(/%.*$/gm, '');
+    text = text.replace(/\\label\{[^}]*\}/g, '');
+    text = text.replace(/\\[a-zA-Z@]+[*]?(\[[^\]]*])?/g, '');
+    text = text.replace(/[{}]/g, ' ');
+    text = text.replace(/\s+/g, ' ');
+    return text.trim();
+  }
+
+  function extractLatexPrimaryHeading(tex) {
+    if (!tex || !tex.trim()) return '';
+    const patterns = [
+      /\\begin\{frame\}(?:\[[^\]]*])?\{([^}]*)\}/i,
+      /\\frametitle[*]?\s*\{([^}]*)\}/i,
+      /\\section[*]?\s*\{([^}]*)\}/i,
+      /\\subsection[*]?\s*\{([^}]*)\}/i,
+      /\\title[*]?\s*\{([^}]*)\}/i,
+    ];
+    for (const pattern of patterns) {
+      const match = tex.match(pattern);
+      if (match && match[1]) {
+        const cleaned = cleanLatexHeadingText(match[1]);
+        if (cleaned) return cleaned;
+      }
+    }
+    const firstLine = tex.split(/\r?\n/).find(line => line && line.trim());
+    return cleanLatexHeadingText(firstLine || '');
+  }
+
+  function renderLatexRelationCatalog() {
+    const list = document.getElementById('relation-latex-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!Array.isArray(pagesData) || !pagesData.length) {
+      list.innerHTML = '<div class="text-center text-muted py-3">当前工作区暂无页面</div>';
+      return;
+    }
+    let hasItem = false;
+    pagesData.forEach((page, idx) => {
+      const latexHeading = extractLatexPrimaryHeading(page?.content || '');
+      const markdownFallback = extractMarkdownPrimaryHeading(page?.notes || '');
+      const title = latexHeading || markdownFallback || `第 ${idx + 1} 页`;
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'list-group-item list-group-item-action';
+      item.innerHTML = `
+        <div class="fw-semibold text-truncate">${escapeHtml(title)}</div>
+        <div class="page-label">第 ${idx + 1} 页</div>
+      `;
+      item.addEventListener('click', () => {
+        setEditMode('latex');
+        jumpToPage(idx);
+        if (relationCatalogModalInstance) {
+          relationCatalogModalInstance.hide();
+        } else {
+          const modalEl = document.getElementById('relationCatalogModal');
+          if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+          }
+        }
+      });
+      list.appendChild(item);
+      hasItem = true;
+    });
+    if (!hasItem) {
+      list.innerHTML = '<div class="text-center text-muted py-3">暂无可用目录</div>';
+    }
+  }
+
+  function refreshRelationCatalogView() {
+    const isMarkdown = currentEditMode === 'markdown';
+    const markdownPanel = document.getElementById('relation-markdown-panel');
+    const latexPanel = document.getElementById('relation-latex-panel');
+    const hint = document.getElementById('relation-mode-hint');
+    const footnote = document.getElementById('relation-catalog-footnote');
+    if (markdownPanel) markdownPanel.classList.toggle('d-none', !isMarkdown);
+    if (latexPanel) latexPanel.classList.toggle('d-none', isMarkdown);
+    if (hint) {
+      hint.textContent = isMarkdown
+        ? 'Markdown 展示关系图，LaTeX 展示跨页目录。'
+        : '已切换到 LaTeX 模式，展示跨页目录。';
+    }
+    if (footnote) {
+      footnote.textContent = isMarkdown
+        ? '基于 Markdown 内部跳转生成关系图'
+        : '基于 LaTeX 页标题生成目录';
+    }
+    if (isMarkdown) {
+      renderMarkdownRelationGraph();
+    } else {
+      renderLatexRelationCatalog();
+    }
+  }
+
+  function relationCatalogIsOpen() {
+    const modalEl = document.getElementById('relationCatalogModal');
+    return !!(modalEl && modalEl.classList.contains('show'));
+  }
+
+  function refreshRelationCatalogIfOpen() {
+    if (relationCatalogIsOpen()) {
+      refreshRelationCatalogView();
+    }
+  }
+
+  function openRelationCatalogModal() {
+    const modalEl = document.getElementById('relationCatalogModal');
+    if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+    relationCatalogModalInstance = relationCatalogModalInstance || bootstrap.Modal.getOrCreateInstance(modalEl);
+    refreshRelationCatalogView();
+    relationCatalogModalInstance.show();
+  }
+
   function confirmDeleteCurrentPage() {
     if (pagesData.length <= 1) {
       showStatus('至少保留一页内容，删除已取消', 'warning', 3200);
@@ -8611,6 +9102,7 @@ function syncMarkdownEditorToPreview(container) {
     currentEditMode = mode;
     renderSingleEditor();
     updateMarkdownSyncVisualState();
+    refreshRelationCatalogIfOpen();
   }
 
   updateModeToggleUI();
@@ -8775,14 +9267,10 @@ function syncMarkdownEditorToPreview(container) {
     const fallbackAttachment = attachments.find(item => item && typeof item === 'object') || {};
     const filename = payload.filename || payload.name || fallbackAttachment.filename || fallbackAttachment.name || 'pasted-image';
     const marker = payload.assetId || fallbackAttachment.assetId || filename;
-    if (payload.markdown && typeof payload.markdown === 'string') {
-      return {snippet: payload.markdown.endsWith('\n') ? payload.markdown : `${payload.markdown}\n`, filename};
-    }
-    const localUrl = payload.localUrl || fallbackAttachment.localUrl || '';
-    const isCloudWorkspace = workspaceIsCloud();
-    const preferredUrl = payload.ossUrl || payload.url || fallbackAttachment.ossUrl || fallbackAttachment.preferredUrl || fallbackAttachment.url || localUrl;
     const mode = (typeof currentEditMode === 'string' && currentEditMode === 'markdown') ? 'markdown' : 'latex';
     if (mode === 'latex') {
+      const localUrl = payload.localUrl || fallbackAttachment.localUrl || '';
+      const preferredUrl = payload.ossUrl || payload.url || fallbackAttachment.ossUrl || fallbackAttachment.preferredUrl || fallbackAttachment.url || localUrl;
       const latexSource = localUrl || preferredUrl;
       if (!latexSource) {
         return {snippet: '', filename, warning: '图片已上传，但缺少本地路径，无法在 LaTeX 中引用。'};
@@ -8792,6 +9280,11 @@ function syncMarkdownEditorToPreview(container) {
       const warning = localUrl ? '' : '图片缺少本地副本，LaTeX 编译可能无法找到文件。';
       return {snippet, filename, warning};
     }
+    if (payload.markdown && typeof payload.markdown === 'string') {
+      return {snippet: payload.markdown.endsWith('\n') ? payload.markdown : `${payload.markdown}\n`, filename};
+    }
+    const localUrl = payload.localUrl || fallbackAttachment.localUrl || '';
+    const preferredUrl = payload.ossUrl || payload.url || fallbackAttachment.ossUrl || fallbackAttachment.preferredUrl || fallbackAttachment.url || localUrl;
     if (!preferredUrl) {
       return {snippet: '', filename, warning: '图片已上传，但缺少可用链接。'};
     }
@@ -9010,6 +9503,19 @@ function syncMarkdownEditorToPreview(container) {
         searchInputEl.focus();
         searchInputEl.select();
       }
+    });
+  }
+
+  const relationCatalogModalEl = document.getElementById('relationCatalogModal');
+  if (relationCatalogModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+    relationCatalogModalEl.addEventListener('shown.bs.modal', () => {
+      refreshRelationCatalogView();
+    });
+  }
+  const relationCatalogBtn = document.getElementById('relation-catalog-btn');
+  if (relationCatalogBtn) {
+    relationCatalogBtn.addEventListener('click', () => {
+      openRelationCatalogModal();
     });
   }
 
