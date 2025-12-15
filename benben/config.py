@@ -410,6 +410,14 @@ FALLBACK_MARKDOWN_TEMPLATE: dict[str, str] = {
           background: rgba(99, 102, 241, 0.05);
           box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
         }
+        .markdown-note .markdown-qa .markdown-qa-question,
+        .markdown-note details.markdown-qa .markdown-qa-question {
+          font-weight: 650;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
         .markdown-note .markdown-qa .markdown-qa-label {
           display: inline-flex;
           align-items: center;
@@ -422,13 +430,6 @@ FALLBACK_MARKDOWN_TEMPLATE: dict[str, str] = {
           color: #1f2937;
           font-weight: 700;
           font-size: 0.85rem;
-        }
-        .markdown-note .markdown-qa .markdown-qa-question {
-          font-weight: 650;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 8px;
         }
         .markdown-note .markdown-qa .markdown-qa-answer > :first-child {
           margin-top: 0;

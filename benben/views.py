@@ -353,8 +353,9 @@ body.markdown-export video {
 .markdown-notes { font-size: 0.9rem; color: #6b7280; font-style: italic; border-left: 3px solid rgba(0,0,0,0.06); padding: 10px 12px; background: rgba(0,0,0,0.02); }
 .markdown-code-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items:start; }
 .markdown-qa { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 12px; padding: 12px 14px; margin: 1.1rem 0; background: color-mix(in srgb, currentColor 6%, transparent); box-shadow: 0 10px 26px rgba(15,23,42,0.08); }
+.markdown-qa .markdown-qa-question,
+details.markdown-qa .markdown-qa-question { font-weight: 650; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .markdown-qa .markdown-qa-label { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%; background: color-mix(in srgb, currentColor 18%, transparent); font-weight: 700; font-size: 0.85rem; }
-.markdown-qa .markdown-qa-question { font-weight: 650; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .markdown-qa .markdown-qa-question-text { display: inline; }
 .markdown-qa .markdown-qa-answer > :first-child { margin-top: 0; }
 .markdown-qa .markdown-qa-answer > :last-child { margin-bottom: 0; }
