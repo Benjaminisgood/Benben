@@ -3189,6 +3189,21 @@ def _collect_project_notes_markdown(project: Optional[dict]) -> tuple[str, list[
     return merged, included_pages
 
 
+def _get_page_id_by_index(project: dict, page_idx: int) -> tuple[str | None, list[dict] | list]:
+    """Return page_id and pages list for a given index."""
+
+    pages = project.get("pages", []) if isinstance(project, dict) else []
+    if not isinstance(pages, list):
+        pages = []
+    if page_idx < 0 or page_idx >= len(pages):
+        return None, pages
+    page = pages[page_idx]
+    if isinstance(page, dict):
+        pid = str(page.get("pageId") or page.get("id") or "").strip()
+        return pid or None, pages
+    return None, pages
+
+
 def _request_tts_audio_bytes(
     normalized: str,
     llm_config: dict,
@@ -3505,6 +3520,55 @@ def generate_tts_preview():
 
     encoded = base64.b64encode(audio_bytes).decode("ascii")
     return jsonify({"success": True, "audio": encoded})
+
+
+@bp.route("/recording/<int:page>", methods=["GET", "POST", "DELETE"])
+def page_recording(page: int):
+    """读写指定页的录播音频。"""
+
+    workspace_id, package, project, error = _require_workspace_project_response()
+    if error:
+        return error
+
+    page_idx = max(page - 1, 0)
+    page_id, pages = _get_page_id_by_index(project, page_idx)
+    if not pages or page_idx >= len(pages):
+        return jsonify({"success": False, "error": "指定页不存在"}), 404
+    if not page_id:
+        return jsonify({"success": False, "error": "页缺少 pageId"}), 400
+
+    if request.method == "GET":
+        found = package.get_page_recording(page_id)
+        if not found:
+            return jsonify({"success": False, "error": "当前页没有录播"}), 404
+        mime, data, _updated = found
+        return send_file(
+            io.BytesIO(data),
+            mimetype=mime or "audio/webm",
+            as_attachment=False,
+            download_name=f"page_{page}_recording.webm",
+        )
+
+    if request.method == "DELETE":
+        package.delete_page_recording(page_id)
+        return jsonify({"success": True})
+
+    # POST: 保存录音
+    data_bytes: bytes | None = None
+    mime = request.headers.get("Content-Type", "audio/webm")
+    if request.files:
+        file = request.files.get("audio") or next(iter(request.files.values()), None)
+        if file:
+            data_bytes = file.read()
+            mime = file.mimetype or mime
+    if data_bytes is None:
+        raw = request.get_data()
+        data_bytes = raw if raw else None
+    if not data_bytes:
+        return jsonify({"success": False, "error": "没有收到录音数据"}), 400
+
+    package.save_page_recording(page_id, mime or "audio/webm", data_bytes)
+    return jsonify({"success": True})
 
 
 @bp.route("/add_page", methods=["POST"])

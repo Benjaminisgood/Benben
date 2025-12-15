@@ -651,6 +651,28 @@
       overflow: auto;
       padding: 0.25rem;
     }
+    .slideshow-script-panel {
+      margin-top: 0.6rem;
+      border: 1px solid var(--surface-border);
+      border-radius: 0.75rem;
+      background: color-mix(in srgb, var(--surface-1) 94%, var(--shell-bg) 6%);
+      box-shadow: var(--surface-shadow);
+      padding: 0.5rem 0.75rem;
+      max-height: 36vh;
+      overflow: auto;
+    }
+    .slideshow-script-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .slideshow-script-content {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+      color: var(--shell-text);
+    }
     .slideshow-card {
       background: var(--surface-1);
       border: 1px solid var(--surface-border);
@@ -692,6 +714,18 @@
       color: var(--muted);
       background: color-mix(in srgb, var(--surface-2) 92%, var(--accent) 8%);
       white-space: nowrap;
+    }
+    .slideshow-mode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent);
     }
     .slideshow-rec-recording {
       background: color-mix(in srgb, #ef4444 18%, var(--surface-2) 82%) !important;
@@ -3718,10 +3752,11 @@
   <div id="slideshow-overlay" class="slideshow-overlay d-none" aria-hidden="true">
     <div class="slideshow-chrome d-flex align-items-center justify-content-between flex-wrap gap-2">
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <span class="badge text-bg-primary" id="slideshow-mode-label">--</span>
+        <span class="slideshow-mode-badge" id="slideshow-mode-label">--</span>
         <div id="slideshow-page-status" class="slideshow-status-pill">页 -- / --</div>
         <div id="slideshow-slide-status" class="slideshow-status-pill">段 -- / --</div>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-rec-toggle" title="录 / 停 / 播">录播：待命</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-script-toggle" title="显示/隐藏提词稿">提词：隐藏</button>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-page-prev">上一页</button>
@@ -3736,6 +3771,10 @@
     </div>
     <div class="slideshow-body">
       <div id="slideshow-stage" class="slideshow-stage"></div>
+      <div id="slideshow-script-panel" class="slideshow-script-panel d-none">
+        <div class="slideshow-script-title">当前页讲稿</div>
+        <div id="slideshow-script-content" class="slideshow-script-content text-muted">暂无讲稿</div>
+      </div>
     </div>
   </div>
   
@@ -4276,6 +4315,17 @@ function jumpToPage(targetIdx) {
     const rand = Math.random().toString(16).slice(2);
     return 'pg_' + rand + Date.now().toString(16);
   }
+  function normalizeRecordingMeta(raw) {
+    if (raw && typeof raw === 'object') {
+      const has = !!raw.hasRecording || !!raw.data;
+      return {
+        hasRecording: has,
+        mime: raw.mime || '',
+        updatedAt: raw.updatedAt || raw.updated_at || Date.now()
+      };
+    }
+    return {hasRecording: false};
+  }
   let globalResources = [];
   let latexTemplate = {
     header: '\\documentclass{beamer}\n\\usepackage[utf8]{inputenc}\n\\usetheme{Madrid}',
@@ -4299,6 +4349,7 @@ function jumpToPage(targetIdx) {
   let recorderStream = null;
   let recorderPageIdx = null;
   let playbackAudio = null;
+  let showScriptPanel = false;
   let slideshowState = {
     open: false,
     mode: null,
@@ -9157,6 +9208,24 @@ function syncMarkdownEditorToPreview(container) {
     btn.classList.add(config.className || 'btn-outline-secondary');
   }
 
+  function updateScriptPanel() {
+    const panel = document.getElementById('slideshow-script-panel');
+    const contentEl = document.getElementById('slideshow-script-content');
+    const toggleBtn = document.getElementById('slideshow-script-toggle');
+    if (!panel || !contentEl) return;
+    panel.classList.toggle('d-none', !showScriptPanel);
+    if (toggleBtn) {
+      toggleBtn.textContent = showScriptPanel ? '提词：显示中' : '提词：隐藏';
+      toggleBtn.classList.toggle('btn-primary', showScriptPanel);
+      toggleBtn.classList.toggle('btn-outline-secondary', !showScriptPanel);
+    }
+    if (!showScriptPanel) return;
+    const page = pagesData[slideshowState.pageIdx] || {};
+    const script = page.script || '';
+    contentEl.textContent = script.trim() ? script : '暂无讲稿';
+    contentEl.classList.toggle('text-muted', !script.trim());
+  }
+
   function stopPlayback() {
     if (playbackAudio) {
       try {
@@ -9168,20 +9237,29 @@ function syncMarkdownEditorToPreview(container) {
 
   function playRecordingForPage(pageIdx) {
     stopPlayback();
-    const page = pagesData[pageIdx] || {};
-    const rec = page.recording;
-    if (!rec || !rec.data) {
-      showStatus('当前页没有录播音频', 'warning', 2200);
-      return;
-    }
-    try {
-      const audio = new Audio(rec.data);
-      playbackAudio = audio;
-      audio.play().catch(err => console.warn('录播播放失败', err));
-    } catch (err) {
-      console.warn('创建音频失败', err);
-      showStatus('无法播放录播', 'warning', 2200);
-    }
+    const url = appendWorkspaceQuery(`/recording/${pageIdx + 1}`);
+    fetch(url)
+      .then(res => {
+        if (!res.ok) throw new Error('not-found');
+        return res.blob();
+      })
+      .then(blob => {
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        playbackAudio = audio;
+        audio.play().catch(err => console.warn('录播播放失败', err));
+        audio.addEventListener('ended', () => {
+          URL.revokeObjectURL(audioUrl);
+        }, {once: true});
+      })
+      .catch(err => {
+        if (err && err.message === 'not-found') {
+          showStatus('当前页没有录播音频', 'warning', 2200);
+        } else {
+          console.warn('获取录播失败', err);
+          showStatus('播放录播失败', 'warning', 2200);
+        }
+      });
   }
 
   function stopActiveRecording(save = true) {
@@ -9207,16 +9285,24 @@ function syncMarkdownEditorToPreview(container) {
           return resolve();
         }
         const blob = new Blob(chunks, {type: chunks[0]?.type || 'audio/webm'});
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const dataUrl = reader.result;
-          const page = pagesData[targetPage] || (pagesData[targetPage] = {content: '', notes: '', script: '', bib: [], resources: [], pageId: generatePageId()});
-          page.recording = {data: dataUrl, mime: blob.type || 'audio/webm', updatedAt: Date.now()};
+        const uploadUrl = appendWorkspaceQuery(`/recording/${targetPage + 1}`);
+        fetch(uploadUrl, {
+          method: 'POST',
+          headers: {'Content-Type': blob.type || 'audio/webm'},
+          body: blob
+        }).then(res => {
+          if (!res.ok) {
+            return res.json().catch(() => ({})).then(data => {
+              throw new Error(data.error || '上传录播失败');
+            });
+          }
+          const page = pagesData[targetPage] || (pagesData[targetPage] = {content: '', notes: '', script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}});
+          page.recording = {hasRecording: true, mime: blob.type || 'audio/webm', updatedAt: Date.now()};
           saveProject();
-          resolve();
-        };
-        reader.onerror = () => resolve();
-        reader.readAsDataURL(blob);
+        }).catch(err => {
+          console.warn('上传录播失败', err);
+          showStatus('录播上传失败', 'warning', 2800);
+        }).finally(() => resolve());
       }, {once: true});
       mediaRecorder.stop();
     });
@@ -9458,6 +9544,7 @@ function syncMarkdownEditorToPreview(container) {
     const totalPages = Array.isArray(pagesData) ? pagesData.length : 0;
     if (!totalPages) {
       els.stage.innerHTML = '<div class="text-muted w-100 text-center my-4">暂无内容可展示</div>';
+      updateScriptPanel();
       return;
     }
     slideshowState.pageIdx = Math.min(Math.max(slideshowState.pageIdx || 0, 0), Math.max(0, totalPages - 1));
@@ -9501,6 +9588,7 @@ function syncMarkdownEditorToPreview(container) {
     }
     slideshowState.pendingHeading = '';
     updateSlideshowChrome();
+    updateScriptPanel();
   }
 
   function jumpToSlideshowTarget(target) {
@@ -9540,6 +9628,7 @@ function syncMarkdownEditorToPreview(container) {
           playRecordingForPage(targetPage);
         }
       });
+      updateScriptPanel();
       return true;
     }
     let targetPage = resolveMarkdownTargetPageIndex(target);
@@ -9564,6 +9653,7 @@ function syncMarkdownEditorToPreview(container) {
         playRecordingForPage(targetPage);
       }
     });
+    updateScriptPanel();
     return true;
   }
 
@@ -9610,6 +9700,7 @@ function syncMarkdownEditorToPreview(container) {
     document.body.classList.add('slideshow-open');
     updateSlideshowChrome();
     renderSlideshowGrid();
+    updateScriptPanel();
     applyRecordingModeForPage(slideshowState.pageIdx || currentPageIdx || 0);
     toggleFullscreenForOverlay(els.overlay);
     const keyHandler = (event) => {
@@ -9651,6 +9742,8 @@ function syncMarkdownEditorToPreview(container) {
     slideshowPdfRequestId += 1;
     stopActiveRecording(true);
     stopPlayback();
+    showScriptPanel = false;
+    updateScriptPanel();
     if (slideshowState.keyHandler) {
       window.removeEventListener('keydown', slideshowState.keyHandler);
       slideshowState.keyHandler = null;
@@ -9672,6 +9765,7 @@ function syncMarkdownEditorToPreview(container) {
       ? Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1)
       : (latexSlideCounts.get(nextPage) || 1);
     renderSlideshowGrid();
+    updateScriptPanel();
     if (recordingMode === 'record') {
       startRecordingForPage(nextPage);
     } else if (recordingMode === 'play') {
@@ -9692,6 +9786,7 @@ function syncMarkdownEditorToPreview(container) {
       ? Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1)
       : (latexSlideCounts.get(nextPage) || 1);
     renderSlideshowGrid();
+    updateScriptPanel();
     if (recordingMode === 'record') {
       startRecordingForPage(nextPage);
     } else if (recordingMode === 'play') {
@@ -9706,6 +9801,7 @@ function syncMarkdownEditorToPreview(container) {
     slideshowState.slideIdx = next;
     slideshowState.slideCount = count;
     renderSlideshowGrid();
+    updateScriptPanel();
   }
 
   function slideshowSlideNext() {
@@ -9715,6 +9811,7 @@ function syncMarkdownEditorToPreview(container) {
     slideshowState.slideIdx = next;
     slideshowState.slideCount = count;
     renderSlideshowGrid();
+    updateScriptPanel();
   }
 
   function collectMarkdownLinkTargets(md, sourceIndex) {
@@ -10472,7 +10569,7 @@ function syncMarkdownEditorToPreview(container) {
     wrapper.innerHTML = `<textarea id="page-single" class="form-control"></textarea>`;
     list.appendChild(wrapper);
     if (!pagesData[currentPageIdx]) {
-      pagesData[currentPageIdx] = {content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId()};
+      pagesData[currentPageIdx] = {content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
     }
     const page = pagesData[currentPageIdx];
     singleEditor = CodeMirror.fromTextArea(wrapper.querySelector('textarea'), {
@@ -10507,6 +10604,7 @@ function syncMarkdownEditorToPreview(container) {
           renderSlideshowGrid();
         }
       }
+      if (slideshowState.open && showScriptPanel) updateScriptPanel();
       saveProject();
       queueCompile();
     });
@@ -10601,7 +10699,7 @@ function syncMarkdownEditorToPreview(container) {
     }).then(res => res.json()).then(data => {
       pagesData = (data.pages || []).map((p) => {
         if (typeof p !== 'object' || p === null) {
-          return {content: String(p || ''), script: '', notes: '', bib: [], resources: [], pageId: generatePageId()};
+          return {content: String(p || ''), script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
         }
         const pageObj = {...p};
         pageObj.content = pageObj.content || '';
@@ -10611,6 +10709,7 @@ function syncMarkdownEditorToPreview(container) {
         pageObj.resources = Array.isArray(pageObj.resources) ? pageObj.resources : [];
         const pidSource = (typeof pageObj.pageId === 'string' && pageObj.pageId) || (typeof pageObj.id === 'string' && pageObj.id);
         pageObj.pageId = pidSource && pidSource.trim() ? pidSource.trim() : generatePageId();
+        pageObj.recording = normalizeRecordingMeta(pageObj.recording);
         delete pageObj.id;
         return pageObj;
       });
@@ -10697,6 +10796,11 @@ function syncMarkdownEditorToPreview(container) {
   if (slideshowEls.slideNextBtn) slideshowEls.slideNextBtn.addEventListener('click', slideshowSlideNext);
   if (slideshowEls.exitBtn) slideshowEls.exitBtn.addEventListener('click', closeSlideshowOverlay);
   if (slideshowEls.recToggle) slideshowEls.recToggle.addEventListener('click', cycleRecordingMode);
+  const scriptToggleBtn = document.getElementById('slideshow-script-toggle');
+  if (scriptToggleBtn) scriptToggleBtn.addEventListener('click', () => {
+    showScriptPanel = !showScriptPanel;
+    updateScriptPanel();
+  });
 
   const modeSwitchBtn = document.getElementById('mode-switch-btn');
   if (modeSwitchBtn) {
@@ -11121,7 +11225,7 @@ function syncMarkdownEditorToPreview(container) {
 
         pagesData = (data.pages || []).map((p, index) => {
           if (typeof p !== 'object' || p === null) {
-            return {content: String(p || ''), script: '', notes: '', bib: [], resources: [], pageId: generatePageId()};
+            return {content: String(p || ''), script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
           }
           const pageObj = {...p};
           pageObj.content = pageObj.content || '';
@@ -11131,11 +11235,12 @@ function syncMarkdownEditorToPreview(container) {
           pageObj.resources = Array.isArray(pageObj.resources) ? pageObj.resources : [];
           const pidSource = (typeof pageObj.pageId === 'string' && pageObj.pageId) || (typeof pageObj.id === 'string' && pageObj.id);
           pageObj.pageId = pidSource && pidSource.trim() ? pidSource.trim() : generatePageId();
+          pageObj.recording = normalizeRecordingMeta(pageObj.recording);
           delete pageObj.id;
           return pageObj;
         });
         invalidateAllSlides();
-        if(pagesData.length === 0) pagesData = [{content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId()}];
+        if(pagesData.length === 0) pagesData = [{content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}}];
         globalResources = Array.isArray(data.resources) ? data.resources.slice() : [];
         bibData = normalizeBibList(data.bib || []);
         currentPageIdx = Math.min(currentPageIdx, pagesData.length - 1);
@@ -11649,6 +11754,7 @@ applyDefaultWorkspaceIfNeeded();
         slideshowState.slideCount = 1;
         renderSlideshowGrid();
       }
+      if (slideshowState.open && showScriptPanel) updateScriptPanel();
       renderSingleEditor();
       saveProject();
       queueCompile();
@@ -11731,6 +11837,7 @@ applyDefaultWorkspaceIfNeeded();
         slideshowState.slideIdx = Math.min(slideshowState.slideIdx || 0, slideshowState.slideCount - 1);
         renderSlideshowGrid();
       }
+      if (slideshowState.open && showScriptPanel) updateScriptPanel();
       saveProject();
       queueCompile();
     }

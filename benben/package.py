@@ -108,6 +108,12 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     "  content TEXT NOT NULL DEFAULT '',"
     "  updated_at REAL NOT NULL DEFAULT (strftime('%s','now'))"
     ");",
+    "CREATE TABLE IF NOT EXISTS page_recordings ("
+    "  page_id TEXT PRIMARY KEY,"
+    "  mime TEXT,"
+    "  data BLOB,"
+    "  updated_at REAL NOT NULL DEFAULT (strftime('%s','now'))"
+    ");",
     "CREATE TABLE IF NOT EXISTS page_resources ("
     "  page_id TEXT NOT NULL,"
     "  position INTEGER NOT NULL,"
@@ -922,10 +928,45 @@ class BenbenPackage:
     def _extract_page_meta(self, payload: dict[str, Any]) -> dict[str, Any]:
         extras: dict[str, Any] = {}
         for key, value in payload.items():
-            if key in _PAGE_CORE_FIELDS:
+            if key in _PAGE_CORE_FIELDS or key == "recording":
                 continue
             extras[key] = value
         return extras
+
+    def _get_page_recording_meta(self, page_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT mime, updated_at FROM page_recordings WHERE page_id = ?",
+                (page_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {"mime": row["mime"] or "", "updatedAt": row["updated_at"] or time.time()}
+
+    def get_page_recording(self, page_id: str) -> tuple[str, bytes, float] | None:
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT mime, data, updated_at FROM page_recordings WHERE page_id = ?",
+                (page_id,),
+            ).fetchone()
+        if not row or row["data"] is None:
+            return None
+        return (row["mime"] or "audio/webm", row["data"], row["updated_at"] or time.time())
+
+    def save_page_recording(self, page_id: str, mime: str, data: bytes) -> None:
+        now = time.time()
+        with self._lock:
+            self.conn.execute(
+                "INSERT INTO page_recordings (page_id, mime, data, updated_at) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(page_id) DO UPDATE SET mime = excluded.mime, data = excluded.data, updated_at = excluded.updated_at",
+                (page_id, mime, sqlite3.Binary(data), now),
+            )
+            self.conn.commit()
+
+    def delete_page_recording(self, page_id: str) -> None:
+        with self._lock:
+            self.conn.execute("DELETE FROM page_recordings WHERE page_id = ?", (page_id,))
+            self.conn.commit()
 
     def _list_project_resources(self) -> list[str]:
         with self._lock:
@@ -1119,6 +1160,11 @@ class BenbenPackage:
             payload["script"] = notes_map.get(page_id, "")
             payload["resources"] = list(resources_map.get(page_id, []))
             payload["bib"] = list(references_map.get(page_id, []))
+            rec_meta = self._get_page_recording_meta(page_id)
+            if rec_meta:
+                payload["recording"] = {"hasRecording": True, "mime": rec_meta.get("mime", ""), "updatedAt": rec_meta.get("updatedAt")}
+            else:
+                payload["recording"] = {"hasRecording": False}
             records.append(PageRecord(page_id=page_id, order=row["idx"], payload=payload))
         return records
 
@@ -1146,6 +1192,7 @@ class BenbenPackage:
                     self.conn.executemany(f"DELETE FROM {table} WHERE page_id = ?", doomed)
                 self.conn.executemany("DELETE FROM page_resources WHERE page_id = ?", doomed)
                 self.conn.executemany("DELETE FROM page_references WHERE page_id = ?", doomed)
+                self.conn.executemany("DELETE FROM page_recordings WHERE page_id = ?", doomed)
             self.conn.commit()
 
     # Assets ----------------------------------------------------------------
