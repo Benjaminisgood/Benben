@@ -1344,10 +1344,6 @@ COMPONENT_LIBRARY = {
                     "code": "1. 第一要点\n1. 第二要点\n1. 第三要点",
                 },
                 {
-                    "name": "两列对比（html 表格）",
-                    "code": "<table>\n  <tr>\n    <th>优势</th>\n    <th>劣势</th>\n  </tr>\n  <tr>\n    <td>内容 A</td>\n    <td>内容 B</td>\n  </tr>\n</table>\n",
-                },
-                {
                     "name": "简单表格（markdown 表格）",
                     "code": "| 项目 | 指标 | 说明 |\n| ---- | ---- | ---- |\n| A    | 95   | 描述A |\n| B    | 88   | 描述B |",
                 },
@@ -1375,19 +1371,19 @@ COMPONENT_LIBRARY = {
             ],
         },
         {
-            "group": "媒体文件",
+            "group": "媒体文件（Markdown）",
             "items": [
                 {
                     "name": "插入图片",
                     "code": "![图片说明](path/to/image.png)",
                 },
                 {
-                    "name": "插入视频",
-                    "code": "<video controls width=\"640\">\n  <source src=\"path/to/video.mp4\" type=\"video/mp4\">\n  您的浏览器不支持 HTML5 视频。\n</video>\n",
+                    "name": "插入视频（自建语法）",
+                    "code": ":::video https://example.com/video.mp4\n可选：这里写视频说明。\n:::\n",
                 },
                 {
-                    "name": "插入音频",
-                    "code": "<audio controls>\n  <source src=\"path/to/audio.mp3\" type=\"audio/mpeg\">\n  您的浏览器不支持音频播放。\n</audio>\n",
+                    "name": "插入音频（自建语法）",
+                    "code": ":::audio https://example.com/audio.mp3\n可选：这里写音频说明。\n:::\n",
                 },
                 {
                     "name": "嵌入链接",
@@ -1408,6 +1404,43 @@ COMPONENT_LIBRARY = {
                 {
                     "name": "滚动画廊（自建）",
                     "code": ":::img-scroll\n![](图片1地址)\n![](图片2地址)\n![](图片3地址)\n![](图片4地址)\n:::\n",
+                },
+            ],
+        },
+        {
+            "group": "HTML 直接插入",
+            "items": [
+                {
+                    "name": "两列对比表格",
+                    "code": "<table>\n  <tr>\n    <th>优势</th>\n    <th>劣势</th>\n  </tr>\n  <tr>\n    <td>内容 A</td>\n    <td>内容 B</td>\n  </tr>\n</table>\n",
+                },
+                {
+                    "name": "插入视频",
+                    "code": "<video controls width=\"640\">\n  <source src=\"path/to/video.mp4\" type=\"video/mp4\">\n  您的浏览器不支持 HTML5 视频。\n</video>\n",
+                },
+                {
+                    "name": "插入音频",
+                    "code": "<audio controls>\n  <source src=\"path/to/audio.mp3\" type=\"audio/mpeg\">\n  您的浏览器不支持音频播放。\n</audio>\n",
+                },
+                {
+                    "name": "折叠区块（details/summary）",
+                    "code": "<details>\n  <summary>点击展开/收起</summary>\n  <p>这里放置可折叠的详细说明。</p>\n</details>\n",
+                },
+                {
+                    "name": "提示条（alert）",
+                    "code": "<div class=\"alert alert-warning\" role=\"alert\">\n  <strong>提示：</strong> 这里是强调的说明或风险提醒。\n</div>\n",
+                },
+                {
+                    "name": "卡片容器",
+                    "code": "<div class=\"card\" style=\"max-width:640px;\">\n  <div class=\"card-body\">\n    <h5 class=\"card-title\">卡片标题</h5>\n    <p class=\"card-text\">简短内容描述，支持<b>加粗</b>与链接。</p>\n    <a href=\"#\" class=\"btn btn-primary\">操作按钮</a>\n  </div>\n</div>\n",
+                },
+                {
+                    "name": "按钮组",
+                    "code": "<div class=\"btn-group\" role=\"group\" aria-label=\"操作\">\n  <button type=\"button\" class=\"btn btn-outline-primary\">操作一</button>\n  <button type=\"button\" class=\"btn btn-outline-secondary\">操作二</button>\n  <button type=\"button\" class=\"btn btn-outline-success\">操作三</button>\n</div>\n",
+                },
+                {
+                    "name": "嵌入 iframe",
+                    "code": "<div style=\"position:relative;padding-top:56.25%;\">\n  <iframe src=\"https://example.com\" title=\"嵌入页面\"\n    style=\"position:absolute;top:0;left:0;width:100%;height:100%;border:0;\"\n    allowfullscreen loading=\"lazy\"></iframe>\n</div>\n",
                 },
             ],
         },
