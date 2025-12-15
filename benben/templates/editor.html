@@ -607,6 +607,95 @@
       color: var(--btn-chrome-text) !important;
       border-color: var(--btn-chrome-hover-border, var(--btn-chrome-border)) !important;
     }
+    /* 全屏幻灯覆盖层 */
+    .slideshow-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2100;
+      background: color-mix(in srgb, var(--shell-bg) 90%, #000 6%);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem 1rem;
+    }
+    .slideshow-overlay .btn {
+      box-shadow: none !important;
+    }
+    .slideshow-chrome {
+      background: var(--surface-1);
+      border: 1px solid var(--surface-border);
+      border-radius: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      box-shadow: var(--surface-shadow);
+      flex-shrink: 0;
+    }
+    .slideshow-body {
+      flex: 1;
+      min-height: 0;
+      background: var(--surface-2);
+      border: 1px solid var(--surface-border);
+      border-radius: 0.9rem;
+      padding: 0.75rem;
+      box-shadow: var(--surface-shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .slideshow-stage {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      overflow: auto;
+      padding: 0.25rem;
+    }
+    .slideshow-card {
+      background: var(--surface-1);
+      border: 1px solid var(--surface-border);
+      border-radius: 0.9rem;
+      box-shadow: var(--surface-shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+      width: min(1280px, 100%);
+    }
+    .slideshow-card-header {
+      padding: 0.45rem 0.75rem;
+      font-size: 0.95rem;
+      color: var(--muted);
+      border-bottom: 1px solid var(--surface-border);
+      background: color-mix(in srgb, var(--surface-2) 88%, var(--accent) 12%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .slideshow-card-body {
+      flex: 1;
+      overflow: auto;
+      padding: 0.85rem;
+    }
+    .slideshow-card-body canvas {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+    .slideshow-status-pill {
+      font-size: 0.8rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      border: 1px solid var(--surface-border);
+      color: var(--muted);
+      background: color-mix(in srgb, var(--surface-2) 92%, var(--accent) 8%);
+      white-space: nowrap;
+    }
+    body.slideshow-open {
+      overflow: hidden;
+    }
     nav.navbar + #main-layout {
       margin-top: 0;
     }
@@ -2467,6 +2556,9 @@
         <li class="nav-item d-flex align-items-center">
           <button class="btn btn-outline-primary me-2 js-nav-btn" id="relation-catalog-btn" title="查看关系目录">关系目录</button>
         </li>
+        <li class="nav-item d-flex align-items-center">
+          <button class="btn btn-outline-dark me-2 js-nav-btn" id="slideshow-open-btn" title="全屏展示当前模式内容">全屏展示</button>
+        </li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="mode-switch-btn" title="切换LaTeX/Markdown">模式</button></li>
         <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="add-page" title="添加新页">加页</button></li>
         <li class="nav-item"><button class="btn btn-outline-warning me-2 js-nav-btn" id="insert-component" title="插入常用组件">插入</button></li>
@@ -3612,6 +3704,29 @@
   <div class="page-script-container">
     <textarea id="page-script" class="form-control" rows="4" placeholder="这里是本页的讲稿，支持导出语音。"></textarea>
   </div>
+
+  <div id="slideshow-overlay" class="slideshow-overlay d-none" aria-hidden="true">
+    <div class="slideshow-chrome d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="badge text-bg-primary" id="slideshow-mode-label">--</span>
+        <div id="slideshow-page-status" class="slideshow-status-pill">页 -- / --</div>
+        <div id="slideshow-slide-status" class="slideshow-status-pill">段 -- / --</div>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-page-prev">上一页</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-page-next">下一页</button>
+        <div class="vr d-none d-md-inline-block"></div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-slide-prev">上一段</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-slide-next">下一段</button>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-exit">退出</button>
+      </div>
+    </div>
+    <div class="slideshow-body">
+      <div id="slideshow-stage" class="slideshow-stage"></div>
+    </div>
+  </div>
   
   <!-- Export Modal -->
   <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
@@ -4159,6 +4274,23 @@ function jumpToPage(targetIdx) {
   let markdownTemplate = {
     css: '',
     wrapperClass: ''
+  };
+  const markdownSlideCache = new Map();
+  const markdownPageDirty = new Set();
+  const latexPageDirty = new Set();
+  const latexFreshVersions = new Map();
+  const latexCompilePromises = new Map();
+  const latexDocCache = new Map();
+  const latexSlideCounts = new Map();
+  let slideshowState = {
+    open: false,
+    mode: null,
+    pageIdx: 0,
+    slideIdx: 0,
+    slideCount: 1,
+    originPage: 0,
+    pendingHeading: '',
+    keyHandler: null
   };
 
 
@@ -8860,6 +8992,527 @@ function syncMarkdownEditorToPreview(container) {
     return null;
   }
 
+  function invalidateAllSlides() {
+    markdownSlideCache.clear();
+    markdownPageDirty.clear();
+    latexPageDirty.clear();
+    latexFreshVersions.clear();
+    latexCompilePromises.clear();
+    latexDocCache.clear();
+  }
+
+  function markMarkdownPageDirty(idx) {
+    if (typeof idx !== 'number') return;
+    markdownSlideCache.delete(idx);
+    markdownPageDirty.add(idx);
+  }
+
+  function markLatexPageDirty(idx) {
+    if (typeof idx !== 'number') return;
+    latexPageDirty.add(idx);
+    latexDocCache.delete(idx);
+    latexFreshVersions.delete(idx);
+    latexSlideCounts.delete(idx);
+  }
+
+  function buildMarkdownSlicesForPage(pageIdx) {
+    if (markdownSlideCache.has(pageIdx)) return markdownSlideCache.get(pageIdx);
+    const page = pagesData[pageIdx] || {};
+    const md = page.notes || '';
+    const slices = [];
+    if (!md.trim()) {
+      markdownSlideCache.set(pageIdx, slices);
+      return slices;
+    }
+    let tokens;
+    try {
+      tokens = marked.lexer(md);
+    } catch (err) {
+      console.warn('Markdown 切片解析失败', err);
+      markdownSlideCache.set(pageIdx, slices);
+      return slices;
+    }
+    rewriteMarkdownTokensForAttachments(tokens);
+    annotateMarkdownTokenSourceLines(tokens, md);
+    const slugRegistry = Object.create(null);
+    let current = [];
+    let currentHeadings = [];
+    const pushSlice = () => {
+      if (!current.length) {
+        current = [];
+        currentHeadings = [];
+        return;
+      }
+      const sliceTokens = current;
+      sliceTokens.links = tokens.links;
+      slices.push({
+        pageIndex: pageIdx,
+        pageId: page.pageId || '',
+        tokens: sliceTokens,
+        headings: currentHeadings.slice()
+      });
+      current = [];
+      currentHeadings = [];
+    };
+    tokens.forEach(token => {
+      if (token && token.type === 'heading') {
+        const slug = slugifyMarkdownHeading(token.text || '', slugRegistry);
+        if (slug) currentHeadings.push({slug, line: token.__sourceLine || 0});
+      }
+      if (token && token.type === 'hr' && typeof token.raw === 'string' && token.raw.trim() === '---') {
+        pushSlice();
+        return;
+      }
+      current.push(token);
+    });
+    pushSlice();
+    markdownSlideCache.set(pageIdx, slices);
+    markdownPageDirty.delete(pageIdx);
+    return slices;
+  }
+
+  function findMarkdownSliceIndexForHeading(pageIdx, headingId) {
+    if (!headingId) return -1;
+    const normalized = String(headingId).trim().toLowerCase();
+    if (!normalized) return -1;
+    const slices = buildMarkdownSlicesForPage(pageIdx);
+    for (let i = 0; i < slices.length; i++) {
+      const heads = slices[i].headings || [];
+      if (heads.some(h => (h.slug || '').trim().toLowerCase() === normalized)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  function getSlideshowElements() {
+    return {
+      overlay: document.getElementById('slideshow-overlay'),
+      stage: document.getElementById('slideshow-stage'),
+      pageStatus: document.getElementById('slideshow-page-status'),
+      slideStatus: document.getElementById('slideshow-slide-status'),
+      modeLabel: document.getElementById('slideshow-mode-label'),
+      pagePrevBtn: document.getElementById('slideshow-page-prev'),
+      pageNextBtn: document.getElementById('slideshow-page-next'),
+      slidePrevBtn: document.getElementById('slideshow-slide-prev'),
+      slideNextBtn: document.getElementById('slideshow-slide-next'),
+      exitBtn: document.getElementById('slideshow-exit'),
+    };
+  }
+
+  function updateSlideshowChrome() {
+    const els = getSlideshowElements();
+    const totalPages = Array.isArray(pagesData) ? pagesData.length : 0;
+    const pageIdx = Math.min(Math.max(slideshowState.pageIdx || 0, 0), Math.max(0, totalPages - 1));
+    const inferredSlideCount = slideshowState.mode === 'latex'
+      ? (latexSlideCounts.get(pageIdx) || slideshowState.slideCount || 1)
+      : (slideshowState.slideCount || 1);
+    const slideCount = Math.max(1, inferredSlideCount);
+    const slideIdx = Math.min(Math.max(slideshowState.slideIdx || 0, 0), slideCount - 1);
+    slideshowState.pageIdx = pageIdx;
+    slideshowState.slideIdx = slideIdx;
+    slideshowState.slideCount = slideCount;
+    if (els.pageStatus) {
+      els.pageStatus.textContent = `页 ${pageIdx + 1} / ${totalPages || 0}`;
+    }
+    if (els.slideStatus) {
+      els.slideStatus.textContent = `段 ${slideIdx + 1} / ${slideCount}`;
+    }
+    if (els.modeLabel) {
+      els.modeLabel.textContent = slideshowState.mode === 'latex' ? 'LaTeX 幻灯' : 'Markdown 幻灯';
+    }
+  }
+
+  let slideshowPdfRequestId = 0;
+
+  async function ensurePdfFresh(pageIdx) {
+    if (!Number.isInteger(pageIdx) || pageIdx < 0 || pageIdx >= pagesData.length) return null;
+    if (!latexPageDirty.has(pageIdx) && latexFreshVersions.has(pageIdx)) {
+      const ts = latexFreshVersions.get(pageIdx);
+      return appendWorkspaceQuery(`/page_pdf/${pageIdx + 1}?t=${ts}`);
+    }
+    if (latexCompilePromises.has(pageIdx)) {
+      return latexCompilePromises.get(pageIdx);
+    }
+    const promise = new Promise(resolve => {
+      const payload = withWorkspacePayload({page: pageIdx});
+      fetch(buildApiUrl('/compile_page'), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      }).then(res => res.json().then(data => ({ok: res.ok, data})))
+        .then(({ok, data}) => {
+          if (ok && data && data.success) {
+            const version = Date.now();
+            latexPageDirty.delete(pageIdx);
+            latexFreshVersions.set(pageIdx, version);
+            resolve(appendWorkspaceQuery(`/page_pdf/${pageIdx + 1}?t=${version}`));
+          } else {
+            resolve(appendWorkspaceQuery(`/page_pdf/${pageIdx + 1}?t=${Date.now()}`));
+          }
+        })
+        .catch(() => resolve(appendWorkspaceQuery(`/page_pdf/${pageIdx + 1}?t=${Date.now()}`)))
+        .finally(() => latexCompilePromises.delete(pageIdx));
+    });
+    latexCompilePromises.set(pageIdx, promise);
+    return promise;
+  }
+
+  function highlightHeadingInContainer(container, headingId) {
+    if (!container || !headingId) return;
+    const selector = `[id="${cssEscapeIdent(headingId)}"]`;
+    const target = container.querySelector(selector) || container.querySelector(`#${cssEscapeIdent(headingId)}`);
+    if (!target) return;
+    target.classList.add('markdown-heading-highlight');
+    setTimeout(() => {
+      target.classList.remove('markdown-heading-highlight');
+    }, 1600);
+    const rect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const delta = targetRect.top - rect.top;
+    const desired = container.scrollTop + delta - 12;
+    if (typeof container.scrollTo === 'function') {
+      container.scrollTo({top: Math.max(desired, 0), behavior: 'smooth'});
+    } else {
+      container.scrollTop = Math.max(desired, 0);
+    }
+  }
+
+  function renderMarkdownSlide(slice, bodyEl, headingToHighlight) {
+    if (!bodyEl) return;
+    bodyEl.innerHTML = '';
+    bodyEl.classList.add('markdown-preview-content');
+    const wrapperClass = (markdownTemplate && typeof markdownTemplate.wrapperClass === 'string' && markdownTemplate.wrapperClass.trim()) ? markdownTemplate.wrapperClass.trim() : '';
+    if (wrapperClass) {
+      wrapperClass.split(/\s+/).forEach(cls => cls && bodyEl.classList.add(cls));
+    }
+    if (!slice || !Array.isArray(slice.tokens) || !slice.tokens.length) {
+      bodyEl.innerHTML = '<p class="text-muted mb-0">暂无 Markdown 内容</p>';
+      return;
+    }
+    const tokensForHtml = cloneMarkedTokens(slice.tokens);
+    if (slice.tokens && typeof slice.tokens === 'object' && 'links' in slice.tokens) {
+      tokensForHtml.links = slice.tokens.links;
+    }
+    bodyEl.innerHTML = marked.parser(tokensForHtml);
+    enhanceMarkdownImages(bodyEl);
+    enhanceMarkdownTables(bodyEl);
+    if (window.hljs && bodyEl.querySelectorAll) {
+      bodyEl.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+    }
+    enhanceCodeCopy(bodyEl);
+    if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+      window.MathJax.typesetPromise([bodyEl]).catch(err => console.warn('幻灯 MathJax 渲染失败', err));
+    }
+    if (!bodyEl.dataset.slideshowLinksBound) {
+      bodyEl.addEventListener('click', handleSlideshowLinkClick);
+      bodyEl.dataset.slideshowLinksBound = '1';
+    }
+    // 手动处理标题 slug 与复制按钮，避免复用主预览的点击导航
+    const slugRegistry = Object.create(null);
+    bodyEl.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(heading => {
+      if (!(heading instanceof HTMLElement)) return;
+      const currentId = (heading.getAttribute('id') || '').trim();
+      const sourceText = heading.textContent ? heading.textContent.trim() : '';
+      const source = currentId || sourceText || '';
+      const slug = slugifyMarkdownHeading(source, slugRegistry);
+      if (!slug) return;
+      heading.id = slug;
+      heading.dataset.markdownHeadingId = slug;
+      attachHeadingCopyControl(heading);
+    });
+    if (headingToHighlight) {
+      highlightHeadingInContainer(bodyEl, headingToHighlight);
+    }
+  }
+
+  function renderLatexSlide(pageIdx, slideIdx, bodyEl, headerEl) {
+    if (!bodyEl) return;
+    const requestId = ++slideshowPdfRequestId;
+    bodyEl.innerHTML = '<div class="text-muted small">加载中...</div>';
+    let pdfUrl = '';
+    ensurePdfFresh(pageIdx)
+      .then(url => {
+        if (!url || requestId !== slideshowPdfRequestId) return null;
+        if (!window.pdfjsLib || typeof window.pdfjsLib.getDocument !== 'function') {
+          bodyEl.innerHTML = '<div class="text-muted small">pdf.js 未加载</div>';
+          return null;
+        }
+        pdfUrl = url;
+        const cached = latexDocCache.get(pageIdx);
+        if (cached && cached.url === url && cached.doc) {
+          return cached.doc;
+        }
+        const docPromise = pdfjsLib.getDocument(url).promise;
+        latexDocCache.set(pageIdx, {url, doc: docPromise});
+        return docPromise;
+      })
+      .then(pdf => {
+        if (!pdf || requestId !== slideshowPdfRequestId) return;
+        const total = pdf.numPages || 1;
+        latexPageDirty.delete(pageIdx);
+        latexSlideCounts.set(pageIdx, total);
+        latexDocCache.set(pageIdx, {url: pdfUrl || null, doc: pdf});
+        slideshowState.slideCount = Math.max(1, total);
+        slideshowState.slideIdx = Math.min(Math.max(slideIdx, 0), total - 1);
+        updateSlideshowChrome();
+        if (headerEl) {
+          const titleEl = headerEl.querySelector('.slideshow-card-title');
+          if (titleEl) {
+            const label = slideshowState.slideCount > 1 ? ` · 段 ${slideshowState.slideIdx + 1}/${slideshowState.slideCount}` : '';
+            titleEl.textContent = `第 ${pageIdx + 1} 页${label}`;
+          }
+        }
+        const targetPage = Math.min(Math.max(slideshowState.slideIdx, 0), total - 1) + 1;
+        return pdf.getPage(targetPage).then(page => {
+          if (!page || requestId !== slideshowPdfRequestId) return;
+          const viewport = page.getViewport({scale: 1});
+          const targetWidth = Math.max(bodyEl.clientWidth - 12, 320);
+          const scale = Math.min(2.4, Math.max(0.8, targetWidth / viewport.width));
+          const scaled = page.getViewport({scale});
+          const canvas = document.createElement('canvas');
+          canvas.width = scaled.width;
+          canvas.height = scaled.height;
+          canvas.className = 'pdf-page-canvas';
+          const ctx = canvas.getContext('2d');
+          bodyEl.innerHTML = '';
+          bodyEl.appendChild(canvas);
+          if (ctx) {
+            return page.render({canvasContext: ctx, viewport: scaled}).promise;
+          }
+        });
+      })
+      .catch(err => {
+        if (requestId !== slideshowPdfRequestId) return;
+        console.warn('幻灯 PDF 渲染失败', err);
+        bodyEl.innerHTML = '<div class="text-muted small">PDF 渲染失败</div>';
+      });
+  }
+
+  function renderSlideshowGrid() {
+    const els = getSlideshowElements();
+    if (!els.stage || !slideshowState.open) return;
+    const totalPages = Array.isArray(pagesData) ? pagesData.length : 0;
+    if (!totalPages) {
+      els.stage.innerHTML = '<div class="text-muted w-100 text-center my-4">暂无内容可展示</div>';
+      return;
+    }
+    slideshowState.pageIdx = Math.min(Math.max(slideshowState.pageIdx || 0, 0), Math.max(0, totalPages - 1));
+    currentPageIdx = slideshowState.pageIdx;
+    updatePageNumLabel();
+    const page = pagesData[slideshowState.pageIdx] || {};
+    const pendingHeading = (slideshowState.pendingHeading || '').trim().toLowerCase();
+    const card = document.createElement('div');
+    card.className = 'slideshow-card';
+    const header = document.createElement('div');
+    header.className = 'slideshow-card-header';
+    const title = document.createElement('div');
+    title.className = 'slideshow-card-title';
+    const slideLabel = slideshowState.slideCount > 1 ? ` · 段 ${Math.min(slideshowState.slideIdx + 1, slideshowState.slideCount)}/${slideshowState.slideCount}` : '';
+    title.textContent = `第 ${slideshowState.pageIdx + 1} 页${slideLabel}`;
+    const typePill = document.createElement('span');
+    typePill.className = 'slideshow-status-pill';
+    typePill.textContent = slideshowState.mode === 'latex' ? 'LaTeX' : 'Markdown';
+    header.appendChild(title);
+    header.appendChild(typePill);
+    const body = document.createElement('div');
+    body.className = 'slideshow-card-body';
+    card.appendChild(header);
+    card.appendChild(body);
+    els.stage.innerHTML = '';
+    els.stage.appendChild(card);
+
+    if (slideshowState.mode === 'markdown') {
+      const slices = buildMarkdownSlicesForPage(slideshowState.pageIdx);
+      const slideCount = Math.max(1, slices.length || 1);
+      slideshowState.slideCount = slideCount;
+      slideshowState.slideIdx = Math.min(Math.max(slideshowState.slideIdx || 0, 0), slideCount - 1);
+      const slice = slices[slideshowState.slideIdx] || null;
+      const highlight = pendingHeading && slice && slice.headings && slice.headings.some(h => (h.slug || '').toLowerCase() === pendingHeading) ? pendingHeading : '';
+      renderMarkdownSlide(slice, body, highlight);
+    } else {
+      const knownCount = latexSlideCounts.get(slideshowState.pageIdx) || slideshowState.slideCount || 1;
+      slideshowState.slideCount = Math.max(1, knownCount);
+      slideshowState.slideIdx = Math.min(Math.max(slideshowState.slideIdx || 0, 0), slideshowState.slideCount - 1);
+      renderLatexSlide(slideshowState.pageIdx, slideshowState.slideIdx, body, header);
+    }
+    slideshowState.pendingHeading = '';
+    updateSlideshowChrome();
+  }
+
+  function jumpToSlideshowTarget(target) {
+    if (!slideshowState.open || !target) return false;
+    const {mode} = slideshowState;
+    if (mode === 'markdown') {
+      let targetPage = resolveMarkdownTargetPageIndex(target);
+      if ((targetPage === null || targetPage === undefined) && target.headingId) {
+        targetPage = currentPageIdx;
+      }
+      if (targetPage === null || targetPage < 0 || targetPage >= pagesData.length) {
+        showStatus('未找到目标页面', 'warning', 2400);
+        return false;
+      }
+      const headingId = target.headingId || '';
+      const targetSlice = headingId ? findMarkdownSliceIndexForHeading(targetPage, headingId) : 0;
+      if (headingId && targetSlice === -1) {
+        showStatus('未找到目标段落', 'warning', 2400);
+        return false;
+      }
+      slideshowState.pageIdx = targetPage;
+      slideshowState.slideIdx = Math.max(0, targetSlice);
+      slideshowState.pendingHeading = headingId;
+      currentPageIdx = targetPage;
+      updatePageNumLabel();
+      renderSlideshowGrid();
+      return true;
+    }
+    let targetPage = resolveMarkdownTargetPageIndex(target);
+    if ((targetPage === null || targetPage === undefined) && target.headingId) {
+      targetPage = currentPageIdx;
+    }
+    if (targetPage === null || targetPage < 0 || targetPage >= pagesData.length) {
+      showStatus('未找到目标页面', 'warning', 2400);
+      return false;
+    }
+    currentPageIdx = targetPage;
+    updatePageNumLabel();
+    slideshowState.pageIdx = targetPage;
+    slideshowState.slideIdx = 0;
+    renderSlideshowGrid();
+    return true;
+  }
+
+  function handleSlideshowLinkClick(event) {
+    if (event.defaultPrevented) return;
+    if (event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const anchor = event.target.closest('a[href]');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+    const target = parseMarkdownInternalLink(href);
+    if (!target) return;
+    event.preventDefault();
+    jumpToSlideshowTarget(target);
+  }
+
+  function toggleFullscreenForOverlay(overlay) {
+    if (!overlay) return;
+    const isFull = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!isFull) {
+      if (overlay.requestFullscreen) overlay.requestFullscreen().catch(() => {});
+      else if (overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
+    }
+  }
+
+  function openSlideshowOverlay() {
+    const els = getSlideshowElements();
+    if (!els.overlay) return;
+    slideshowState.mode = currentEditMode === 'latex' ? 'latex' : 'markdown';
+    if (slideshowState.mode === 'markdown') {
+      applyMarkdownStyles();
+    }
+    slideshowState.originPage = currentPageIdx;
+    slideshowState.pageIdx = currentPageIdx;
+    slideshowState.slideIdx = 0;
+    slideshowState.slideCount = slideshowState.mode === 'markdown'
+      ? Math.max(1, buildMarkdownSlicesForPage(currentPageIdx).length || 1)
+      : (latexSlideCounts.get(currentPageIdx) || 1);
+    slideshowState.pendingHeading = '';
+    slideshowState.open = true;
+    els.overlay.classList.remove('d-none');
+    els.overlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('slideshow-open');
+    updateSlideshowChrome();
+    renderSlideshowGrid();
+    toggleFullscreenForOverlay(els.overlay);
+    const keyHandler = (event) => {
+      if (!slideshowState.open) return;
+      if (event.key === 'Escape') {
+        closeSlideshowOverlay();
+        return;
+      }
+      if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
+        event.preventDefault();
+        slideshowNext();
+      }
+      if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+        event.preventDefault();
+        slideshowPrev();
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        slideshowSlidePrev();
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        slideshowSlideNext();
+      }
+    };
+    window.addEventListener('keydown', keyHandler);
+    slideshowState.keyHandler = keyHandler;
+  }
+
+  function closeSlideshowOverlay() {
+    const els = getSlideshowElements();
+    if (els.overlay) {
+      els.overlay.classList.add('d-none');
+      els.overlay.setAttribute('aria-hidden', 'true');
+    }
+    document.body.classList.remove('slideshow-open');
+    slideshowState.open = false;
+    slideshowState.pendingHeading = '';
+    slideshowPdfRequestId += 1;
+    if (slideshowState.keyHandler) {
+      window.removeEventListener('keydown', slideshowState.keyHandler);
+      slideshowState.keyHandler = null;
+    }
+    if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  function slideshowPrev() {
+    if (!slideshowState.open) return;
+    const nextPage = Math.max(0, (slideshowState.pageIdx || 0) - 1);
+    slideshowState.pageIdx = nextPage;
+    slideshowState.slideIdx = 0;
+    slideshowState.slideCount = slideshowState.mode === 'markdown'
+      ? Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1)
+      : (latexSlideCounts.get(nextPage) || 1);
+    renderSlideshowGrid();
+  }
+
+  function slideshowNext() {
+    if (!slideshowState.open) return;
+    const totalPages = Array.isArray(pagesData) ? pagesData.length : 0;
+    const nextPage = Math.min(Math.max(totalPages - 1, 0), (slideshowState.pageIdx || 0) + 1);
+    slideshowState.pageIdx = nextPage;
+    slideshowState.slideIdx = 0;
+    slideshowState.slideCount = slideshowState.mode === 'markdown'
+      ? Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1)
+      : (latexSlideCounts.get(nextPage) || 1);
+    renderSlideshowGrid();
+  }
+
+  function slideshowSlidePrev() {
+    if (!slideshowState.open) return;
+    const count = Math.max(1, slideshowState.slideCount || 1);
+    const next = Math.max(0, (slideshowState.slideIdx || 0) - 1);
+    slideshowState.slideIdx = next;
+    slideshowState.slideCount = count;
+    renderSlideshowGrid();
+  }
+
+  function slideshowSlideNext() {
+    if (!slideshowState.open) return;
+    const count = Math.max(1, slideshowState.slideCount || 1);
+    const next = Math.min(count - 1, (slideshowState.slideIdx || 0) + 1);
+    slideshowState.slideIdx = next;
+    slideshowState.slideCount = count;
+    renderSlideshowGrid();
+  }
+
   function collectMarkdownLinkTargets(md, sourceIndex) {
     if (!md || !md.trim()) return [];
     let tokens;
@@ -9294,6 +9947,7 @@ function syncMarkdownEditorToPreview(container) {
       }
       return;
     }
+    latexPageDirty.add(currentPageIdx);
     if (compileTimer) clearTimeout(compileTimer);
     compileTimer = setTimeout(runCompile, delay);
   }
@@ -9633,9 +10287,21 @@ function syncMarkdownEditorToPreview(container) {
       const value = singleEditor.getValue();
       if (currentEditMode === 'markdown') {
         pagesData[currentPageIdx].notes = value;
+        markMarkdownPageDirty(currentPageIdx);
         renderMarkdownPreview();
+        if (slideshowState.open && slideshowState.mode === 'markdown') {
+          slideshowState.slideCount = Math.max(1, buildMarkdownSlicesForPage(currentPageIdx).length || 1);
+          slideshowState.slideIdx = Math.min(slideshowState.slideIdx || 0, slideshowState.slideCount - 1);
+          renderSlideshowGrid();
+        }
       } else {
         pagesData[currentPageIdx].content = value;
+        markLatexPageDirty(currentPageIdx);
+        if (slideshowState.open && slideshowState.mode === 'latex') {
+          slideshowState.slideIdx = 0;
+          slideshowState.slideCount = latexSlideCounts.get(currentPageIdx) || 1;
+          renderSlideshowGrid();
+        }
       }
       saveProject();
       queueCompile();
@@ -9711,6 +10377,7 @@ function syncMarkdownEditorToPreview(container) {
     if(pagesData.length <= 1) return;
     pagesData.splice(currentPageIdx, 1);
     if(currentPageIdx >= pagesData.length) currentPageIdx = pagesData.length - 1;
+    invalidateAllSlides();
     saveProject();
     renderSingleEditor();
     updatePageNumLabel();
@@ -9743,6 +10410,7 @@ function syncMarkdownEditorToPreview(container) {
         delete pageObj.id;
         return pageObj;
       });
+      invalidateAllSlides();
       currentPageIdx++;
       renderSingleEditor();
       updatePageNumLabel();
@@ -9807,6 +10475,23 @@ function syncMarkdownEditorToPreview(container) {
       }, 350);
     });
   }
+
+  const slideshowOpenBtn = document.getElementById('slideshow-open-btn');
+  if (slideshowOpenBtn) {
+    slideshowOpenBtn.addEventListener('click', () => {
+      if (!Array.isArray(pagesData) || !pagesData.length) {
+        showStatus('暂无页面可展示', 'warning', 2200);
+        return;
+      }
+      openSlideshowOverlay();
+    });
+  }
+  const slideshowEls = getSlideshowElements();
+  if (slideshowEls.pagePrevBtn) slideshowEls.pagePrevBtn.addEventListener('click', slideshowPrev);
+  if (slideshowEls.pageNextBtn) slideshowEls.pageNextBtn.addEventListener('click', slideshowNext);
+  if (slideshowEls.slidePrevBtn) slideshowEls.slidePrevBtn.addEventListener('click', slideshowSlidePrev);
+  if (slideshowEls.slideNextBtn) slideshowEls.slideNextBtn.addEventListener('click', slideshowSlideNext);
+  if (slideshowEls.exitBtn) slideshowEls.exitBtn.addEventListener('click', closeSlideshowOverlay);
 
   const modeSwitchBtn = document.getElementById('mode-switch-btn');
   if (modeSwitchBtn) {
@@ -10244,6 +10929,7 @@ function syncMarkdownEditorToPreview(container) {
           delete pageObj.id;
           return pageObj;
         });
+        invalidateAllSlides();
         if(pagesData.length === 0) pagesData = [{content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId()}];
         globalResources = Array.isArray(data.resources) ? data.resources.slice() : [];
         bibData = normalizeBibList(data.bib || []);
@@ -10751,6 +11437,13 @@ applyDefaultWorkspaceIfNeeded();
     const val = document.getElementById('ai-result').value;
     if(val) {
       pagesData[currentPageIdx].content = val;
+      markLatexPageDirty(currentPageIdx);
+      if (slideshowState.open && slideshowState.mode === 'latex') {
+        latexSlideCounts.delete(currentPageIdx);
+        slideshowState.slideIdx = 0;
+        slideshowState.slideCount = 1;
+        renderSlideshowGrid();
+      }
       renderSingleEditor();
       saveProject();
       queueCompile();
@@ -10823,10 +11516,16 @@ applyDefaultWorkspaceIfNeeded();
     const val = document.getElementById('ai-note-result').value;
     if(val) {
       pagesData[currentPageIdx].notes = val;
+      markMarkdownPageDirty(currentPageIdx);
       if(currentEditMode === 'markdown' && singleEditor) {
         singleEditor.setValue(val);
       }
       renderMarkdownPreview();
+      if (slideshowState.open && slideshowState.mode === 'markdown') {
+        slideshowState.slideCount = Math.max(1, buildMarkdownSlicesForPage(currentPageIdx).length || 1);
+        slideshowState.slideIdx = Math.min(slideshowState.slideIdx || 0, slideshowState.slideCount - 1);
+        renderSlideshowGrid();
+      }
       saveProject();
       queueCompile();
     }
@@ -13912,6 +14611,7 @@ applyDefaultWorkspaceIfNeeded();
     const preferredUrl = localUrl || ossUrl || f.preferredUrl || f.url || '';
     const hasLocal = !!localUrl && f.exists !== false ? true : !!localUrl;
     const hasRemote = !!ossUrl;
+    const isMissing = (!!f.missing) || (!hasLocal && !hasRemote);
     const name = document.createElement('a');
     name.href = preferredUrl || '#';
     name.textContent = displayName || resourcePath || '未命名资源';
@@ -13960,6 +14660,12 @@ applyDefaultWorkspaceIfNeeded();
       pathInfo.className = 'small text-muted text-break mt-1';
       pathInfo.textContent = resourcePath;
       left.appendChild(pathInfo);
+    }
+    if(isMissing){
+      const warn = document.createElement('div');
+      warn.className = 'text-warning small mt-1';
+      warn.textContent = '本地和云端均未找到文件，可重新上传或移除引用';
+      left.appendChild(warn);
     }
 
     if(workspaceIsCloud() && ossUrl){
@@ -14051,7 +14757,12 @@ applyDefaultWorkspaceIfNeeded();
         label: '重命名',
         icon: '✏️',
         variant: 'outline-secondary',
+        disabled: isMissing,
         onClick: () => {
+          if(isMissing){
+            alert('文件缺失，无法重命名。请重新上传或移除引用。');
+            return;
+          }
           if(!resourceRenameModalEl || !resourceRenameInput){
             alert('当前界面不支持重命名');
             return;
@@ -14536,6 +15247,7 @@ applyDefaultWorkspaceIfNeeded();
       badgeWrap.className = 'ms-2 d-inline-flex gap-1 flex-wrap align-items-center';
       const hasLocal = !!f.localUrl;
       const hasOss = !!f.ossUrl;
+      const isMissing = (!!f.missing) || (!hasLocal && !hasOss);
       if (hasLocal) {
         const b = document.createElement('span');
         b.className = 'tag-chip tag-chip--muted';
@@ -14555,6 +15267,12 @@ applyDefaultWorkspaceIfNeeded();
         badgeWrap.appendChild(b);
       }
       left.appendChild(badgeWrap);
+      if(isMissing){
+        const warn = document.createElement('div');
+        warn.className = 'text-warning small mt-1';
+        warn.textContent = '本地和云端均未找到文件，请重新上传或移除引用';
+        left.appendChild(warn);
+      }
 
       if(typeof f.refCount === 'number'){
         const usageBadge = document.createElement('span');

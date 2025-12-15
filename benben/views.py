@@ -502,12 +502,17 @@ def _workspace_asset_payload(workspace_id: str, asset: AssetRecord, package: Ben
         except Exception:
             target_handle = None
     is_cloud = getattr(target_handle, "mode", "") == "cloud"
-    has_local = True if not is_cloud else asset.metadata.get("hasLocal", True)
+    meta = asset.metadata if isinstance(asset.metadata, dict) else {}
+    has_local_flag = meta.get("hasLocal")
+    if has_local_flag is None:
+        has_local_flag = bool(asset.size)
+    has_local = bool(has_local_flag)
     url = _workspace_asset_url(workspace_id, asset) if has_local else None
     oss_meta = _asset_oss_info(asset)
     oss_url = oss_meta.get("url") if isinstance(oss_meta, dict) else None
     stub_url = _stub_oss_url(workspace_id, package, asset) if not oss_url else None
     preferred = oss_url or stub_url or url
+    missing = not has_local and not oss_url
     return {
         "name": asset.name,
         "path": asset.name,
@@ -517,6 +522,10 @@ def _workspace_asset_payload(workspace_id: str, asset: AssetRecord, package: Ben
         "assetId": asset.asset_id,
         "size": asset.size,
         "metadata": asset.metadata,
+        "local": has_local,
+        "remote": bool(oss_url),
+        "location": "missing" if missing else ("oss" if oss_url and not has_local else "workspace" if has_local else "mixed"),
+        "missing": missing,
     }
 
 
@@ -620,6 +629,9 @@ def _normalize_storage_choice(workspace_id: Optional[str], store_local: Optional
         # 云工作区默认不保留本地，可按需打开
         if store_local is None:
             local = default_local
+    if not local and not oss:
+        # 至少保留一份，避免数据丢失
+        local = True
     return bool(local), bool(oss)
 
 
@@ -926,12 +938,8 @@ def _mobile_upload_attachment_workspace(workspace_id: str, file_storage):
         handle = get_workspace(workspace_id)
     except Exception:
         handle = None
-    try:
-        handle = get_workspace(workspace_id)
-    except Exception:
-        handle = None
     oss_context = _workspace_oss_context(workspace_id, package) if store_oss else None
-    stored_data = data if store_local else b""
+    stored_data = data  # keep data until远程成功，防止丢失
     asset = package.save_or_replace_asset(
         name=filename,
         scope="attachment",
@@ -939,14 +947,17 @@ def _mobile_upload_attachment_workspace(workspace_id: str, file_storage):
         mime=mime,
         metadata=metadata,
     )
-    if not store_local:
-        _clear_asset_local_data(package, asset, handle=handle, workspace_id=workspace_id)
-    else:
-        _update_asset_local_flag(package, asset, True)
     url = _workspace_asset_url(workspace_id, asset)
     oss_meta = _oss_sync_asset(workspace_id, package, asset, data=data, context=oss_context) if oss_context else None
     oss_url = oss_meta.get("url") if isinstance(oss_meta, dict) else None
     stub_url = _stub_oss_url(workspace_id, package, asset) if not oss_url else None
+    if not store_local and oss_meta:
+        _clear_asset_local_data(package, asset, handle=handle, workspace_id=workspace_id)
+    else:
+        _update_asset_local_flag(package, asset, True)
+        if not store_local and not oss_meta:
+            url = _workspace_asset_url(workspace_id, asset)
+            store_local = True
     preferred_url = oss_url or stub_url or url
     attachments_info = [
         {
@@ -1081,7 +1092,12 @@ def update_attachment_storage():
     if store_local:
         _update_asset_local_flag(package, asset, True)
     else:
-        _clear_asset_local_data(package, asset, handle=handle, workspace_id=workspace_id)
+        if store_oss and oss_meta:
+            _clear_asset_local_data(package, asset, handle=handle, workspace_id=workspace_id)
+        else:
+            # 远程未成功，保留本地数据以免丢失
+            _update_asset_local_flag(package, asset, True)
+            store_local = True
     oss_url = oss_meta.get("url") if isinstance(oss_meta, dict) else None
     stub_url = _stub_oss_url(workspace_id, package, asset) if not oss_url else None
 
@@ -1137,7 +1153,11 @@ def update_resource_storage():
     if store_local:
         _update_asset_local_flag(package, asset, True)
     else:
-        _clear_asset_local_data(package, asset, handle=handle, workspace_id=workspace_id)
+        if store_oss and oss_meta:
+            _clear_asset_local_data(package, asset, handle=handle, workspace_id=workspace_id)
+        else:
+            _update_asset_local_flag(package, asset, True)
+            store_local = True
     oss_url = oss_meta.get("url") if isinstance(oss_meta, dict) else None
     stub_url = _stub_oss_url(workspace_id, package, asset) if not oss_url else None
 
@@ -1187,6 +1207,7 @@ def upload_attachment():
     for idx, file_storage in enumerate(files):
         if not file_storage or not file_storage.filename:
             continue
+        local_pref = store_local
         data = file_storage.read()
         if not data:
             continue
@@ -1195,8 +1216,8 @@ def upload_attachment():
         filename = "/".join(parts) if parts else _sanitize_attachment_name(file_storage.filename, prefix=f"file{idx+1}")
         mime = file_storage.mimetype or mimetypes.guess_type(filename)[0]
         metadata = _asset_metadata_from_upload(file_storage, data)
-        metadata["hasLocal"] = bool(store_local)
-        stored_data = data if store_local else b""
+        metadata["hasLocal"] = bool(local_pref)
+        stored_data = data  # 保留数据，待远程成功后再按需清理
         asset = package.save_or_replace_asset(
             name=filename,
             scope="attachment",
@@ -1204,21 +1225,23 @@ def upload_attachment():
             mime=mime,
             metadata=metadata,
         )
-        if not store_local:
-            _clear_asset_local_data(package, asset, handle=handle, workspace_id=workspace_id)
-        else:
-            _update_asset_local_flag(package, asset, True)
-        url = _workspace_asset_url(workspace_id, asset)
         oss_meta = _oss_sync_asset(workspace_id, package, asset, data=data, context=oss_context) if oss_context else None
         oss_url = oss_meta.get("url") if isinstance(oss_meta, dict) else None
         stub_url = _stub_oss_url(workspace_id, package, asset) if not oss_url else None
+        if not local_pref and oss_meta:
+            _clear_asset_local_data(package, asset, handle=handle, workspace_id=workspace_id)
+        else:
+            _update_asset_local_flag(package, asset, True)
+            if not local_pref and not oss_meta:
+                local_pref = True
+        url = _workspace_asset_url(workspace_id, asset)
         preferred = oss_url or stub_url or url
         markdown_ref = f"![{asset.asset_id}]({preferred})" if preferred else None
         uploads.append(
             {
                 "name": asset.name,
                 "filename": asset.name,
-                "localUrl": url if store_local else None,
+                "localUrl": url if local_pref else None,
                 "preferredUrl": preferred,
                 "url": preferred,
                 "ossUrl": oss_url,
@@ -3836,13 +3859,8 @@ def list_attachments():
         payload = _workspace_asset_payload(workspace_id, asset, package, handle=handle)
         name = asset.name
         refs = attachment_refs.get(name, [])
-        has_local = bool(payload.get("localUrl"))
-        has_oss = bool(payload.get("ossUrl"))
         payload.update(
             {
-                "local": has_local,
-                "remote": has_oss,
-                "location": "workspace" if has_local else ("oss" if has_oss else "missing"),
                 "refCount": len(refs),
                 "references": refs,
             }
@@ -4026,6 +4044,7 @@ def upload_resource():
     for idx, file_storage in enumerate(files):
         if not file_storage or file_storage.filename == '':
             continue
+        local_pref = store_local
         raw_path = paths_hint[idx] if idx < len(paths_hint) else file_storage.filename
         normalized_hint = _normalize_resource_path(raw_path or file_storage.filename)
         if not normalized_hint:
@@ -4043,8 +4062,8 @@ def upload_resource():
             continue
         mime = file_storage.mimetype or mimetypes.guess_type(rel_path)[0]
         metadata = _asset_metadata_from_upload(file_storage, data)
-        metadata["hasLocal"] = bool(store_local)
-        stored_data = data if store_local else b""
+        metadata["hasLocal"] = bool(local_pref)
+        stored_data = data  # 保留数据，远程成功后再清理
         asset = package.save_or_replace_asset(
             name=rel_path,
             scope='resource',
@@ -4052,10 +4071,13 @@ def upload_resource():
             mime=mime,
             metadata=metadata,
         )
-        if not store_local:
+        oss_meta = _oss_sync_asset(workspace_id, package, asset, data=data, context=oss_context) if oss_context else None
+        if not local_pref and oss_meta:
             _clear_asset_local_data(package, asset, handle=handle, workspace_id=workspace_id)
         else:
             _update_asset_local_flag(package, asset, True)
+            if not local_pref and not oss_meta:
+                local_pref = True
         scope_for_file = effective_scope
         page_idx = requested_page_idx if scope_for_file == 'page' else None
         if scope_for_file == 'page' and page_idx is not None:
@@ -4417,32 +4439,36 @@ def list_resources():
             normalized = _normalize_resource_path(name) or secure_filename(name) or name
             base = os.path.basename(normalized)
             asset = assets.get(normalized) or assets.get(base)
-            has_local_flag = bool(asset.metadata.get("hasLocal", True)) if asset else False
-            url = _workspace_asset_url(workspace_id, asset, filename=base) if asset and has_local_flag else ''
-            oss_meta = _asset_oss_info(asset) if asset else None
-            oss_url = oss_meta.get('url') if isinstance(oss_meta, dict) else None
-            stub_url = _stub_oss_url(workspace_id, package, asset) if asset and not oss_url else None
-            preferred = oss_url or stub_url or url
-            usage_entry = usage_map.get(normalized) or usage_map.get(base) or {'pages': set(), 'global': False}
-            pages_used = usage_entry['pages'] if isinstance(usage_entry.get('pages'), set) else set()
-            files.append(
-                {
+            if asset:
+                payload = _workspace_asset_payload(workspace_id, asset, package)
+            else:
+                payload = {
                     'name': base or normalized,
                     'path': normalized,
-                    'url': preferred,
-                    'preferredUrl': preferred,
-                    'localUrl': url,
-                    'ossUrl': oss_url,
-                    'exists': bool(url),
-                    'remote': bool(oss_url),
-                    'local': bool(url),
-                    'location': 'workspace' if url else ('oss' if oss_url else 'missing'),
+                    'preferredUrl': None,
+                    'localUrl': None,
+                    'ossUrl': None,
+                    'assetId': None,
+                    'size': 0,
+                    'metadata': {},
+                    'local': False,
+                    'remote': False,
+                    'location': 'missing',
+                    'missing': True,
+                }
+            usage_entry = usage_map.get(normalized) or usage_map.get(base) or {'pages': set(), 'global': False}
+            pages_used = usage_entry['pages'] if isinstance(usage_entry.get('pages'), set) else set()
+            payload.update(
+                {
+                    'url': payload.get('preferredUrl'),
+                    'exists': bool(payload.get('localUrl')),
                     'refCount': len(pages_used) + (1 if usage_entry.get('global') else 0),
                     'usedOnPages': sorted(idx + 1 for idx in pages_used),
                     'usedGlobally': bool(usage_entry.get('global')),
                     'otherPages': sorted(idx + 1 for idx in pages_used if page_idx is not None and idx != page_idx),
                 }
             )
+            files.append(payload)
         payload = {
             'files': files,
             'ossConfigured': oss_configured,
