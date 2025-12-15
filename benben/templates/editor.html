@@ -512,7 +512,8 @@
       height: 0;
     }
     /* markdown-sync-toggle 控制按钮外观/悬停, color 表示文字, padding 让触控区域更大 */
-    .markdown-sync-toggle {
+    .markdown-sync-toggle,
+    .latex-sync-toggle {
       border: none;
       background: transparent;
       color: var(--accent, #6366f1);
@@ -528,28 +529,36 @@
       transition: color 0.2s ease, opacity 0.2s ease, text-shadow 0.3s ease, transform 0.2s ease;
     }
     .markdown-sync-toggle:hover,
-    .markdown-sync-toggle:focus {
+    .markdown-sync-toggle:focus,
+    .latex-sync-toggle:hover,
+    .latex-sync-toggle:focus {
       opacity: 0.85;
       color: var(--accent-strong, #4f46e5);
       transform: scale(1.05);
     }
-    .markdown-sync-toggle:focus-visible {
+    .markdown-sync-toggle:focus-visible,
+    .latex-sync-toggle:focus-visible {
       outline: none;
       box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
     }
-    .markdown-sync-toggle.active {
+    .markdown-sync-toggle.active,
+    .latex-sync-toggle.active {
       color: var(--accent-strong, #2563eb);
       opacity: 0.95;
       text-shadow: 0 0 6px rgba(37, 99, 235, 0.4);
     }
-    body.theme-dark .markdown-sync-toggle {
+    body.theme-dark .markdown-sync-toggle,
+    body.theme-dark .latex-sync-toggle {
       color: #93c5fd;
     }
     body.theme-dark .markdown-sync-toggle:hover,
-    body.theme-dark .markdown-sync-toggle:focus {
+    body.theme-dark .markdown-sync-toggle:focus,
+    body.theme-dark .latex-sync-toggle:hover,
+    body.theme-dark .latex-sync-toggle:focus {
       color: #bfdbfe;
     }
-    body.theme-dark .markdown-sync-toggle.active {
+    body.theme-dark .markdown-sync-toggle.active,
+    body.theme-dark .latex-sync-toggle.active {
       color: #38bdf8;
       text-shadow: 0 0 8px rgba(56, 189, 248, 0.48);
     }
@@ -1003,7 +1012,8 @@
       resize: none;
     }
     /* .markdown-sync-glow 通过 box-shadow 实现同步提醒的发光效果 */
-    .markdown-sync-glow {
+    .markdown-sync-glow,
+    .latex-sync-glow {
       border-color: color-mix(in srgb, var(--accent, #2563eb) 70%, transparent) !important;
       box-shadow:
         0 0 16px color-mix(in srgb, var(--accent, #2563eb) 26%, transparent),
@@ -3576,6 +3586,16 @@
         </span>
         <span class="visually-hidden">同步预览</span>
       </button>
+      <button type="button" id="latex-sync-toggle" class="markdown-sync-toggle latex-sync-toggle" aria-label="切换 LaTeX 编辑器与预览的同步滚动" aria-pressed="false" style="display:none;">
+        <span aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 20 20" role="presentation" focusable="false">
+            <path d="M6.2 10a2.3 2.3 0 0 1 0-3.25l2.1-2.1a2.3 2.3 0 0 1 3.25 0c.9.9.9 2.35 0 3.25l-.9.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13.8 10a2.3 2.3 0 0 1 0 3.25l-2.1 2.1a2.3 2.3 0 0 1-3.25 0c-.9-.9-.9-2.35 0-3.25l.9-.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="8" y1="10" x2="12" y2="10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="visually-hidden">同步预览</span>
+      </button>
     </div>
 
     <div class="preview-pane">
@@ -4165,6 +4185,23 @@ function jumpToPage(targetIdx) {
     editorCMHandler: null,
     lastScrollLeader: '',
     previewLeaderTimer: null
+  };
+  const LATEX_SCROLL_THRESHOLD = 3;
+  const latexScrollSyncState = {
+    enabled: false,
+    button: null,
+    previewContainer: null,
+    previewHandler: null,
+    editorScroller: null,
+    editorScrollHandler: null,
+    editorCMHandler: null,
+    boundEditor: null,
+    isSyncingFromEditor: false,
+    isSyncingFromPreview: false,
+    rafPreview: 0,
+    rafEditor: 0,
+    pendingEditor: null,
+    lastScrollLeader: ''
   };
   let currentEditMode = 'markdown';
   let currentProject = '';
@@ -7912,6 +7949,209 @@ function syncMarkdownEditorToPreview(container) {
     updateMarkdownSyncVisualState();
   }
 
+  function syncLatexPreviewToEditor(editor) {
+    if (!latexScrollSyncState.enabled) return;
+    if (currentEditMode !== 'latex') return;
+    const cm = editor || latexScrollSyncState.boundEditor || singleEditor;
+    if (!cm) return;
+    const preview = latexScrollSyncState.previewContainer || document.getElementById('pdf-container');
+    if (!preview) return;
+    const scroller = latexScrollSyncState.editorScroller || resolveEditorScrollElement(cm);
+    if (!scroller) return;
+    const previewScrollable = Math.max(preview.scrollHeight - preview.clientHeight, 0);
+    if (previewScrollable <= 0) return;
+    const docScrollable = Math.max(scroller.scrollHeight - scroller.clientHeight, 0);
+    const ratio = docScrollable ? scroller.scrollTop / docScrollable : 0;
+    const targetTop = ratio * previewScrollable;
+    if (!Number.isFinite(targetTop)) return;
+    if (Math.abs(preview.scrollTop - targetTop) <= LATEX_SCROLL_THRESHOLD) return;
+    latexScrollSyncState.isSyncingFromEditor = true;
+    preview.scrollTop = targetTop;
+    latexScrollSyncState.lastScrollLeader = 'editor';
+    window.requestAnimationFrame(() => {
+      latexScrollSyncState.isSyncingFromEditor = false;
+    });
+  }
+
+  function scheduleLatexPreviewSync(editor) {
+    if (!latexScrollSyncState.enabled) return;
+    if (currentEditMode !== 'latex') return;
+    latexScrollSyncState.pendingEditor = editor || singleEditor || latexScrollSyncState.boundEditor;
+    if (latexScrollSyncState.rafPreview) return;
+    latexScrollSyncState.rafPreview = window.requestAnimationFrame(() => {
+      latexScrollSyncState.rafPreview = 0;
+      syncLatexPreviewToEditor(latexScrollSyncState.pendingEditor);
+      latexScrollSyncState.pendingEditor = null;
+    });
+  }
+
+  function syncLatexEditorToPreview(container) {
+    if (!latexScrollSyncState.enabled) return;
+    if (currentEditMode !== 'latex') return;
+    const preview = container || latexScrollSyncState.previewContainer || document.getElementById('pdf-container');
+    const editor = latexScrollSyncState.boundEditor || singleEditor;
+    if (!preview || !editor) return;
+    const scroller = latexScrollSyncState.editorScroller || resolveEditorScrollElement(editor);
+    if (!scroller) return;
+    const docScrollable = Math.max(scroller.scrollHeight - scroller.clientHeight, 0);
+    const previewScrollable = Math.max(preview.scrollHeight - preview.clientHeight, 0);
+    if (docScrollable <= 0) return;
+    const ratio = previewScrollable ? preview.scrollTop / previewScrollable : 0;
+    const targetTop = ratio * docScrollable;
+    if (!Number.isFinite(targetTop)) return;
+    if (Math.abs(scroller.scrollTop - targetTop) <= LATEX_SCROLL_THRESHOLD) return;
+    latexScrollSyncState.isSyncingFromPreview = true;
+    scroller.scrollTop = targetTop;
+    if (typeof editor.scrollTo === 'function') {
+      editor.scrollTo(null, targetTop);
+    }
+    latexScrollSyncState.lastScrollLeader = 'preview';
+    window.requestAnimationFrame(() => {
+      latexScrollSyncState.isSyncingFromPreview = false;
+    });
+  }
+
+  function scheduleLatexEditorSync() {
+    if (!latexScrollSyncState.enabled) return;
+    if (currentEditMode !== 'latex') return;
+    if (latexScrollSyncState.rafEditor) return;
+    latexScrollSyncState.rafEditor = window.requestAnimationFrame(() => {
+      latexScrollSyncState.rafEditor = 0;
+      syncLatexEditorToPreview(latexScrollSyncState.previewContainer);
+    });
+  }
+
+  function bindLatexEditorScrollSync(editor) {
+    if (latexScrollSyncState.editorScroller && latexScrollSyncState.editorScrollHandler) {
+      latexScrollSyncState.editorScroller.removeEventListener('scroll', latexScrollSyncState.editorScrollHandler);
+    }
+    if (latexScrollSyncState.boundEditor && typeof latexScrollSyncState.boundEditor.off === 'function' && latexScrollSyncState.editorCMHandler) {
+      latexScrollSyncState.boundEditor.off('scroll', latexScrollSyncState.editorCMHandler);
+    }
+    latexScrollSyncState.editorScroller = null;
+    latexScrollSyncState.editorScrollHandler = null;
+    latexScrollSyncState.editorCMHandler = null;
+    latexScrollSyncState.boundEditor = null;
+
+    if (!editor) return;
+    const scroller = resolveEditorScrollElement(editor);
+    if (!scroller) return;
+    const handler = () => {
+      if (!latexScrollSyncState.enabled) return;
+      if (currentEditMode !== 'latex') return;
+      if (latexScrollSyncState.isSyncingFromPreview) return;
+      latexScrollSyncState.lastScrollLeader = 'editor';
+      scheduleLatexPreviewSync(editor);
+    };
+    scroller.addEventListener('scroll', handler, {passive: true});
+    if (typeof editor.on === 'function') {
+      editor.on('scroll', handler);
+    }
+    latexScrollSyncState.editorScroller = scroller;
+    latexScrollSyncState.editorScrollHandler = handler;
+    latexScrollSyncState.editorCMHandler = handler;
+    latexScrollSyncState.boundEditor = editor;
+
+    if (latexScrollSyncState.enabled && currentEditMode === 'latex') {
+      scheduleLatexPreviewSync(editor);
+    }
+  }
+
+  function bindLatexPreviewScrollSync(container) {
+    if (latexScrollSyncState.previewContainer && latexScrollSyncState.previewHandler) {
+      latexScrollSyncState.previewContainer.removeEventListener('scroll', latexScrollSyncState.previewHandler);
+    }
+    latexScrollSyncState.previewContainer = null;
+    latexScrollSyncState.previewHandler = null;
+    if (!container) return;
+    const handler = () => {
+      if (!latexScrollSyncState.enabled) return;
+      if (currentEditMode !== 'latex') return;
+      if (latexScrollSyncState.isSyncingFromEditor) return;
+      latexScrollSyncState.lastScrollLeader = 'preview';
+      scheduleLatexEditorSync();
+    };
+    container.addEventListener('scroll', handler, {passive: true});
+    latexScrollSyncState.previewContainer = container;
+    latexScrollSyncState.previewHandler = handler;
+  }
+
+  function shouldShowLatexSyncToggle() {
+    if (typeof window === 'undefined') return false;
+    if (currentEditMode !== 'latex') return false;
+    const previewPane = document.querySelector('.preview-pane');
+    if (!previewPane) return false;
+    const style = window.getComputedStyle(previewPane);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    const rect = previewPane.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return false;
+    const pdfContainer = document.getElementById('pdf-container');
+    if (!pdfContainer || pdfContainer.classList.contains('d-none')) return false;
+    const pdfRect = pdfContainer.getBoundingClientRect();
+    if (pdfRect.width <= 0 || pdfRect.height <= 0) return false;
+    return true;
+  }
+
+  function updateLatexSyncVisualState() {
+    const showToggle = shouldShowLatexSyncToggle();
+    const button = latexScrollSyncState.button || document.getElementById('latex-sync-toggle');
+    if (button) {
+      latexScrollSyncState.button = button;
+      const isEnabled = !!latexScrollSyncState.enabled;
+      button.classList.toggle('active', isEnabled);
+      button.setAttribute('aria-pressed', isEnabled ? 'true' : 'false');
+      const label = isEnabled ? '已启用 LaTeX 同步滚动，点击可关闭' : '点击启用 LaTeX 与预览同步滚动';
+      button.setAttribute('title', label);
+      button.setAttribute('aria-label', label);
+      button.style.display = showToggle ? '' : 'none';
+      button.disabled = !showToggle;
+    }
+    const shouldGlow = !!latexScrollSyncState.enabled && currentEditMode === 'latex' && showToggle;
+    const editorContainer = document.getElementById('editor-container');
+    const pdfContainer = document.getElementById('pdf-container');
+    [editorContainer, pdfContainer].forEach(el => {
+      if (!el) return;
+      el.classList.toggle('latex-sync-glow', shouldGlow);
+    });
+  }
+
+  function setLatexScrollSyncEnabled(enabled) {
+    const normalized = !!enabled;
+    if (latexScrollSyncState.enabled === normalized) {
+      updateLatexSyncVisualState();
+      if (normalized && currentEditMode === 'latex' && singleEditor) {
+        scheduleLatexPreviewSync(singleEditor);
+      }
+      return;
+    }
+    latexScrollSyncState.enabled = normalized;
+    updateLatexSyncVisualState();
+    if (normalized && currentEditMode === 'latex' && singleEditor) {
+      scheduleLatexPreviewSync(singleEditor);
+    } else {
+      latexScrollSyncState.lastScrollLeader = '';
+    }
+  }
+
+  function toggleLatexScrollSync() {
+    setLatexScrollSyncEnabled(!latexScrollSyncState.enabled);
+  }
+
+  function initLatexScrollSyncToggle() {
+    const button = document.getElementById('latex-sync-toggle');
+    if (!button || button.dataset.syncToggleBound === '1') {
+      updateLatexSyncVisualState();
+      return;
+    }
+    latexScrollSyncState.button = button;
+    button.dataset.syncToggleBound = '1';
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      toggleLatexScrollSync();
+    });
+    updateLatexSyncVisualState();
+  }
+
   function resolveAttachmentHref(rawHref) {
     if (!rawHref || typeof rawHref !== 'string') return null;
     let href = rawHref.trim();
@@ -9086,15 +9326,18 @@ function syncMarkdownEditorToPreview(container) {
     if (currentEditMode === 'latex') {
       pdfContainer?.classList.remove('d-none');
       markdownContainer?.classList.add('d-none');
+      bindLatexPreviewScrollSync(pdfContainer);
       loadCurrentPagePDF();
     } else {
       pdfContainer?.classList.add('d-none');
       markdownContainer?.classList.remove('d-none');
+      bindLatexPreviewScrollSync(null);
       renderMarkdownPreview();
     }
     updateModeToggleUI();
     syncPaneHeights();
     updateMarkdownSyncVisualState();
+    updateLatexSyncVisualState();
   }
 
   function setEditMode(mode) {
@@ -9109,9 +9352,11 @@ function syncMarkdownEditorToPreview(container) {
   window.addEventListener('resize', () => {
     syncPaneHeights();
     updateMarkdownSyncVisualState();
+    updateLatexSyncVisualState();
   });
   requestAnimationFrame(syncPaneHeights);
   initMarkdownScrollSyncToggle();
+  initLatexScrollSyncToggle();
   
   function renderTabsModal() {
     const tabs = document.getElementById('page-tabs');
@@ -9386,6 +9631,7 @@ function syncMarkdownEditorToPreview(container) {
       queueCompile();
     });
     bindMarkdownEditorScrollSync(singleEditor);
+    bindLatexEditorScrollSync(singleEditor);
     const scriptInput = document.getElementById('page-script');
     scriptInput.value = page.script || '';
     updateModeToggleUI();
@@ -10091,6 +10337,9 @@ function syncMarkdownEditorToPreview(container) {
         renderMessage('PDF 渲染失败', requestId);
         return;
       }
+    }
+    if (requestId === currentPdfRequestId) {
+      scheduleLatexPreviewSync(singleEditor);
     }
   }
 
