@@ -148,6 +148,51 @@ for _callout_name in ("info", "tip", "warning"):
         render=_build_markdown_callout_renderer(_callout_name),
     )
 
+
+def _parse_qa_info(info: str) -> tuple[str, bool]:
+    """Extract question text and collapsed flag from :::qa info."""
+
+    raw = (info or "").strip()
+    if raw.lower().startswith("qa"):
+        raw = raw[2:].strip()
+    collapsed = bool(re.search(r"\b(collapse|fold|hide)\b", raw, re.IGNORECASE))
+    question_part = raw
+    if "|" in raw:
+        question_part, _, _options = raw.partition("|")
+    elif collapsed:
+        question_part = re.sub(r"\b(collapse|fold|hide)\b", "", raw, flags=re.IGNORECASE)
+    question = question_part.strip()
+    return question, collapsed
+
+
+def _build_markdown_qa_renderer():
+    """Render :::qa Question | collapse blocks into Q/A cards."""
+
+    def _render(tokens, idx, _options, _env):
+        info = tokens[idx].info if hasattr(tokens[idx], "info") else ""
+        question, collapsed = _parse_qa_info(info)
+        question_html = escapeHtml(question or "问题")
+        if tokens[idx].nesting == 1:
+            if collapsed:
+                return (
+                    '<details class="markdown-qa collapsed">'
+                    '<summary><span class="markdown-qa-label">Q</span>'
+                    f'<span class="markdown-qa-question">{question_html}</span>'
+                    '<span class="markdown-qa-toggle">查看答案</span></summary>'
+                    '<div class="markdown-qa-answer">'
+                )
+            return (
+                '<div class="markdown-qa">'
+                '<div class="markdown-qa-question">'
+                f'<span class="markdown-qa-label">Q</span><span class="markdown-qa-question-text">{question_html}</span>'
+                "</div>"
+                '<div class="markdown-qa-answer">'
+            )
+        return "</div></details>\n" if collapsed else "</div></div>\n"
+
+    return _render
+
+
 # 渲染图片网格的容器渲染器：用于处理 :::img-2 / :::img-2v / :::img-4
 def _build_image_grid_renderer(layout: str):
     """Return a renderer that wraps a container into an image grid wrapper.
@@ -180,10 +225,38 @@ def _build_image_grid_renderer(layout: str):
     return _render
 
 
+def _build_media_renderer(kind: str):
+    """Render :::audio / :::video blocks into semantic figure + media tag."""
+
+    def _render(tokens, idx, _options, _env):
+        if tokens[idx].nesting == 1:
+            info = tokens[idx].info.strip()
+            src = info[len(kind) :].strip()
+            tag = "video" if kind == "video" else "audio"
+            attrs = ' controls preload="metadata"'
+            if tag == "video":
+                attrs += ' playsinline'
+            media_tag = (
+                f'<{tag} src="{escapeHtml(src)}"{attrs}></{tag}>'
+                if src
+                else f"<{tag}{attrs}></{tag}>"
+            )
+            return f'<figure class="markdown-media {kind}">{media_tag}<div class="markdown-media-caption">'
+        return "</div></figure>\n"
+
+    return _render
+
+
 # 注册三个图片网格容器
 _MARKDOWN_RENDERER.use(container_plugin, "img-2", render=_build_image_grid_renderer("two-col"))
 _MARKDOWN_RENDERER.use(container_plugin, "img-2v", render=_build_image_grid_renderer("two-vertical"))
 _MARKDOWN_RENDERER.use(container_plugin, "img-4", render=_build_image_grid_renderer("four-grid"))
+_MARKDOWN_RENDERER.use(container_plugin, "img-scroll", render=_build_image_grid_renderer("rail"))
+_MARKDOWN_RENDERER.use(container_plugin, "qa", render=_build_markdown_qa_renderer())
+
+# 媒体容器：提供 ::audio / :::video 语法
+_MARKDOWN_RENDERER.use(container_plugin, "audio", render=_build_media_renderer("audio"))
+_MARKDOWN_RENDERER.use(container_plugin, "video", render=_build_media_renderer("video"))
 
 # 通用展示块容器渲染器（自建语法）
 def _build_simple_block_renderer(css_class: str):
@@ -261,6 +334,13 @@ body.markdown-export video {
 }
 .markdown-export-toc a:hover { text-decoration: underline; }
 /* === 自建展示样式（用于导出） === */
+.markdown-img-grid { display: grid; gap: 14px; margin: 18px 0; align-items: center; }
+.markdown-img-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(180px, auto); }
+.markdown-img-grid.two-vertical { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(220px, 1fr); }
+.markdown-img-grid.four-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(180px, 1fr); }
+.markdown-img-grid.rail { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 32vw); overflow-x: auto; gap: 12px; padding: 6px 4px; scroll-snap-type: x mandatory; }
+.markdown-img-grid img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; box-shadow: 0 12px 30px rgba(15,23,42,0.14); scroll-snap-align: start; }
+.markdown-img-grid.four-grid img { aspect-ratio: 1 / 1; }
 .markdown-kpi { display: flex; gap: 18px; flex-wrap: wrap; }
 .markdown-kpi > * { flex: 1 1 180px; padding: 12px; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .markdown-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -272,6 +352,22 @@ body.markdown-export video {
 .markdown-banner { padding: 18px; border-radius:8px; background: color-mix(in srgb, var(--bs-primary) 8%, transparent); }
 .markdown-notes { font-size: 0.9rem; color: #6b7280; font-style: italic; border-left: 3px solid rgba(0,0,0,0.06); padding: 10px 12px; background: rgba(0,0,0,0.02); }
 .markdown-code-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items:start; }
+.markdown-qa { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 12px; padding: 12px 14px; margin: 1.1rem 0; background: color-mix(in srgb, currentColor 6%, transparent); box-shadow: 0 10px 26px rgba(15,23,42,0.08); }
+.markdown-qa .markdown-qa-label { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%; background: color-mix(in srgb, currentColor 18%, transparent); font-weight: 700; font-size: 0.85rem; }
+.markdown-qa .markdown-qa-question { font-weight: 650; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.markdown-qa .markdown-qa-question-text { display: inline; }
+.markdown-qa .markdown-qa-answer > :first-child { margin-top: 0; }
+.markdown-qa .markdown-qa-answer > :last-child { margin-bottom: 0; }
+details.markdown-qa { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 12px; padding: 10px 12px; margin: 1.1rem 0; background: color-mix(in srgb, currentColor 4%, transparent); box-shadow: 0 10px 26px rgba(15,23,42,0.08); }
+details.markdown-qa[open] { background: color-mix(in srgb, currentColor 8%, transparent); }
+details.markdown-qa summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 650; list-style: none; }
+details.markdown-qa summary::-webkit-details-marker { display: none; }
+details.markdown-qa .markdown-qa-toggle { margin-left: auto; font-size: 0.9rem; color: color-mix(in srgb, currentColor 70%, transparent); }
+details.markdown-qa .markdown-qa-answer { margin-top: 10px; }
+.markdown-media { margin: 1rem 0; border-radius: 12px; background: color-mix(in srgb, currentColor 6%, transparent); padding: 12px; box-shadow: 0 10px 28px rgba(15,23,42,0.08); }
+.markdown-media audio, .markdown-media video { width: 100%; display: block; border-radius: 10px; outline: none; background: #000; }
+.markdown-media video { max-height: min(420px, 48vh); object-fit: contain; }
+.markdown-media .markdown-media-caption { margin-top: 8px; font-size: 0.95rem; color: rgba(0,0,0,0.7); }
 
 """
 

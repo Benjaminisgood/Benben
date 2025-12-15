@@ -1652,20 +1652,37 @@
     }
     .markdown-img-grid.two-col {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: minmax(180px, auto);
     }
     .markdown-img-grid.two-vertical {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: minmax(220px, 1fr);
     }
     .markdown-img-grid.four-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: minmax(180px, 1fr);
+    }
+    .markdown-img-grid.rail {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(220px, 32vw);
+      overflow-x: auto;
+      gap: 12px;
+      padding: 6px 4px;
+      scroll-snap-type: x mandatory;
     }
     .markdown-img-grid img {
       width: 100%;
-      height: auto;
+      height: 100%;
+      object-fit: cover;
       border-radius: 0.6rem;
       box-shadow: 0 12px 36px rgba(15,23,42,0.12);
       display: block;
       margin: 0;
+      scroll-snap-align: start;
+    }
+    .markdown-img-grid.four-grid img {
+      aspect-ratio: 1 / 1;
     }
 
 
@@ -1682,6 +1699,22 @@
     .markdown-banner { padding:12px; border-radius:8px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
     .markdown-notes { font-size:0.9rem; color:var(--preview-muted); font-style:italic; border-left:3px solid rgba(0,0,0,0.06); padding:8px 10px; background: rgba(0,0,0,0.02); }
     .markdown-code-split { display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start; }
+    .markdown-qa { border:1px solid color-mix(in srgb, var(--preview-text, #111827) 18%, transparent); border-radius:12px; padding:12px 14px; margin:1.1rem 0; background: color-mix(in srgb, var(--preview-text, #111827) 6%, transparent); box-shadow:0 10px 26px rgba(15,23,42,0.08); }
+    .markdown-qa .markdown-qa-label { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; margin-right:8px; border-radius:50%; background: color-mix(in srgb, var(--preview-text, #111827) 18%, transparent); font-weight:700; font-size:0.85rem; }
+    .markdown-qa .markdown-qa-question { font-weight:650; display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .markdown-qa .markdown-qa-question-text { display:inline; }
+    .markdown-qa .markdown-qa-answer > :first-child { margin-top:0; }
+    .markdown-qa .markdown-qa-answer > :last-child { margin-bottom:0; }
+    details.markdown-qa { border:1px solid color-mix(in srgb, var(--preview-text, #111827) 18%, transparent); border-radius:12px; padding:10px 12px; margin:1.1rem 0; background: color-mix(in srgb, var(--preview-text, #111827) 4%, transparent); box-shadow:0 10px 26px rgba(15,23,42,0.08); }
+    details.markdown-qa[open] { background: color-mix(in srgb, var(--preview-text, #111827) 8%, transparent); }
+    details.markdown-qa summary { display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:650; list-style:none; }
+    details.markdown-qa summary::-webkit-details-marker { display:none; }
+    details.markdown-qa .markdown-qa-toggle { margin-left:auto; font-size:0.9rem; color: color-mix(in srgb, var(--preview-muted) 100%, transparent); }
+    details.markdown-qa .markdown-qa-answer { margin-top:10px; }
+    .markdown-media { margin: 1rem 0; border-radius: 12px; background: color-mix(in srgb, var(--preview-text, #111827) 6%, transparent); padding: 12px; box-shadow: 0 10px 28px rgba(15,23,42,0.08); }
+    .markdown-media audio, .markdown-media video { width: 100%; display: block; border-radius: 10px; outline: none; background: #000; }
+    .markdown-media video { max-height: min(420px, 48vh); object-fit: contain; }
+    .markdown-media .markdown-media-caption { margin-top: 8px; font-size: 0.95rem; color: var(--preview-muted); }
 
 
 
@@ -4051,6 +4084,176 @@
     marked.use({ extensions: [calloutExtension] });
   })();
 
+  (function registerMarkdownMediaBlocks() {
+    const MEDIA_HINT = /:::(audio|video)/i;
+    const MEDIA_BLOCK = /^:::(audio|video)(?:[^\S\r\n]+([^\n]+))?\r?\n([\s\S]+?)\r?\n:::(?:[^\S\r\n]*(?=\r?\n|$))/i;
+    const mediaExtension = {
+      name: 'markdownMedia',
+      level: 'block',
+      start(src) {
+        const match = src.match(MEDIA_HINT);
+        return match ? match.index : undefined;
+      },
+      tokenizer(src) {
+        const match = MEDIA_BLOCK.exec(src);
+        if (!match) return undefined;
+        const body = match[3] || '';
+        const tokens = (this.lexer && typeof this.lexer.blockTokens === 'function')
+          ? this.lexer.blockTokens(body, [])
+          : marked.lexer(body);
+        return {
+          type: 'markdownMedia',
+          raw: match[0],
+          mediaType: match[1].toLowerCase(),
+          mediaSrc: (match[2] || '').trim(),
+          text: body,
+          tokens
+        };
+      },
+      renderer(token) {
+        const type = token.mediaType === 'video' ? 'video' : 'audio';
+        const tag = type === 'video' ? 'video' : 'audio';
+        const attrs = tag === 'video' ? ' controls playsinline preload="metadata"' : ' controls preload="metadata"';
+        const src = token.mediaResolved || token.mediaSrc || '';
+        const mediaTag = src
+          ? `<${tag} src="${escapeHtml(src)}"${attrs}></${tag}>`
+          : `<${tag}${attrs}></${tag}>`;
+        const innerTokens = Array.isArray(token.tokens) ? token.tokens : [];
+        const innerHtml = innerTokens.length ? marked.parser(innerTokens) : '';
+        const caption = innerHtml ? `<div class="markdown-media-caption">${innerHtml}</div>` : '';
+        return `<figure class="markdown-media ${type}">${mediaTag}${caption}</figure>`;
+      }
+    };
+    marked.use({extensions: [mediaExtension]});
+  })();
+
+  (function registerMarkdownQABlocks() {
+    const QA_HINT = /:::qa/i;
+    const QA_BLOCK = /^:::qa([^\n]*)\r?\n([\s\S]+?)\r?\n:::(?:[^\S\r\n]*(?=\r?\n|$))/i;
+    function splitBody(body, questionFromInfo) {
+      const lines = (body || '').split(/\r?\n/);
+      let question = questionFromInfo || '';
+      let answerLines = [];
+      if (!question) {
+        const first = lines[0] ? lines[0].trim() : '';
+        if (/^(\\?|q:)/i.test(first)) {
+          question = first.replace(/^(\\?|q:)\s*/i, '').trim();
+          answerLines = lines.slice(1);
+        }
+      }
+      if (!question) {
+        question = '';
+      }
+      if (!answerLines.length) {
+        answerLines = lines;
+      }
+      const answer = answerLines.join('\n').replace(/^(!|a:)\s*/i, '');
+      return {question, answer};
+    }
+    function parseInfo(infoRaw) {
+      let raw = (infoRaw || '').trim();
+      const collapsed = /\b(collapse|fold|hide)\b/i.test(raw);
+      raw = raw.replace(/\|\s*(collapse|fold|hide)\b.*$/i, '');
+      raw = raw.replace(/\b(collapse|fold|hide)\b/ig, '');
+      const question = raw.trim();
+      return {question, collapsed};
+    }
+    const qaExtension = {
+      name: 'markdownQA',
+      level: 'block',
+      start(src) {
+        const match = src.match(QA_HINT);
+        return match ? match.index : undefined;
+      },
+      tokenizer(src) {
+        const match = QA_BLOCK.exec(src);
+        if (!match) return undefined;
+        const {question, collapsed} = parseInfo(match[1] || '');
+        const body = match[2] || '';
+        const split = splitBody(body, question);
+        const answerTokens = (this.lexer && typeof this.lexer.blockTokens === 'function')
+          ? this.lexer.blockTokens(split.answer, [])
+          : marked.lexer(split.answer);
+        return {
+          type: 'markdownQA',
+          raw: match[0],
+          question: split.question || question,
+          collapsed,
+          text: split.answer,
+          tokens: answerTokens
+        };
+      },
+      renderer(token) {
+        const qHtml = token.question ? marked.parseInline(token.question) : '问题';
+        const answerTokens = Array.isArray(token.tokens) ? token.tokens : [];
+        const answerHtml = answerTokens.length ? marked.parser(answerTokens) : '';
+        if (token.collapsed) {
+          return `<details class="markdown-qa collapsed"><summary><span class="markdown-qa-label">Q</span><span class="markdown-qa-question">${qHtml}</span><span class="markdown-qa-toggle">查看答案</span></summary><div class="markdown-qa-answer">${answerHtml}</div></details>`;
+        }
+        return `<div class="markdown-qa"><div class="markdown-qa-question"><span class="markdown-qa-label">Q</span><span class="markdown-qa-question-text">${qHtml}</span></div><div class="markdown-qa-answer">${answerHtml}</div></div>`;
+      }
+    };
+    marked.use({extensions: [qaExtension]});
+  })();
+
+  (function registerMarkdownContainers() {
+    const SUPPORTED = {
+      'img-2': 'markdown-img-grid two-col',
+      'img-2v': 'markdown-img-grid two-vertical',
+      'img-4': 'markdown-img-grid four-grid',
+      'img-scroll': 'markdown-img-grid rail',
+      'kpi': 'markdown-kpi',
+      'cols': 'markdown-cols',
+      'features': 'markdown-features',
+      'cover': 'markdown-cover',
+      'divider': 'markdown-divider',
+      'banner': 'markdown-banner',
+      'notes': 'markdown-notes',
+      'code-split': 'markdown-code-split'
+    };
+    const HINT_RE = new RegExp(':::(' + Object.keys(SUPPORTED).join('|') + ')', 'i');
+    const START_RE = new RegExp('^:::(' + Object.keys(SUPPORTED).join('|') + ')[^\\S\\r\\n]*\\r?\\n', 'i');
+    const END_RE = /^:::\s*(?=\r?\n|$)/m;
+    const containerExtension = {
+      name: 'markdownContainer',
+      level: 'block',
+      start(src) {
+        const match = src.match(HINT_RE);
+        return match ? match.index : undefined;
+      },
+      tokenizer(src) {
+        const start = START_RE.exec(src);
+        if (!start) return undefined;
+        const type = (start[1] || '').toLowerCase();
+        if (!SUPPORTED[type]) return undefined;
+        const body = src.slice(start[0].length);
+        const end = END_RE.exec(body);
+        if (!end) return undefined;
+        const content = body.slice(0, end.index);
+        const raw = src.slice(0, start[0].length + end.index + end[0].length);
+        const tokens = (this.lexer && typeof this.lexer.blockTokens === 'function')
+          ? this.lexer.blockTokens(content, [])
+          : marked.lexer(content);
+        return {
+          type: 'markdownContainer',
+          raw,
+          containerType: type,
+          text: content,
+          tokens
+        };
+      },
+      renderer(token) {
+        const cls = SUPPORTED[token.containerType] || '';
+        const innerTokens = Array.isArray(token.tokens) ? token.tokens : [];
+        const innerHtml = (this.parser && typeof this.parser.parse === 'function')
+          ? this.parser.parse(innerTokens)
+          : marked.parser(innerTokens);
+        return cls ? `<div class="${cls}">${innerHtml}</div>` : innerHtml;
+      }
+    };
+    marked.use({extensions: [containerExtension]});
+  })();
+
   function escapeHtml(text) {
     if (text === null || text === undefined) return '';
     return String(text).replace(/[&<"'>]/g, function(ch) {
@@ -4454,7 +4657,7 @@ function jumpToPage(targetIdx) {
 
   let currentPageIdx = 0;
   let singleEditor = null;
-  const MARKDOWN_SCROLL_BLOCK_TYPES = new Set(['heading', 'paragraph', 'code', 'blockquote', 'list', 'table', 'hr', 'html']);
+  const MARKDOWN_SCROLL_BLOCK_TYPES = new Set(['heading', 'paragraph', 'code', 'blockquote', 'list', 'table', 'hr', 'html', 'markdownContainer', 'markdownCallout', 'markdownMedia', 'markdownQA']);
   const MARKDOWN_SCROLL_THRESHOLD = 3; // px tolerance to avoid jitter when syncing
   const MARKDOWN_HEADING_TYPES = new Set(['heading']);
   const markdownScrollSyncState = {
@@ -8571,6 +8774,11 @@ function syncMarkdownEditorToPreview(container) {
           token.href = direct;
           token.src = direct;
         }
+      }
+      if (token.type === 'markdownMedia') {
+        const rawSrc = (token.mediaResolved || token.mediaSrc || '').trim();
+        const resolved = resolveAttachmentHref(rawSrc) || rawSrc;
+        token.mediaResolved = resolved;
       }
       if (Array.isArray(token.tokens)) {
         token.tokens.forEach(visit);

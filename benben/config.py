@@ -294,6 +294,202 @@ FALLBACK_MARKDOWN_TEMPLATE: dict[str, str] = {
         body.theme-dark .markdown-note .markdown-callout.warning .markdown-callout-title {
           color: #fde68a;
         }
+        /* === 自建布局组件（与前端/导出保持一致） === */
+        .markdown-note .markdown-img-grid {
+          display: grid;
+          gap: clamp(8px, 1vw, 14px);
+          margin: 1.25rem 0;
+          align-items: center;
+        }
+        .markdown-note .markdown-img-grid.two-col {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-auto-rows: minmax(180px, auto);
+        }
+        .markdown-note .markdown-img-grid.two-vertical {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-auto-rows: minmax(220px, 1fr);
+        }
+        .markdown-note .markdown-img-grid.four-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-auto-rows: minmax(180px, 1fr);
+        }
+        .markdown-note .markdown-img-grid.rail {
+          display: grid;
+          grid-auto-flow: column;
+          grid-auto-columns: minmax(220px, 32vw);
+          overflow-x: auto;
+          gap: 12px;
+          padding: 6px 4px;
+          scroll-snap-type: x mandatory;
+        }
+        .markdown-note .markdown-img-grid img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 0.75rem;
+          box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+          scroll-snap-align: start;
+        }
+        .markdown-note .markdown-img-grid.four-grid img {
+          aspect-ratio: 1 / 1;
+        }
+        .markdown-note .markdown-kpi {
+          display: flex;
+          gap: 14px;
+          flex-wrap: wrap;
+          margin: 1.1rem 0;
+        }
+        .markdown-note .markdown-kpi > * {
+          flex: 1 1 180px;
+          padding: 12px 14px;
+          border-radius: 10px;
+          background: #fff;
+          box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+        }
+        .markdown-note .markdown-cols {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 16px;
+          margin: 1.2rem 0;
+        }
+        .markdown-note .markdown-features {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 14px;
+          margin: 1.2rem 0;
+        }
+        .markdown-note .markdown-cover {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 40px 18px;
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(59, 130, 246, 0.08));
+          border-radius: 16px;
+        }
+        .markdown-note .markdown-divider {
+          text-align: center;
+          padding: 14px 0;
+        }
+        .markdown-note .markdown-divider::before {
+          content: "";
+          display: block;
+          height: 1px;
+          background: rgba(31, 41, 55, 0.12);
+          margin: 10px auto;
+          max-width: 64%;
+        }
+        .markdown-note .markdown-banner {
+          padding: 14px 16px;
+          border-radius: 12px;
+          background: linear-gradient(120deg, rgba(99, 102, 241, 0.14), rgba(37, 99, 235, 0.12));
+          color: #111827;
+          box-shadow: 0 14px 34px rgba(59, 130, 246, 0.18);
+        }
+        .markdown-note .markdown-notes {
+          font-size: 0.95rem;
+          color: #6b7280;
+          font-style: italic;
+          border-left: 3px solid rgba(0, 0, 0, 0.08);
+          padding: 10px 12px;
+          background: rgba(0, 0, 0, 0.02);
+          border-radius: 0 10px 10px 0;
+        }
+        .markdown-note .markdown-code-split {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 12px;
+          align-items: start;
+          margin: 1.2rem 0;
+        }
+        .markdown-note .markdown-qa {
+          border: 1px solid rgba(17, 24, 39, 0.12);
+          border-radius: 0.9rem;
+          padding: 0.85rem 1rem;
+          margin: 1.1rem 0;
+          background: rgba(99, 102, 241, 0.05);
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+        }
+        .markdown-note .markdown-qa .markdown-qa-label {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          margin-right: 8px;
+          border-radius: 999px;
+          background: rgba(99, 102, 241, 0.14);
+          color: #1f2937;
+          font-weight: 700;
+          font-size: 0.85rem;
+        }
+        .markdown-note .markdown-qa .markdown-qa-question {
+          font-weight: 650;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .markdown-note .markdown-qa .markdown-qa-answer > :first-child {
+          margin-top: 0;
+        }
+        .markdown-note .markdown-qa .markdown-qa-answer > :last-child {
+          margin-bottom: 0;
+        }
+        .markdown-note details.markdown-qa {
+          border: 1px solid rgba(17, 24, 39, 0.12);
+          border-radius: 0.9rem;
+          padding: 0.65rem 0.9rem;
+          margin: 1.1rem 0;
+          background: rgba(99, 102, 241, 0.04);
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+        }
+        .markdown-note details.markdown-qa[open] {
+          background: rgba(99, 102, 241, 0.07);
+        }
+        .markdown-note details.markdown-qa summary {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          font-weight: 650;
+          list-style: none;
+        }
+        .markdown-note details.markdown-qa summary::-webkit-details-marker {
+          display: none;
+        }
+        .markdown-note details.markdown-qa .markdown-qa-toggle {
+          margin-left: auto;
+          font-size: 0.9rem;
+          color: #4b5563;
+        }
+        .markdown-note details.markdown-qa .markdown-qa-answer {
+          margin-top: 10px;
+        }
+        .markdown-note .markdown-media {
+          margin: 1rem 0;
+          border-radius: 0.9rem;
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(59, 130, 246, 0.06));
+          padding: 0.85rem 1rem;
+          box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+        }
+        .markdown-note .markdown-media audio,
+        .markdown-note .markdown-media video {
+          width: 100%;
+          display: block;
+          border-radius: 0.75rem;
+          outline: none;
+          background: #0b1224;
+        }
+        .markdown-note .markdown-media video {
+          max-height: min(420px, 48vh);
+          object-fit: contain;
+        }
+        .markdown-note .markdown-media .markdown-media-caption {
+          margin-top: 0.6rem;
+          font-size: 0.95rem;
+          color: #4b5563;
+        }
         """
     ).strip(),
     "wrapperClass": "markdown-note",
