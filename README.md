@@ -67,12 +67,6 @@ Benben/
    FLASK_DEBUG=1
    OPENAI_API_KEY=sk-xxxx
 
-   # UI 主题
-   BENBEN_COLOR_MODE=dark
-   BENBEN_NAVBAR_PRESET=modern
-   BENBEN_NAVBAR_STYLE=palette
-   BENBEN_NAVBAR_VARIANT=solid
-
    # OSS/远程工作区
    ALIYUN_OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
    ALIYUN_OSS_ACCESS_KEY_ID=xxx
