@@ -552,7 +552,33 @@ def open_remote_workspace(path: str) -> WorkspaceHandle:
 def sync_remote_workspace(handle: WorkspaceHandle) -> None:
     if handle.mode != "cloud" or not handle.remote_key:
         return
-    upload_workspace_package(str(handle.package.path), handle.remote_key, overwrite=True)
+    package = handle.package
+    snapshot_path: Optional[Path] = None
+    upload_source: Path = package.path if isinstance(getattr(package, "path", None), Path) else Path(str(package.path))
+    try:
+        # Flush WAL to ensure snapshot/upload includes latest writes.
+        try:
+            with getattr(package, "_lock", _LOCK):
+                package.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        try:
+            tmp = tempfile.NamedTemporaryFile(prefix="benben_sync_", suffix=".benben", delete=False)
+            snapshot_path = Path(tmp.name)
+            tmp.close()
+            package.snapshot_to(snapshot_path)
+            upload_source = snapshot_path
+        except Exception:
+            snapshot_path = None
+        upload_workspace_package(str(upload_source), handle.remote_key, overwrite=True)
+    finally:
+        if snapshot_path:
+            try:
+                snapshot_path.unlink(missing_ok=True)
+                Path(f"{snapshot_path}-wal").unlink(missing_ok=True)
+                Path(f"{snapshot_path}-shm").unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 def close_workspace(workspace_id: str) -> None:

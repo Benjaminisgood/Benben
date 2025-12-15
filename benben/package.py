@@ -1362,8 +1362,10 @@ class BenbenPackage:
                 if current_ts_val is not None and expected_ts is not None and current_ts_val - expected_ts > 1e-6:
                     raise WorkspaceVersionConflict("工作区已被其他会话更新，请刷新后再保存")
 
-        pages = payload.get("pages") or []
-        self.save_pages(pages)
+        has_pages = "pages" in payload
+        if has_pages:
+            pages = payload.get("pages") or []
+            self.save_pages(pages)
         if "template" in payload:
             self.save_template("latex", payload["template"])
         if "markdownTemplate" in payload:

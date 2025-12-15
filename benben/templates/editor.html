@@ -4533,6 +4533,16 @@ function jumpToPage(targetIdx) {
     return null;
   }
 
+  function updateProjectTimestamp(ts){
+    const normalized = normalizeTimestamp(ts);
+    if(normalized === null) return;
+    projectUpdatedAt = normalized;
+    if(currentProject){
+      const existingMeta = projectMetadata[currentProject] || {};
+      projectMetadata[currentProject] = Object.assign({}, existingMeta, {updatedAt: normalized});
+    }
+  }
+
   function hasDirtyLocal(){
     return hasLocalChanges || !!saveProjectTimer || saveInFlight;
   }
@@ -10113,14 +10123,7 @@ function syncMarkdownEditorToPreview(container) {
           throw new Error(message);
         }
         if(parsed && Object.prototype.hasOwnProperty.call(parsed, 'updatedAt')){
-          const ts = normalizeTimestamp(parsed.updatedAt);
-          if(ts !== null){
-            projectUpdatedAt = ts;
-            if(currentProject){
-              const existingMeta = projectMetadata[currentProject] || {};
-              projectMetadata[currentProject] = Object.assign({}, existingMeta, {updatedAt: projectUpdatedAt});
-            }
-          }
+          updateProjectTimestamp(parsed.updatedAt);
           hasLocalChanges = false;
         }
         callbacks.forEach(cb => {
@@ -13543,20 +13546,35 @@ applyDefaultWorkspaceIfNeeded();
     return pagesData[currentPageIdx].bib;
   }
 
-  function saveGlobalBib() {
+  async function saveGlobalBib() {
     if(!ensureWorkspaceReady({silent: true})){
-      return Promise.resolve();
+      return;
     }
     if(!PROJECT_ENDPOINTS.projectSave){
       promptWorkspaceSelection('请先选择工作区后再保存文献信息');
-      return Promise.resolve();
+      return;
     }
     const payload = { bib: bibData };
-    return fetch(PROJECT_ENDPOINTS.projectSave, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    });
+    try{
+      const res = await fetch(PROJECT_ENDPOINTS.projectSave, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseJsonSafe(res);
+      if(res.ok && (!parsed.json || parsed.json.success !== false)){
+        const data = parsed.json || {};
+        if(Object.prototype.hasOwnProperty.call(data || {}, 'updatedAt')){
+          updateProjectTimestamp(data.updatedAt);
+        }
+        return data;
+      }
+      const message = (parsed.json && parsed.json.error) ? parsed.json.error : (parsed.text || (`HTTP ${res.status}`));
+      showStatus('保存文献信息失败：' + message, 'danger', 6000);
+    }catch(err){
+      console.error('saveGlobalBib failed', err);
+      showStatus('保存文献信息失败：' + (err?.message || err || '未知错误'), 'danger', 6000);
+    }
   }
 
   function clearBibForm() {
@@ -14090,6 +14108,9 @@ applyDefaultWorkspaceIfNeeded();
                 alert('删除失败：' + (parsed.json.error || (parsed.text ? parsed.text : '未知错误')));
               } else {
                 const body = parsed.json || {};
+                if(body && Object.prototype.hasOwnProperty.call(body, 'updatedAt')){
+                  updateProjectTimestamp(body.updatedAt);
+                }
                 if(body.globalRemoved){
                   globalResources = globalResources.filter(name => !matchesEntry(name));
                 }
@@ -14296,6 +14317,9 @@ applyDefaultWorkspaceIfNeeded();
       const parsed = await parseJsonSafe(res);
       if(res.ok && (!parsed.json || parsed.json.success !== false)){
         const payload = parsed.json || {};
+        if(payload && Object.prototype.hasOwnProperty.call(payload, 'updatedAt')){
+          updateProjectTimestamp(payload.updatedAt);
+        }
         const uploaded = Array.isArray(payload.files) ? payload.files : [];
         uploaded.forEach(entry => {
           if(!entry) return;
@@ -14942,6 +14966,9 @@ applyDefaultWorkspaceIfNeeded();
         if(res.ok && (!parsed.json || parsed.json.success !== false)){
           if(parsed.json && parsed.json.name && parsed.json.name !== trimmedInput){
             alert(`文件名已更新为：${parsed.json.name}`);
+          }
+          if(parsed.json && Object.prototype.hasOwnProperty.call(parsed.json, 'updatedAt')){
+            updateProjectTimestamp(parsed.json.updatedAt);
           }
           const modal = resourceRenameModalEl ? bootstrap.Modal.getInstance(resourceRenameModalEl) : null;
           if(modal) modal.hide();

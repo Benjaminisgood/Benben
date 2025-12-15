@@ -4084,7 +4084,7 @@ def upload_resource():
         )
     if not uploads:
         return jsonify({'success': False, 'error': 'No valid files'}), 400
-    package.save_project(
+    saved_project = package.save_project(
         {
             'pages': pages,
             'resources': global_resources,
@@ -4092,7 +4092,14 @@ def upload_resource():
     )
     context_handle = oss_context.get("handle") if isinstance(oss_context, dict) else None
     _sync_cloud_workspace_state(workspace_id, handle=context_handle)
-    return api_success({'files': uploads, 'scope': effective_scope, 'page': requested_page_idx})
+    return api_success(
+        {
+            'files': uploads,
+            'scope': effective_scope,
+            'page': requested_page_idx,
+            'updatedAt': saved_project.get('updatedAt') if isinstance(saved_project, dict) else None,
+        }
+    )
 
 @bp.route('/projects/<project_name>/resources/<path:filename>')
 def project_resources(project_name: str, filename: str):
@@ -4195,7 +4202,7 @@ def rename_resource():
         oss_context = _workspace_oss_context(workspace_id, package)
         previous_name = asset.name
         updated_asset = package.rename_asset(asset.asset_id, normalized_new)
-        package.save_project(
+        saved_project = package.save_project(
             {
                 'pages': project.get('pages', []),
                 'resources': project.get('resources', []),
@@ -4234,6 +4241,7 @@ def rename_resource():
             'path': normalized_new,
             'localUrl': url,
             'ossStatus': oss_status,
+            'updatedAt': saved_project.get('updatedAt') if isinstance(saved_project, dict) else None,
         }
         context_handle = oss_context.get("handle") if isinstance(oss_context, dict) else None
         _sync_cloud_workspace_state(workspace_id, handle=context_handle)
@@ -4324,12 +4332,13 @@ def delete_resource():
                     page['resources'] = [r for r in res_list if not matches_entry(r)]
                     pages_removed.append(idx)
 
-        package.save_project(
+        saved_project = package.save_project(
             {
                 'pages': project.get('pages', []),
                 'resources': project.get('resources', []),
             }
         )
+        updated_at = saved_project.get('updatedAt') if isinstance(saved_project, dict) else None
         usage_after = _collect_resource_usage(project)
         remaining = usage_after.get(normalized_name) or usage_after.get(base_name)
         payload = {
@@ -4337,6 +4346,7 @@ def delete_resource():
             'scope': scope or 'all',
             'globalRemoved': global_removed,
             'pagesRemoved': [idx + 1 for idx in pages_removed],
+            'updatedAt': updated_at,
         }
         payload['remoteRemoved'] = False
         if remaining:
