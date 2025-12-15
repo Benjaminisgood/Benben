@@ -693,6 +693,16 @@
       background: color-mix(in srgb, var(--surface-2) 92%, var(--accent) 8%);
       white-space: nowrap;
     }
+    .slideshow-rec-recording {
+      background: color-mix(in srgb, #ef4444 18%, var(--surface-2) 82%) !important;
+      color: #991b1b !important;
+      border-color: color-mix(in srgb, #ef4444 35%, var(--surface-border)) !important;
+    }
+    .slideshow-rec-playing {
+      background: color-mix(in srgb, #22c55e 16%, var(--surface-2) 84%) !important;
+      color: #166534 !important;
+      border-color: color-mix(in srgb, #22c55e 30%, var(--surface-border)) !important;
+    }
     body.slideshow-open {
       overflow: hidden;
     }
@@ -3711,6 +3721,7 @@
         <span class="badge text-bg-primary" id="slideshow-mode-label">--</span>
         <div id="slideshow-page-status" class="slideshow-status-pill">页 -- / --</div>
         <div id="slideshow-slide-status" class="slideshow-status-pill">段 -- / --</div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-rec-toggle" title="录 / 停 / 播">录播：待命</button>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-page-prev">上一页</button>
@@ -3750,10 +3761,6 @@
             <label class="form-check-label" for="exportPageNotesHtmlOption">导出 当前页 HTML</label>
           </div>
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="exportOption" id="exportPageAudioOption" value="page_audio">
-            <label class="form-check-label" for="exportPageAudioOption">导出 当前页讲稿语音 (MP3)</label>
-          </div>
-          <div class="form-check">
             <input class="form-check-input" type="radio" name="exportOption" id="exportNotesOption" value="notes">
             <label class="form-check-label" for="exportNotesOption">导出 全部页 Markdown</label>
           </div>
@@ -3772,6 +3779,10 @@
           <div class="form-check">
             <input class="form-check-input" type="radio" name="exportOption" id="exportProjectDataOption" value="project_bundle_data">
             <label class="form-check-label" for="exportProjectDataOption">导出 工作区文件（.benben）</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="exportOption" id="exportPageAudioOption" value="page_audio">
+            <label class="form-check-label" for="exportPageAudioOption">导出 当前页讲稿语音 (MP3)</label>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="radio" name="exportOption" id="exportAudioOption" value="audio">
@@ -4282,6 +4293,12 @@ function jumpToPage(targetIdx) {
   const latexCompilePromises = new Map();
   const latexDocCache = new Map();
   const latexSlideCounts = new Map();
+  let recordingMode = 'idle'; // 'record' | 'idle' | 'play'
+  let mediaRecorder = null;
+  let recorderChunks = [];
+  let recorderStream = null;
+  let recorderPageIdx = null;
+  let playbackAudio = null;
   let slideshowState = {
     open: false,
     mode: null,
@@ -9092,6 +9109,7 @@ function syncMarkdownEditorToPreview(container) {
       pageStatus: document.getElementById('slideshow-page-status'),
       slideStatus: document.getElementById('slideshow-slide-status'),
       modeLabel: document.getElementById('slideshow-mode-label'),
+      recToggle: document.getElementById('slideshow-rec-toggle'),
       pagePrevBtn: document.getElementById('slideshow-page-prev'),
       pageNextBtn: document.getElementById('slideshow-page-next'),
       slidePrevBtn: document.getElementById('slideshow-slide-prev'),
@@ -9121,6 +9139,151 @@ function syncMarkdownEditorToPreview(container) {
     if (els.modeLabel) {
       els.modeLabel.textContent = slideshowState.mode === 'latex' ? 'LaTeX 幻灯' : 'Markdown 幻灯';
     }
+    updateRecordingButtonUI();
+  }
+
+  function updateRecordingButtonUI() {
+    const els = getSlideshowElements();
+    const btn = els.recToggle;
+    if (!btn) return;
+    const map = {
+      record: {text: '录播：录', className: 'slideshow-rec-recording'},
+      idle: {text: '录播：待命', className: ''},
+      play: {text: '录播：播', className: 'slideshow-rec-playing'}
+    };
+    const config = map[recordingMode] || map.idle;
+    btn.textContent = config.text;
+    btn.classList.remove('slideshow-rec-recording', 'slideshow-rec-playing', 'btn-outline-secondary', 'btn-success', 'btn-danger', 'btn-outline-success');
+    btn.classList.add(config.className || 'btn-outline-secondary');
+  }
+
+  function stopPlayback() {
+    if (playbackAudio) {
+      try {
+        playbackAudio.pause();
+      } catch (_) {}
+    }
+    playbackAudio = null;
+  }
+
+  function playRecordingForPage(pageIdx) {
+    stopPlayback();
+    const page = pagesData[pageIdx] || {};
+    const rec = page.recording;
+    if (!rec || !rec.data) {
+      showStatus('当前页没有录播音频', 'warning', 2200);
+      return;
+    }
+    try {
+      const audio = new Audio(rec.data);
+      playbackAudio = audio;
+      audio.play().catch(err => console.warn('录播播放失败', err));
+    } catch (err) {
+      console.warn('创建音频失败', err);
+      showStatus('无法播放录播', 'warning', 2200);
+    }
+  }
+
+  function stopActiveRecording(save = true) {
+    return new Promise(resolve => {
+      if (!mediaRecorder) return resolve();
+      const shouldPersist = save;
+      const targetPage = recorderPageIdx;
+      const finalize = () => {
+        mediaRecorder = null;
+        recorderChunks = [];
+        recorderPageIdx = null;
+        if (recorderStream) {
+          try {
+            recorderStream.getTracks().forEach(tr => tr.stop());
+          } catch (_) {}
+        }
+        recorderStream = null;
+      };
+      mediaRecorder.addEventListener('stop', () => {
+        const chunks = recorderChunks.slice();
+        finalize();
+        if (!shouldPersist || !chunks.length || targetPage === null || targetPage === undefined) {
+          return resolve();
+        }
+        const blob = new Blob(chunks, {type: chunks[0]?.type || 'audio/webm'});
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataUrl = reader.result;
+          const page = pagesData[targetPage] || (pagesData[targetPage] = {content: '', notes: '', script: '', bib: [], resources: [], pageId: generatePageId()});
+          page.recording = {data: dataUrl, mime: blob.type || 'audio/webm', updatedAt: Date.now()};
+          saveProject();
+          resolve();
+        };
+        reader.onerror = () => resolve();
+        reader.readAsDataURL(blob);
+      }, {once: true});
+      mediaRecorder.stop();
+    });
+  }
+
+  async function startRecordingForPage(pageIdx) {
+    stopPlayback();
+    await stopActiveRecording(true);
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    } catch (err) {
+      console.warn('获取麦克风失败', err);
+      showStatus('无法访问麦克风，请检查权限', 'danger', 3200);
+      recordingMode = 'idle';
+      updateRecordingButtonUI();
+      return;
+    }
+    recorderStream = stream;
+    recorderChunks = [];
+    recorderPageIdx = pageIdx;
+    try {
+      mediaRecorder = new MediaRecorder(stream);
+    } catch (err) {
+      console.warn('创建录音器失败', err);
+      showStatus('无法开始录制', 'danger', 3200);
+      return;
+    }
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        recorderChunks.push(event.data);
+      }
+    };
+    mediaRecorder.onerror = (err) => {
+      console.warn('录音错误', err);
+      showStatus('录音出现错误', 'danger', 2600);
+    };
+    mediaRecorder.start();
+  }
+
+  async function applyRecordingModeForPage(pageIdx) {
+    if (recordingMode === 'record') {
+      await startRecordingForPage(pageIdx);
+      return;
+    }
+    await stopActiveRecording(true);
+    stopPlayback();
+    if (recordingMode === 'play') {
+      playRecordingForPage(pageIdx);
+    }
+  }
+
+  async function setRecordingMode(mode) {
+    if (!['record', 'idle', 'play'].includes(mode)) return;
+    recordingMode = mode;
+    updateRecordingButtonUI();
+    if (mode === 'idle') {
+      await stopActiveRecording(true);
+      stopPlayback();
+      return;
+    }
+    await applyRecordingModeForPage(slideshowState.pageIdx || currentPageIdx || 0);
+  }
+
+  function cycleRecordingMode() {
+    const next = recordingMode === 'record' ? 'idle' : (recordingMode === 'idle' ? 'play' : 'record');
+    setRecordingMode(next);
   }
 
   let slideshowPdfRequestId = 0;
@@ -9358,12 +9521,25 @@ function syncMarkdownEditorToPreview(container) {
         showStatus('未找到目标段落', 'warning', 2400);
         return false;
       }
+      const prevPage = slideshowState.pageIdx;
+      const pageChanged = targetPage !== prevPage;
+      const stopPromise = pageChanged ? stopActiveRecording(true) : Promise.resolve();
+      if (pageChanged) {
+        stopPlayback();
+      }
       slideshowState.pageIdx = targetPage;
       slideshowState.slideIdx = Math.max(0, targetSlice);
       slideshowState.pendingHeading = headingId;
       currentPageIdx = targetPage;
       updatePageNumLabel();
       renderSlideshowGrid();
+      stopPromise.then(() => {
+        if (pageChanged && recordingMode === 'record') {
+          startRecordingForPage(targetPage);
+        } else if (pageChanged && recordingMode === 'play') {
+          playRecordingForPage(targetPage);
+        }
+      });
       return true;
     }
     let targetPage = resolveMarkdownTargetPageIndex(target);
@@ -9374,11 +9550,20 @@ function syncMarkdownEditorToPreview(container) {
       showStatus('未找到目标页面', 'warning', 2400);
       return false;
     }
+    const stopPromise = stopActiveRecording(true);
+    stopPlayback();
     currentPageIdx = targetPage;
     updatePageNumLabel();
     slideshowState.pageIdx = targetPage;
     slideshowState.slideIdx = 0;
     renderSlideshowGrid();
+    stopPromise.then(() => {
+      if (recordingMode === 'record') {
+        startRecordingForPage(targetPage);
+      } else if (recordingMode === 'play') {
+        playRecordingForPage(targetPage);
+      }
+    });
     return true;
   }
 
@@ -9425,6 +9610,7 @@ function syncMarkdownEditorToPreview(container) {
     document.body.classList.add('slideshow-open');
     updateSlideshowChrome();
     renderSlideshowGrid();
+    applyRecordingModeForPage(slideshowState.pageIdx || currentPageIdx || 0);
     toggleFullscreenForOverlay(els.overlay);
     const keyHandler = (event) => {
       if (!slideshowState.open) return;
@@ -9463,6 +9649,8 @@ function syncMarkdownEditorToPreview(container) {
     slideshowState.open = false;
     slideshowState.pendingHeading = '';
     slideshowPdfRequestId += 1;
+    stopActiveRecording(true);
+    stopPlayback();
     if (slideshowState.keyHandler) {
       window.removeEventListener('keydown', slideshowState.keyHandler);
       slideshowState.keyHandler = null;
@@ -9472,27 +9660,43 @@ function syncMarkdownEditorToPreview(container) {
     }
   }
 
-  function slideshowPrev() {
+  async function slideshowPrev() {
     if (!slideshowState.open) return;
     const nextPage = Math.max(0, (slideshowState.pageIdx || 0) - 1);
+    if (nextPage === slideshowState.pageIdx) return;
+    await stopActiveRecording(true);
+    stopPlayback();
     slideshowState.pageIdx = nextPage;
     slideshowState.slideIdx = 0;
     slideshowState.slideCount = slideshowState.mode === 'markdown'
       ? Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1)
       : (latexSlideCounts.get(nextPage) || 1);
     renderSlideshowGrid();
+    if (recordingMode === 'record') {
+      startRecordingForPage(nextPage);
+    } else if (recordingMode === 'play') {
+      playRecordingForPage(nextPage);
+    }
   }
 
-  function slideshowNext() {
+  async function slideshowNext() {
     if (!slideshowState.open) return;
     const totalPages = Array.isArray(pagesData) ? pagesData.length : 0;
     const nextPage = Math.min(Math.max(totalPages - 1, 0), (slideshowState.pageIdx || 0) + 1);
+    if (nextPage === slideshowState.pageIdx) return;
+    await stopActiveRecording(true);
+    stopPlayback();
     slideshowState.pageIdx = nextPage;
     slideshowState.slideIdx = 0;
     slideshowState.slideCount = slideshowState.mode === 'markdown'
       ? Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1)
       : (latexSlideCounts.get(nextPage) || 1);
     renderSlideshowGrid();
+    if (recordingMode === 'record') {
+      startRecordingForPage(nextPage);
+    } else if (recordingMode === 'play') {
+      playRecordingForPage(nextPage);
+    }
   }
 
   function slideshowSlidePrev() {
@@ -10492,6 +10696,7 @@ function syncMarkdownEditorToPreview(container) {
   if (slideshowEls.slidePrevBtn) slideshowEls.slidePrevBtn.addEventListener('click', slideshowSlidePrev);
   if (slideshowEls.slideNextBtn) slideshowEls.slideNextBtn.addEventListener('click', slideshowSlideNext);
   if (slideshowEls.exitBtn) slideshowEls.exitBtn.addEventListener('click', closeSlideshowOverlay);
+  if (slideshowEls.recToggle) slideshowEls.recToggle.addEventListener('click', cycleRecordingMode);
 
   const modeSwitchBtn = document.getElementById('mode-switch-btn');
   if (modeSwitchBtn) {
