@@ -2366,8 +2366,12 @@ def _format_learning_user_message(template: str, content: str, context: str) -> 
     safe_context = context or "（无额外上下文）"
     try:
         return base_template.format(content=content, context=safe_context)
-    except KeyError:
-        return f"{base_template}\n\n---\n{content}\n\n上下文：\n{safe_context}"
+    except (KeyError, IndexError, ValueError):
+        # 容忍模板里出现未转义的花括号（如化学式 H_{2}O），回退到简单替换。
+        fallback = base_template.replace("{content}", content).replace("{context}", safe_context)
+        if fallback == base_template:
+            fallback = f"{base_template}\n\n---\n{content}\n\n上下文：\n{safe_context}"
+        return fallback
 
 
 def _normalize_temp_prompt_template(template: str) -> str:
