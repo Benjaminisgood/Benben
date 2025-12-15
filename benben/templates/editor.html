@@ -1413,11 +1413,11 @@
       line-height: 1.25;
       transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
     }
-    /* 移动端的翻页按钮组用 gap 控制间距 */
-    .mobile-page-control-group {
+    /* 翻页按钮组用 gap 控制间距 */
+    .page-control-group {
       gap: 0.5rem;
     }
-    .mobile-page-control-group .mobile-page-btn {
+    .page-control-group .page-control-btn {
       margin-right: 0;
     }
     /* dropdown-menu 用 surface 变量设置背景/边框，box-shadow 提升层次 */
@@ -2620,13 +2620,13 @@
           </div>
         </li>
 
-        <li class="nav-item mobile-allowed">
-          <div class="mobile-page-control-group d-flex align-items-center">
-            <button class="btn btn-outline-primary js-nav-btn mobile-page-btn" id="prev-page" title="上一页">上</button>
-            <button type="button" class="btn btn-outline-primary js-nav-btn mobile-page-btn" id="page-status" title="双击可跳转至首页" >
+        <li class="nav-item">
+          <div class="page-control-group d-flex align-items-center">
+            <button class="btn btn-outline-primary js-nav-btn page-control-btn" id="prev-page" title="上一页">上</button>
+            <button type="button" class="btn btn-outline-primary js-nav-btn page-control-btn" id="page-status" title="双击可跳转至首页" >
               <span id="page-num">1</span> / <span id="page-count">1</span>
             </button>
-            <button class="btn btn-outline-primary js-nav-btn mobile-page-btn" id="next-page" title="下一页">下</button>
+            <button class="btn btn-outline-primary js-nav-btn page-control-btn" id="next-page" title="下一页">下</button>
           </div>
         </li>
         <li class="nav-item d-flex align-items-center">
@@ -2645,26 +2645,29 @@
         <li><hr class="dropdown-divider m-1"></li>
 
         <li class="nav-item"><button class="btn btn-outline-success me-2 js-nav-btn" id="export-btn" title="导出">导出</button></li>
+        
         <li><hr class="dropdown-divider m-1"></li>
-
         <li class="nav-item">
           <button class="btn btn-outline-primary me-2 js-nav-btn" id="llm-manage-btn" title="管理模型配置">
             模型配置
           </button>
         </li>
-        <li><hr class="dropdown-divider m-1"></li>
 
+        <li><hr class="dropdown-divider m-1"></li>
         <li class="nav-item"><button class="btn btn-outline-danger me-2 js-nav-btn" id="ai-optimize" title="Latex优化">tex优化</button></li>
         <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="ai-note-optimize" title="Markdown优化">md优化</button></li>
         <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="ai-script-optimize" title="Speech script优化">script优化</button></li>
-        <li><hr class="dropdown-divider m-1"></li>        
+
+        <li><hr class="dropdown-divider m-1"></li>
         <li class="nav-item"><button class="btn btn-outline-success me-2 js-nav-btn" id="ai-learn-helper" title="AI 学习">AI学习</button></li>
         <li class="nav-item"><button class="btn btn-outline-info me-2 js-nav-btn" id="ai-learn-review-btn" title="AI 复习">AI复习</button></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="ai-assistant-btn" title="AI 助理（可选 RAG）">AI助理</button></li>
+
         <li><hr class="dropdown-divider m-1"></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="edit-bib" title="管理文献">管理文献</button></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="manage-resources" title="管理资源">管理资源</button></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="manage-attachments" title="管理附件">管理附件</button></li>
+
         <li><hr class="dropdown-divider m-1"></li>
         <li class="nav-item">
           <button class="btn btn-outline-secondary me-2 js-nav-btn" id="ui-settings-btn" title="切换页面外观和布局">外观配置</button>
