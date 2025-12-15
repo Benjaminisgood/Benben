@@ -148,6 +148,62 @@ for _callout_name in ("info", "tip", "warning"):
         render=_build_markdown_callout_renderer(_callout_name),
     )
 
+# 渲染图片网格的容器渲染器：用于处理 :::img-2 / :::img-2v / :::img-4
+def _build_image_grid_renderer(layout: str):
+    """Return a renderer that wraps a container into an image grid wrapper.
+
+    layout: one of 'two-col', 'two-vertical', 'four-grid'
+    Usage in Markdown:
+      :::img-2
+      ![](a)
+      ![](b)
+      :::
+
+      :::img-2v
+      ![](a)
+      ![](b)
+      :::
+
+      :::img-4
+      ![](a)
+      ![](b)
+      ![](c)
+      ![](d)
+      :::
+    """
+
+    def _render(tokens, idx, _options, _env):
+        if tokens[idx].nesting == 1:
+            return f'<div class="markdown-img-grid {layout}">'
+        return "</div>\n"
+
+    return _render
+
+
+# 注册三个图片网格容器
+_MARKDOWN_RENDERER.use(container_plugin, "img-2", render=_build_image_grid_renderer("two-col"))
+_MARKDOWN_RENDERER.use(container_plugin, "img-2v", render=_build_image_grid_renderer("two-vertical"))
+_MARKDOWN_RENDERER.use(container_plugin, "img-4", render=_build_image_grid_renderer("four-grid"))
+
+# 通用展示块容器渲染器（自建语法）
+def _build_simple_block_renderer(css_class: str):
+    def _render(tokens, idx, _options, _env):
+        if tokens[idx].nesting == 1:
+            return f'<div class="{css_class}">'
+        return "</div>\n"
+
+    return _render
+
+# 注册若干展示相关自建容器（仅包裹内容，样式由 CSS 控制）
+_MARKDOWN_RENDERER.use(container_plugin, "kpi", render=_build_simple_block_renderer("markdown-kpi"))
+_MARKDOWN_RENDERER.use(container_plugin, "cols", render=_build_simple_block_renderer("markdown-cols"))
+_MARKDOWN_RENDERER.use(container_plugin, "features", render=_build_simple_block_renderer("markdown-features"))
+_MARKDOWN_RENDERER.use(container_plugin, "cover", render=_build_simple_block_renderer("markdown-cover"))
+_MARKDOWN_RENDERER.use(container_plugin, "divider", render=_build_simple_block_renderer("markdown-divider"))
+_MARKDOWN_RENDERER.use(container_plugin, "banner", render=_build_simple_block_renderer("markdown-banner"))
+_MARKDOWN_RENDERER.use(container_plugin, "notes", render=_build_simple_block_renderer("markdown-notes"))
+_MARKDOWN_RENDERER.use(container_plugin, "code-split", render=_build_simple_block_renderer("markdown-code-split"))
+
 _DEFAULT_MARKDOWN_EXPORT_STYLE = """
 :root { color-scheme: light dark; }
 * { box-sizing: border-box; }
@@ -204,6 +260,19 @@ body.markdown-export video {
   text-decoration: none;
 }
 .markdown-export-toc a:hover { text-decoration: underline; }
+/* === 自建展示样式（用于导出） === */
+.markdown-kpi { display: flex; gap: 18px; flex-wrap: wrap; }
+.markdown-kpi > * { flex: 1 1 180px; padding: 12px; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.markdown-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.markdown-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.markdown-cover { display:flex; align-items:center; justify-content:center; text-align:center; padding:48px 18px; background:transparent; }
+.markdown-cover h1 { font-size: 2.4rem; margin: 0 0 8px; }
+.markdown-divider { text-align:center; padding: 18px 0; }
+.markdown-divider::before { content: ""; display:block; height:1px; background:rgba(0,0,0,0.08); margin:12px auto; max-width: 60%; }
+.markdown-banner { padding: 18px; border-radius:8px; background: color-mix(in srgb, var(--bs-primary) 8%, transparent); }
+.markdown-notes { font-size: 0.9rem; color: #6b7280; font-style: italic; border-left: 3px solid rgba(0,0,0,0.06); padding: 10px 12px; background: rgba(0,0,0,0.02); }
+.markdown-code-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items:start; }
+
 """
 
 _DEFAULT_MARKDOWN_EXPORT_SCRIPT = """
@@ -268,6 +337,34 @@ window.addEventListener('DOMContentLoaded', function(){
   }
 });
 </script>
+"""
+
+# 为导出样式追加图片网格 CSS（保证导出/打印中也能正确布局）
+_DEFAULT_MARKDOWN_EXPORT_STYLE += """
+/* 图片网格样式（导出与打印友好） */
+.markdown-img-grid {
+    display: grid;
+    gap: 0.6rem;
+    align-items: center;
+    justify-items: center;
+    margin: 1rem auto;
+}
+.markdown-img-grid.two-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.markdown-img-grid.two-vertical {
+    grid-template-columns: 1fr;
+}
+.markdown-img-grid.four-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.markdown-img-grid img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 12px 36px rgba(15,23,42,0.12);
+    display: block;
+}
 """
 
 

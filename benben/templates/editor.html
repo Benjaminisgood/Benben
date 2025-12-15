@@ -1641,6 +1641,43 @@
       font-size: 0.9rem;
       color: var(--preview-muted);
     }
+    /* 图片网格（编辑器预览） */
+    .markdown-img-grid {
+      display: grid;
+      gap: 0.6rem;
+      align-items: center;
+      justify-items: center;
+      margin: 1rem auto;
+      width: 100%;
+    }
+    .markdown-img-grid.two-col {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .markdown-img-grid.two-vertical {
+      grid-template-columns: 1fr;
+    }
+    .markdown-img-grid.four-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .markdown-img-grid img {
+      width: 100%;
+      height: auto;
+      border-radius: 0.6rem;
+      box-shadow: 0 12px 36px rgba(15,23,42,0.12);
+      display: block;
+      margin: 0;
+    }
+    /* 自建展示样式（编辑器预览） */
+    .markdown-kpi { display:flex; gap:12px; flex-wrap:wrap; }
+    .markdown-kpi > * { flex:1 1 160px; padding:10px; border-radius:8px; background:var(--preview-surface, #fff); box-shadow:0 8px 20px rgba(15,23,42,0.06); }
+    .markdown-cols { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .markdown-features { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .markdown-cover { display:flex; align-items:center; justify-content:center; text-align:center; padding:36px 12px; }
+    .markdown-divider { text-align:center; padding:12px 0; }
+    .markdown-divider::before { content:""; display:block; height:1px; background:rgba(0,0,0,0.06); margin:10px auto; max-width:70%; }
+    .markdown-banner { padding:12px; border-radius:8px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .markdown-notes { font-size:0.9rem; color:var(--preview-muted); font-style:italic; border-left:3px solid rgba(0,0,0,0.06); padding:8px 10px; background: rgba(0,0,0,0.02); }
+    .markdown-code-split { display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start; }
     /* markdown-heading-with-copy 让标题右侧出现复制按钮 */
     .markdown-heading-with-copy {
       position: relative;
@@ -3794,6 +3831,7 @@
         <div id="slideshow-page-status" class="slideshow-status-pill">页 -- / --</div>
         <div id="slideshow-slide-status" class="slideshow-status-pill">段 -- / --</div>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-rec-toggle" title="录 / 停 / 播">录播：待命</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-rec-toggle" title="录视频">录像：敬请期待</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-script-toggle" title="显示/隐藏提词稿">提词：隐藏</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-ai-read" title="AI 朗读当前页讲稿">AI读稿</button>
       </div>
