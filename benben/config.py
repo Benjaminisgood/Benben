@@ -1162,7 +1162,7 @@ if _ui_tier not in {"compact", "standard", "relaxed"}:
     _ui_tier = "standard"
 
 _ui_pane_ratio = (os.environ.get("BENBEN_UI_PANE_RATIO") or "balanced").strip().lower()
-if _ui_pane_ratio not in {"editor-wide", "balanced", "preview-wide", "equal"}:
+if _ui_pane_ratio not in {"no-script", "editor-wide", "balanced", "preview-wide", "equal"}:
     _ui_pane_ratio = "balanced"
 
 _ui_color_mode = (os.environ.get("BENBEN_COLOR_MODE") or "light").strip().lower()

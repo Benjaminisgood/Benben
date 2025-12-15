@@ -668,10 +668,16 @@
       margin-bottom: 0.35rem;
     }
     .slideshow-script-content {
-      white-space: pre-wrap;
-      word-break: break-word;
-      line-height: 1.6;
+      width: 100%;
+      min-height: 120px;
+      max-height: 30vh;
+      resize: vertical;
+      border: 1px solid var(--surface-border);
+      border-radius: 0.55rem;
+      padding: 0.6rem 0.75rem;
+      background: var(--surface-1);
       color: var(--shell-text);
+      line-height: 1.6;
     }
     .slideshow-card {
       background: var(--surface-1);
@@ -1135,6 +1141,9 @@
       background: var(--surface-2);
       box-shadow: var(--surface-shadow);
       border-color: var(--surface-border);
+    }
+    body[data-pane-ratio="no-script"] .page-script-container {
+      display: none;
     }
     /* #page-script 是讲稿 textarea，为了能滚动保留高度设置 overflow */
     #page-script {
@@ -2535,6 +2544,15 @@
           <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">关闭</button>
         </div>
       </div>
+      <div id="workspace-current-info-remote" class="workspace-form p-3 mb-3 d-none">
+        <div class="text-muted small mb-2">当前工作区</div>
+        <div class="fw-semibold" id="workspace-current-name-remote">--</div>
+        <div class="text-muted small" id="workspace-current-path-remote"></div>
+        <div class="mt-3 d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary flex-fill" id="workspace-refresh-btn-remote">重新加载</button>
+          <button type="button" class="btn btn-outline-danger flex-fill" id="workspace-close-btn-remote">关闭工作区</button>
+        </div>
+      </div>
       <div class="workspace-form p-3 mb-3">
         <div class="text-muted small mb-1">OSS 路径</div>
         <div id="remote-workspace-prefix" class="fw-semibold small text-break"></div>
@@ -2588,7 +2606,7 @@
         <li class="nav-item mobile-allowed">
           <div class="mobile-page-control-group d-flex align-items-center">
             <button class="btn btn-outline-primary js-nav-btn mobile-page-btn" id="prev-page" title="上一页">上</button>
-            <button type="button" class="btn btn-outline-primary js-nav-btn mobile-page-btn" id="page-status" >
+            <button type="button" class="btn btn-outline-primary js-nav-btn mobile-page-btn" id="page-status" title="双击可跳转至首页" >
               <span id="page-num">1</span> / <span id="page-count">1</span>
             </button>
             <button class="btn btn-outline-primary js-nav-btn mobile-page-btn" id="next-page" title="下一页">下</button>
@@ -2626,9 +2644,6 @@
         <li class="nav-item"><button class="btn btn-outline-info me-2 js-nav-btn" id="ai-learn-review-btn" title="AI 复习">AI复习</button></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="ai-assistant-btn" title="AI 助理（可选 RAG）">AI助理</button></li>
         <li><hr class="dropdown-divider m-1"></li>
-        <li class="nav-item"><button class="btn btn-outline-danger me-2 js-nav-btn" id="play-note" title="播放当前页讲稿">播放讲稿</button></li>
-        <li><hr class="dropdown-divider m-1"></li>
-
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="edit-bib" title="管理文献">管理文献</button></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="manage-resources" title="管理资源">管理资源</button></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="manage-attachments" title="管理附件">管理附件</button></li>
@@ -2675,6 +2690,7 @@
           <div class="col-12 col-md-6">
             <label class="form-label fw-semibold" for="ui-pane-ratio-select">编辑/预览/讲稿比例</label>
             <select id="ui-pane-ratio-select" class="form-select">
+              <option value="no-script">无讲稿（仅编辑+预览）</option>
               <option value="editor-wide">编辑预览优先（8:2）</option>
               <option value="balanced">均衡（7:3）</option>
               <option value="preview-wide">讲稿偏宽（6:4）</option>
@@ -3757,6 +3773,7 @@
         <div id="slideshow-slide-status" class="slideshow-status-pill">段 -- / --</div>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-rec-toggle" title="录 / 停 / 播">录播：待命</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-script-toggle" title="显示/隐藏提词稿">提词：隐藏</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-ai-read" title="AI 朗读当前页讲稿">AI读稿</button>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <button type="button" class="btn btn-outline-secondary btn-sm" id="slideshow-page-prev">上一页</button>
@@ -3773,7 +3790,7 @@
       <div id="slideshow-stage" class="slideshow-stage"></div>
       <div id="slideshow-script-panel" class="slideshow-script-panel d-none">
         <div class="slideshow-script-title">当前页讲稿</div>
-        <div id="slideshow-script-content" class="slideshow-script-content text-muted">暂无讲稿</div>
+        <textarea id="slideshow-script-content" class="slideshow-script-content form-control" placeholder="暂无讲稿"></textarea>
       </div>
     </div>
   </div>
@@ -4350,6 +4367,9 @@ function jumpToPage(targetIdx) {
   let recorderPageIdx = null;
   let playbackAudio = null;
   let showScriptPanel = false;
+  let aiReadAudio = null;
+  let aiReadLoading = false;
+  let scriptSaveTimer = null;
   let slideshowState = {
     open: false,
     mode: null,
@@ -4533,11 +4553,21 @@ function jumpToPage(targetIdx) {
     });
   }
   const workspaceOverlayStatus = document.getElementById('workspace-overlay-status');
+  const workspaceCurrentSections = [];
   const workspaceCurrentInfo = document.getElementById('workspace-current-info');
   const workspaceCurrentName = document.getElementById('workspace-current-name');
   const workspaceCurrentPath = document.getElementById('workspace-current-path');
   const workspaceCloseBtn = document.getElementById('workspace-close-btn');
   const workspaceRefreshBtn = document.getElementById('workspace-refresh-btn');
+  if(workspaceCurrentInfo){
+    workspaceCurrentSections.push({
+      container: workspaceCurrentInfo,
+      nameEl: workspaceCurrentName,
+      pathEl: workspaceCurrentPath,
+      refreshBtn: workspaceRefreshBtn,
+      closeBtn: workspaceCloseBtn,
+    });
+  }
   const localWorkspaceRefreshBtn = document.getElementById('local-workspace-refresh');
   const localWorkspaceStatusEl = document.getElementById('local-workspace-status');
   const localWorkspaceListEl = document.getElementById('local-workspace-list');
@@ -4561,6 +4591,20 @@ function jumpToPage(targetIdx) {
   const remoteWorkspaceCreateNameInput = document.getElementById('remote-workspace-create-name');
   const remoteWorkspaceCreateDisplayInput = document.getElementById('remote-workspace-create-display');
   const remoteWorkspacePrefixEl = document.getElementById('remote-workspace-prefix');
+  const remoteWorkspaceCurrentInfo = document.getElementById('workspace-current-info-remote');
+  const remoteWorkspaceCurrentName = document.getElementById('workspace-current-name-remote');
+  const remoteWorkspaceCurrentPath = document.getElementById('workspace-current-path-remote');
+  const remoteWorkspaceCloseBtn = document.getElementById('workspace-close-btn-remote');
+  const remoteWorkspaceCurrentRefreshBtn = document.getElementById('workspace-refresh-btn-remote');
+  if(remoteWorkspaceCurrentInfo){
+    workspaceCurrentSections.push({
+      container: remoteWorkspaceCurrentInfo,
+      nameEl: remoteWorkspaceCurrentName,
+      pathEl: remoteWorkspaceCurrentPath,
+      refreshBtn: remoteWorkspaceCurrentRefreshBtn,
+      closeBtn: remoteWorkspaceCloseBtn,
+    });
+  }
 
   function workspaceCloseEndpoint(id){
     return buildApiUrl(`/workspaces/${encodeURIComponent(id)}`);
@@ -4841,15 +4885,16 @@ function jumpToPage(targetIdx) {
     if(projectMenuEl){
       buildProjectMenu(projectMenuEl);
     }
-    if(workspaceCurrentInfo){
+    workspaceCurrentSections.forEach(section => {
+      if(!section.container) return;
       if(currentWorkspace){
-        workspaceCurrentInfo.classList.remove('d-none');
-        if(workspaceCurrentName) workspaceCurrentName.textContent = name || '--';
-        if(workspaceCurrentPath) workspaceCurrentPath.textContent = workspacePath || '';
+        section.container.classList.remove('d-none');
+        if(section.nameEl) section.nameEl.textContent = name || '--';
+        if(section.pathEl) section.pathEl.textContent = workspacePath || '';
       } else {
-        workspaceCurrentInfo.classList.add('d-none');
+        section.container.classList.add('d-none');
       }
-    }
+    });
   }
 
   function ensureWorkspaceReady(options = {}){
@@ -5325,17 +5370,18 @@ function jumpToPage(targetIdx) {
     }
   }
 
-  if(workspaceCloseBtn){
-    workspaceCloseBtn.addEventListener('click', () => {
-      closeCurrentWorkspace();
-    });
-  }
-
-  if(workspaceRefreshBtn){
-    workspaceRefreshBtn.addEventListener('click', () => {
-      if(ensureWorkspaceReady()) loadProject();
-    });
-  }
+  workspaceCurrentSections.forEach(section => {
+    if(section.closeBtn){
+      section.closeBtn.addEventListener('click', () => {
+        closeCurrentWorkspace();
+      });
+    }
+    if(section.refreshBtn){
+      section.refreshBtn.addEventListener('click', () => {
+        if(ensureWorkspaceReady()) loadProject();
+      });
+    }
+  });
 
   if(localWorkspaceRefreshBtn){
     localWorkspaceRefreshBtn.addEventListener('click', () => {
@@ -7440,6 +7486,7 @@ function jumpToPage(targetIdx) {
     slate: 'slate',
   };
   const UI_PANE_RATIOS = {
+    'no-script': { editor: 10, script: 0 },
     'editor-wide': { editor: 8, script: 2 },
     balanced: { editor: 7, script: 3 },
     'preview-wide': { editor: 6, script: 4 },
@@ -7520,9 +7567,11 @@ function jumpToPage(targetIdx) {
       document.body.setAttribute('data-ui-skin', skin);
     }
     syncAccentThemeTokens();
-    const ratio = UI_PANE_RATIOS[merged.paneRatio] || UI_PANE_RATIOS.balanced;
+    const ratioKey = UI_PANE_RATIOS[merged.paneRatio] ? merged.paneRatio : 'balanced';
+    const ratio = UI_PANE_RATIOS[ratioKey];
     document.documentElement.style.setProperty('--editor-preview-weight', ratio.editor);
     document.documentElement.style.setProperty('--script-pane-weight', ratio.script);
+    document.body.setAttribute('data-pane-ratio', ratioKey);
     const scale = UI_FONT_SCALES[merged.fontSize] || UI_FONT_SCALES.standard;
     const baseSize = Math.round(16 * scale * 100) / 100;
     document.documentElement.style.setProperty('--app-font-size', `${baseSize}px`);
@@ -7535,8 +7584,8 @@ function jumpToPage(targetIdx) {
     window.BENBEN_UI_THEME = window.BENBEN_UI_THEME || {};
     window.BENBEN_UI_THEME.skin = skin;
     window.BENBEN_UI_THEME.color_mode = resolvedColorMode;
-    window.BENBEN_UI_THEME.pane_ratio = merged.paneRatio;
-    window.BENBEN_UI_THEME.paneRatio = merged.paneRatio;
+    window.BENBEN_UI_THEME.pane_ratio = ratioKey;
+    window.BENBEN_UI_THEME.paneRatio = ratioKey;
     const envNavbarColor = (envNavbar.color || '').toString().trim();
     const navbarColor = ['auto', 'skin', 'default', ''].includes(envNavbarColor.toLowerCase())
       ? (UI_SKIN_PRIMARY[skin] || 'primary')
@@ -7552,7 +7601,7 @@ function jumpToPage(targetIdx) {
       preset: envNavbar.preset || 'modern',
     };
     if (persist) {
-      persistUiConfig(merged);
+      persistUiConfig({...merged, paneRatio: ratioKey});
     }
     applyNavbarTheme();
     if (!silent) {
@@ -9222,8 +9271,28 @@ function syncMarkdownEditorToPreview(container) {
     if (!showScriptPanel) return;
     const page = pagesData[slideshowState.pageIdx] || {};
     const script = page.script || '';
-    contentEl.textContent = script.trim() ? script : '暂无讲稿';
+    contentEl.value = script;
     contentEl.classList.toggle('text-muted', !script.trim());
+  }
+
+  function bindScriptEditor() {
+    const contentEl = document.getElementById('slideshow-script-content');
+    if (!contentEl || contentEl.dataset.bound === '1') return;
+    contentEl.dataset.bound = '1';
+    contentEl.addEventListener('input', () => {
+      const pageIdx = slideshowState.pageIdx || currentPageIdx || 0;
+      if (!pagesData[pageIdx]) {
+        pagesData[pageIdx] = {content: '', notes: '', script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
+      }
+      const val = contentEl.value || '';
+      pagesData[pageIdx].script = val;
+      const scriptInput = document.getElementById('page-script');
+      if (scriptInput) scriptInput.value = val;
+      if (scriptSaveTimer) clearTimeout(scriptSaveTimer);
+      scriptSaveTimer = setTimeout(() => {
+        saveProject();
+      }, 400);
+    });
   }
 
   function stopPlayback() {
@@ -9233,6 +9302,68 @@ function syncMarkdownEditorToPreview(container) {
       } catch (_) {}
     }
     playbackAudio = null;
+  }
+
+  function stopAiRead() {
+    if (aiReadAudio) {
+      try { aiReadAudio.pause(); } catch (_) {}
+    }
+    aiReadAudio = null;
+    aiReadLoading = false;
+    updateAiReadButton();
+  }
+
+  function updateAiReadButton() {
+    const btn = document.getElementById('slideshow-ai-read');
+    if (!btn) return;
+    if (aiReadLoading) {
+      btn.textContent = 'AI读稿中...';
+      btn.disabled = true;
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = aiReadAudio ? '暂停读稿' : 'AI读稿';
+  }
+
+  async function toggleAiRead() {
+    const btn = document.getElementById('slideshow-ai-read');
+    if (aiReadLoading) return;
+    if (aiReadAudio) {
+      stopAiRead();
+      return;
+    }
+    const pageIdx = slideshowState.pageIdx || currentPageIdx || 0;
+    const script = pagesData[pageIdx]?.script || '';
+    if (!script.trim()) {
+      showStatus('当前页讲稿为空', 'warning', 2200);
+      return;
+    }
+    aiReadLoading = true;
+    updateAiReadButton();
+    const url = appendWorkspaceQuery('/tts');
+    fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(withLlmConfig({text: script}))
+    }).then(res => res.json()).then(data => {
+      if (data.success && data.audio) {
+        const audio = new Audio('data:audio/mp3;base64,' + data.audio);
+        aiReadAudio = audio;
+        audio.play().catch(err => console.warn('AI朗读播放失败', err));
+        audio.addEventListener('ended', () => {
+          aiReadAudio = null;
+          updateAiReadButton();
+        }, {once: true});
+      } else {
+        showStatus('AI朗读失败：' + (data.error || '未知错误'), 'danger', 3200);
+      }
+    }).catch(err => {
+      console.warn('AI朗读请求失败', err);
+      showStatus('AI朗读请求失败', 'danger', 3200);
+    }).finally(() => {
+      aiReadLoading = false;
+      updateAiReadButton();
+    });
   }
 
   function playRecordingForPage(pageIdx) {
@@ -9545,6 +9676,7 @@ function syncMarkdownEditorToPreview(container) {
     if (!totalPages) {
       els.stage.innerHTML = '<div class="text-muted w-100 text-center my-4">暂无内容可展示</div>';
       updateScriptPanel();
+      updateAiReadButton();
       return;
     }
     slideshowState.pageIdx = Math.min(Math.max(slideshowState.pageIdx || 0, 0), Math.max(0, totalPages - 1));
@@ -9589,6 +9721,7 @@ function syncMarkdownEditorToPreview(container) {
     slideshowState.pendingHeading = '';
     updateSlideshowChrome();
     updateScriptPanel();
+    updateAiReadButton();
   }
 
   function jumpToSlideshowTarget(target) {
@@ -9614,6 +9747,7 @@ function syncMarkdownEditorToPreview(container) {
       const stopPromise = pageChanged ? stopActiveRecording(true) : Promise.resolve();
       if (pageChanged) {
         stopPlayback();
+        stopAiRead();
       }
       slideshowState.pageIdx = targetPage;
       slideshowState.slideIdx = Math.max(0, targetSlice);
@@ -9641,6 +9775,7 @@ function syncMarkdownEditorToPreview(container) {
     }
     const stopPromise = stopActiveRecording(true);
     stopPlayback();
+    stopAiRead();
     currentPageIdx = targetPage;
     updatePageNumLabel();
     slideshowState.pageIdx = targetPage;
@@ -9698,6 +9833,7 @@ function syncMarkdownEditorToPreview(container) {
     els.overlay.classList.remove('d-none');
     els.overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('slideshow-open');
+    bindScriptEditor();
     updateSlideshowChrome();
     renderSlideshowGrid();
     updateScriptPanel();
@@ -9742,6 +9878,7 @@ function syncMarkdownEditorToPreview(container) {
     slideshowPdfRequestId += 1;
     stopActiveRecording(true);
     stopPlayback();
+    stopAiRead();
     showScriptPanel = false;
     updateScriptPanel();
     if (slideshowState.keyHandler) {
@@ -9759,6 +9896,7 @@ function syncMarkdownEditorToPreview(container) {
     if (nextPage === slideshowState.pageIdx) return;
     await stopActiveRecording(true);
     stopPlayback();
+    stopAiRead();
     slideshowState.pageIdx = nextPage;
     slideshowState.slideIdx = 0;
     slideshowState.slideCount = slideshowState.mode === 'markdown'
@@ -9780,6 +9918,7 @@ function syncMarkdownEditorToPreview(container) {
     if (nextPage === slideshowState.pageIdx) return;
     await stopActiveRecording(true);
     stopPlayback();
+    stopAiRead();
     slideshowState.pageIdx = nextPage;
     slideshowState.slideIdx = 0;
     slideshowState.slideCount = slideshowState.mode === 'markdown'
@@ -9801,6 +9940,7 @@ function syncMarkdownEditorToPreview(container) {
     slideshowState.slideIdx = next;
     slideshowState.slideCount = count;
     renderSlideshowGrid();
+    stopAiRead();
     updateScriptPanel();
   }
 
@@ -9811,6 +9951,7 @@ function syncMarkdownEditorToPreview(container) {
     slideshowState.slideIdx = next;
     slideshowState.slideCount = count;
     renderSlideshowGrid();
+    stopAiRead();
     updateScriptPanel();
   }
 
@@ -10799,8 +10940,15 @@ function syncMarkdownEditorToPreview(container) {
   const scriptToggleBtn = document.getElementById('slideshow-script-toggle');
   if (scriptToggleBtn) scriptToggleBtn.addEventListener('click', () => {
     showScriptPanel = !showScriptPanel;
+    bindScriptEditor();
     updateScriptPanel();
+    if (showScriptPanel) {
+      const el = document.getElementById('slideshow-script-content');
+      if (el) el.focus();
+    }
   });
+  const aiReadBtn = document.getElementById('slideshow-ai-read');
+  if (aiReadBtn) aiReadBtn.addEventListener('click', toggleAiRead);
 
   const modeSwitchBtn = document.getElementById('mode-switch-btn');
   if (modeSwitchBtn) {
@@ -14334,28 +14482,31 @@ applyDefaultWorkspaceIfNeeded();
     syncAssistantRagScope();
   }
 
-  document.getElementById('play-note').onclick = function() {
-    const script = pagesData[currentPageIdx]?.script || '';
-    if(!script.trim()) return alert('当前页讲稿为空');
-    this.disabled = true;
-    this.textContent = '生成中...';
-    const url = appendWorkspaceQuery('/tts');
-    fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(withLlmConfig({text: script}))
-    }).then(res=>res.json()).then(data=>{
-      if(data.success && data.audio) {
-        const audio = new Audio('data:audio/mp3;base64,' + data.audio);
-        audio.play();
-      } else {
-        alert('TTS失败：'+(data.error||'未知错误'));
-      }
-    }).catch(()=>alert('TTS请求失败')).finally(()=>{
-      this.disabled = false;
-      this.textContent = '播放笔记';
-    });
-  };
+  const playNoteLegacyBtn = document.getElementById('play-note');
+  if (playNoteLegacyBtn) {
+    playNoteLegacyBtn.onclick = function() {
+      const script = pagesData[currentPageIdx]?.script || '';
+      if(!script.trim()) return alert('当前页讲稿为空');
+      this.disabled = true;
+      this.textContent = '生成中...';
+      const url = appendWorkspaceQuery('/tts');
+      fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(withLlmConfig({text: script}))
+      }).then(res=>res.json()).then(data=>{
+        if(data.success && data.audio) {
+          const audio = new Audio('data:audio/mp3;base64,' + data.audio);
+          audio.play();
+        } else {
+          alert('TTS失败：'+(data.error||'未知错误'));
+        }
+      }).catch(()=>alert('TTS请求失败')).finally(()=>{
+        this.disabled = false;
+        this.textContent = '播放讲稿';
+      });
+    };
+  }
   
   // legacy export-audio removed (use unified export modal)
   
