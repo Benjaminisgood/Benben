@@ -2266,6 +2266,23 @@
       color: var(--shell-text);
       border: 1px solid var(--surface-border);
     }
+    /* 全屏模式下的提示容器 */
+    #slideshow-status-area {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 6000;
+      pointer-events: none;
+    }
+    #slideshow-status-area .alert {
+      pointer-events: auto;
+      min-width: 280px;
+      box-shadow: var(--surface-shadow);
+      background: var(--surface-1);
+      color: var(--shell-text);
+      border: 1px solid var(--surface-border);
+    }
     /* review 模块的卡片配色，随主题和皮肤变化 */
     .review-chip {
       background: color-mix(in srgb, var(--surface-1) 88%, var(--accent) 12%);
@@ -2640,6 +2657,7 @@
         <li class="nav-item"><button class="btn btn-outline-danger me-2 js-nav-btn" id="ai-optimize" title="Latex优化">tex优化</button></li>
         <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="ai-note-optimize" title="Markdown优化">md优化</button></li>
         <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="ai-script-optimize" title="Speech script优化">script优化</button></li>
+        <li><hr class="dropdown-divider m-1"></li>        
         <li class="nav-item"><button class="btn btn-outline-success me-2 js-nav-btn" id="ai-learn-helper" title="AI 学习">AI学习</button></li>
         <li class="nav-item"><button class="btn btn-outline-info me-2 js-nav-btn" id="ai-learn-review-btn" title="AI 复习">AI复习</button></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="ai-assistant-btn" title="AI 助理（可选 RAG）">AI助理</button></li>
@@ -3766,6 +3784,7 @@
   </div>
 
   <div id="slideshow-overlay" class="slideshow-overlay d-none" aria-hidden="true">
+    <div id="slideshow-status-area" class="p-3"></div>
     <div class="slideshow-chrome d-flex align-items-center justify-content-between flex-wrap gap-2">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <span class="slideshow-mode-badge" id="slideshow-mode-label">--</span>
@@ -6905,8 +6924,25 @@ function jumpToPage(targetIdx) {
   }
 
   function showStatus(message, type = 'info', timeout = 4000) {
+    const renderToArea = (area) => {
+      if (!area) return;
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${type} alert-dismissible fade show shadow`;
+      alertDiv.setAttribute('role', 'alert');
+      alertDiv.textContent = message;
+      area.appendChild(alertDiv);
+      setTimeout(() => {
+        alertDiv.classList.remove('show');
+        alertDiv.classList.add('fade');
+        setTimeout(() => alertDiv.remove(), 200);
+      }, timeout);
+    };
     const area = document.getElementById('status-area');
-    if (!area) return;
+    renderToArea(area);
+    if (slideshowState && slideshowState.open) {
+      renderToArea(document.getElementById('slideshow-status-area'));
+    }
+  }
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show shadow`;
     alertDiv.setAttribute('role', 'alert');
