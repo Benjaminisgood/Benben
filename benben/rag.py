@@ -203,12 +203,13 @@ def ensure_markdown_index(
         "sourceHash": source_hash,
         "chunkCount": len(chunks),
         "dimension": dimension,
+        "chunkSize": chunk_size,
+        "overlap": overlap,
         "chunks": [
             {
                 "pageId": chunk.page_id,
                 "pageIdx": chunk.page_idx,
                 "chunkIdx": chunk.chunk_idx,
-                "text": chunk.text,
                 "label": chunk.label,
             }
             for chunk in chunks
@@ -227,6 +228,7 @@ def search_markdown(
     provider_config: dict[str, Any],
     headers: dict[str, str],
     *,
+    package=None,
     embedding_model: str | None = None,
     top_k: int = 5,
     allowed_page_ids: set[str] | None = None,
@@ -285,4 +287,28 @@ def search_markdown(
         )
         if len(results) >= max_results:
             break
+    if package:
+        chunk_size = int(manifest.get("chunkSize") or 900)
+        overlap = int(manifest.get("overlap") or 180)
+        page_cache: dict[str, list[str]] = {}
+        for entry in results:
+            if entry.get("text"):
+                continue
+            pid = entry.get("pageId")
+            if not pid:
+                continue
+            pid_str = str(pid)
+            if pid_str not in page_cache:
+                page_payload = package.get_page_payload(pid_str)
+                notes = ""
+                if isinstance(page_payload, dict):
+                    notes = str(page_payload.get("notes") or "")
+                page_cache[pid_str] = _chunk_markdown(notes, chunk_size=chunk_size, overlap=overlap)
+            chunks_for_page = page_cache.get(pid_str) or []
+            try:
+                idx_val = int(entry.get("chunkIdx"))
+            except Exception:
+                idx_val = None
+            if idx_val is not None and 0 <= idx_val < len(chunks_for_page):
+                entry["text"] = chunks_for_page[idx_val]
     return results

@@ -2774,6 +2774,11 @@
                   <span class="text-secondary">🗂️</span><span>历史存档</span>
                 </button>
               </li>
+              <li>
+                <button type="button" class="dropdown-item d-flex align-items-center gap-2 workspace-menu-action" data-workspace-action="checkpoint">
+                  <span class="text-success">💾</span><span>WAL 写盘校验</span>
+                </button>
+              </li>
             </ul>
           </div>
         </li>
@@ -4713,6 +4718,30 @@ function jumpToPage(targetIdx) {
   const latexCompilePromises = new Map();
   const latexDocCache = new Map();
   const latexSlideCounts = new Map();
+  const MAX_MARKDOWN_CACHE = 8;
+  const MAX_LATEX_DOC_CACHE = 6;
+
+  function trimCache(map, limit, pinnedKeys = []) {
+    if (!map || typeof map.size !== 'number') return;
+    if (map.size <= limit) return;
+    const pins = new Set(pinnedKeys);
+    const entries = Array.from(map.keys());
+    for (const key of entries) {
+      if (map.size <= limit) break;
+      if (pins.has(key)) continue;
+      map.delete(key);
+    }
+  }
+
+  function rememberMarkdownCache(idx, value) {
+    markdownSlideCache.set(idx, value);
+    trimCache(markdownSlideCache, MAX_MARKDOWN_CACHE, [currentPageIdx]);
+  }
+
+  function rememberLatexDoc(idx, value) {
+    latexDocCache.set(idx, value);
+    trimCache(latexDocCache, MAX_LATEX_DOC_CACHE, [currentPageIdx]);
+  }
   let recordingMode = 'idle'; // 'record' | 'idle' | 'play'
   let mediaRecorder = null;
   let recorderChunks = [];
@@ -4803,14 +4832,21 @@ function jumpToPage(targetIdx) {
   let availableTemplates = { latex: [], markdown: [] };
   let templatesLoaded = false;
   let selectedTemplateName = { latex: '', markdown: '' };
+  const PAGE_SAVE_DEBOUNCE_MS = 2000;
+  const PROJECT_SAVE_DEBOUNCE_MS = 2000;
   let saveProjectTimer = null;
+  let pageSaveTimer = null;
   let saveRequestQueue = Promise.resolve();
+  let pageSaveQueue = Promise.resolve();
   let saveInFlight = false;
   let hasLocalChanges = false;
+  let pagesStructureDirty = false;
+  const pendingPageSaveIds = new Set();
   const REMOTE_META_POLL_INTERVAL_MS = 45000;
   let remoteMetaTimer = null;
   let remoteMetaInFlight = false;
   let pendingSaveCallbacks = [];
+  let checkpointInFlight = false;
   let searchModalInstance = null;
   let relationCatalogModalInstance = null;
   let searchResultsCache = [];
@@ -4843,6 +4879,9 @@ function jumpToPage(targetIdx) {
     project: null,
     projectSave: null,
     projectMeta: null,
+    pageMeta: null,
+    pageDetail: null,
+    pagePatch: null,
   };
   const WORKSPACE_ENDPOINTS = {
     list: buildApiUrl('/workspaces'),
@@ -4856,6 +4895,10 @@ function jumpToPage(targetIdx) {
     unlock: (workspaceId) => {
       if(!workspaceId) return null;
       return buildApiUrl(`/workspaces/${encodeURIComponent(workspaceId)}/unlock`);
+    },
+    checkpoint: (workspaceId) => {
+      if(!workspaceId) return null;
+      return buildApiUrl(`/workspaces/${encodeURIComponent(workspaceId)}/checkpoint`);
     },
     archives: (workspaceId) => {
       if(!workspaceId) return null;
@@ -5239,6 +5282,10 @@ function jumpToPage(targetIdx) {
     if(document.visibilityState === 'visible' && !hasDirtyLocal()){
       runRemoteMetaCheck();
     }
+    if(document.visibilityState === 'hidden'){
+      markdownSlideCache.clear();
+      latexDocCache.clear();
+    }
   });
 
   function updateWorkspaceEndpoints(){
@@ -5249,10 +5296,22 @@ function jumpToPage(targetIdx) {
       PROJECT_ENDPOINTS.project = buildApiUrl(projectPath);
       PROJECT_ENDPOINTS.projectSave = PROJECT_ENDPOINTS.project;
       PROJECT_ENDPOINTS.projectMeta = buildApiUrl(projectMetaPath);
+      PROJECT_ENDPOINTS.pageMeta = buildApiUrl(`/workspaces/${encoded}/pages/meta`);
+      PROJECT_ENDPOINTS.pageDetail = (pageId) => {
+        if(!pageId) return null;
+        return buildApiUrl(`/workspaces/${encoded}/pages/${encodeURIComponent(pageId)}`);
+      };
+      PROJECT_ENDPOINTS.pagePatch = (pageId) => {
+        if(!pageId) return null;
+        return buildApiUrl(`/workspaces/${encoded}/pages/${encodeURIComponent(pageId)}`);
+      };
     } else {
       PROJECT_ENDPOINTS.project = null;
       PROJECT_ENDPOINTS.projectSave = null;
       PROJECT_ENDPOINTS.projectMeta = null;
+      PROJECT_ENDPOINTS.pageMeta = null;
+      PROJECT_ENDPOINTS.pageDetail = null;
+      PROJECT_ENDPOINTS.pagePatch = null;
     }
   }
 
@@ -5276,6 +5335,41 @@ function jumpToPage(targetIdx) {
         section.container.classList.add('d-none');
       }
     });
+  }
+
+  function formatBytes(size){
+    const value = typeof size === 'number' ? size : parseFloat(size || '0');
+    if (!value || value < 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let n = value;
+    let unit = 0;
+    while (n >= 1024 && unit < units.length - 1) {
+      n /= 1024;
+      unit += 1;
+    }
+    return `${n.toFixed(n >= 10 ? 0 : 1)} ${units[unit]}`;
+  }
+
+  async function refreshWorkspaceHealth(){
+    if(!currentWorkspace || !currentWorkspace.workspace_id) return;
+    const url = buildApiUrl(`/workspaces/${encodeURIComponent(currentWorkspace.workspace_id)}/health`);
+    try{
+      const res = await fetch(url, {cache: 'no-store'});
+      const data = await res.json();
+      if(!res.ok || (data && data.success === false)) return;
+      const hint = [
+        `DB ${formatBytes(data.dbSize || 0)}`,
+        `WAL ${formatBytes(data.walSize || 0)}`,
+        `附件 ${data.attachments || 0}`,
+        `缓存 ${formatBytes(data.cacheSize || 0)}`
+      ].join(' · ');
+      if(projectDropdownBtn){
+        projectDropdownBtn.title = hint;
+      }
+      console.info('[benben] workspace health', hint, data);
+    }catch(err){
+      console.warn('获取 workspace 健康信息失败', err);
+    }
   }
 
   function ensureWorkspaceReady(options = {}){
@@ -6002,6 +6096,105 @@ function jumpToPage(targetIdx) {
     if(projectDropdownBtn){
       projectDropdownBtn.classList.add('workspace-button-highlight');
       setTimeout(() => projectDropdownBtn.classList.remove('workspace-button-highlight'), 1500);
+    }
+  }
+
+  function formatCheckpointTime(ts){
+    const num = Number(ts);
+    if(!Number.isFinite(num) || num <= 0) return '';
+    return new Date(num * 1000).toLocaleString();
+  }
+
+  async function triggerWorkspaceCheckpoint(){
+    if(checkpointInFlight){
+      showStatus('写盘校验正在进行，请稍候…', 'info', 3500);
+      return;
+    }
+    if(!ensureWorkspaceReady({silent: false})) return;
+    if(currentWorkspace && currentWorkspace.locked && !currentWorkspace.unlocked){
+      const label = currentWorkspace.display_name || currentWorkspace.workspace_id;
+      openProjectUnlockModal(label);
+      return;
+    }
+    const endpoint = WORKSPACE_ENDPOINTS.checkpoint(currentWorkspace.workspace_id);
+    if(!endpoint){
+      showStatus('写盘校验接口不可用', 'danger', 4000);
+      return;
+    }
+    checkpointInFlight = true;
+    buildProjectMenu(projectMenuEl);
+    const payload = {};
+    const currentPage = Array.isArray(pagesData) ? pagesData[currentPageIdx] : null;
+    const pageId = currentPage && typeof currentPage.pageId === 'string' ? currentPage.pageId.trim() : '';
+    if(pageId) payload.pageId = pageId;
+    if(projectUpdatedAt) payload.expectedUpdatedAt = projectUpdatedAt;
+    showStatus('正在执行 WAL checkpoint 并校验数据库…', 'info', 4000);
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok || data.success === false){
+        const msg = (data && data.error) ? data.error : `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      const checkpoint = data.checkpoint || {};
+      const wal = checkpoint.walCheckpoint || {};
+      const integrity = checkpoint.integrity || {};
+      const probe = checkpoint.probe || {};
+      const parts = [];
+      if(wal.ok){
+        let walDetail = '';
+        if(wal.result && typeof wal.result === 'object'){
+          const details = wal.result.log ?? wal.result.checkpointed ?? wal.result.frames;
+          if(details !== undefined){
+            walDetail = `（log=${details}）`;
+          }
+        }
+        parts.push(`WAL checkpoint 完成${walDetail}`);
+      } else {
+        parts.push(`WAL checkpoint 未完成${wal.error ? `：${wal.error}` : ''}`);
+      }
+      if(wal.commitError){
+        parts.push(`提交时出现异常：${wal.commitError}`);
+      }
+      if(integrity.ok){
+        parts.push('integrity_check 通过');
+      } else if(integrity.message){
+        parts.push(`integrity_check: ${integrity.message}`);
+      } else if(integrity.error){
+        parts.push(`integrity_check 出错：${integrity.error}`);
+      }
+      if(probe.page){
+        const label = probe.page.pageId || '当前页';
+        parts.push(probe.page.found ? `页 ${label} 存在` : `未找到页 ${label}`);
+      }
+      if(probe.counts){
+        const pageCount = Number(probe.counts.pages || 0);
+        const attachmentCount = Number(probe.counts.attachments || 0);
+        parts.push(`统计：页 ${pageCount} · 附件 ${attachmentCount}`);
+      }
+      if(probe.matchesExpected === false){
+        parts.push('数据库更新时间早于前端记录');
+      }
+      if(probe.metaUpdatedAt){
+        const tsLabel = formatCheckpointTime(probe.metaUpdatedAt);
+        if(tsLabel) parts.push(`数据库 updatedAt ${tsLabel}`);
+      }
+      if(probe.error){
+        parts.push(`探测数据读取失败：${probe.error}`);
+      }
+      const hasError = wal.commitError || integrity.error || probe.error;
+      const variant = (!hasError && wal.ok && integrity.ok && probe.ok !== false) ? 'success' : 'warning';
+      showStatus(parts.filter(Boolean).join('；') || '写盘校验完成', variant, 9000);
+      console.info('Workspace checkpoint detail', checkpoint);
+    } catch (err) {
+      showStatus('写盘校验失败：' + (err?.message || err), 'danger', 6000);
+    } finally {
+      checkpointInFlight = false;
+      buildProjectMenu(projectMenuEl);
     }
   }
 
@@ -6980,22 +7173,27 @@ function jumpToPage(targetIdx) {
   const attachmentPreviewOpen = document.getElementById('attachment-preview-open');
   const searchInputEl = document.getElementById('search-modal-input');
   const searchSubmitBtn = document.getElementById('search-modal-submit');
-  function goToPrevPage(){
-    if(currentPageIdx > 0){
-      currentPageIdx -= 1;
+  function switchToPage(targetIdx){
+    if(!Array.isArray(pagesData)) return;
+    if(targetIdx < 0 || targetIdx >= pagesData.length) return;
+    currentPageIdx = targetIdx;
+    ensurePageLoaded(targetIdx).then(() => {
       renderSingleEditor();
       refreshPreview();
       updatePageNumLabel();
+    });
+  }
+
+  function goToPrevPage(){
+    if(currentPageIdx > 0){
+      switchToPage(currentPageIdx - 1);
     }
   }
 
   function goToNextPage(){
     const total = Array.isArray(pagesData) ? pagesData.length : 0;
     if(currentPageIdx < total - 1){
-      currentPageIdx += 1;
-      renderSingleEditor();
-      refreshPreview();
-      updatePageNumLabel();
+      switchToPage(currentPageIdx + 1);
     }
   }
   const prevPageBtn = document.getElementById('prev-page');
@@ -7490,6 +7688,8 @@ function jumpToPage(targetIdx) {
     const path = getWorkspaceDisplayPath(currentWorkspace);
     const statusLine = name ? `当前：${escapeHtml(name + suffix + lockSuffix)}` : '当前：未选择';
     const pathLine = path ? `<div class="dropdown-item-text text-muted small text-truncate">路径：${escapeHtml(path)}</div>` : '';
+    const checkpointDisabled = checkpointInFlight || !currentWorkspace || (currentWorkspace.locked && !currentWorkspace.unlocked);
+    const checkpointDisabledAttr = checkpointDisabled ? ' disabled' : '';
     menu.innerHTML = `
       <li><h6 class="dropdown-header">工作区</h6></li>
       <li><span class="dropdown-item-text text-muted">${statusLine}</span>${pathLine}</li>
@@ -7502,6 +7702,9 @@ function jumpToPage(targetIdx) {
       </button></li>
       <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 workspace-menu-action" data-workspace-action="archive">
         <span class="text-secondary">🗂️</span><span>历史存档</span>
+      </button></li>
+      <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 workspace-menu-action" data-workspace-action="checkpoint"${checkpointDisabledAttr}>
+        <span class="text-success">💾</span><span>WAL 写盘校验</span>
       </button></li>
       <li><hr class="dropdown-divider"></li>
       <li><h6 class="dropdown-header">安全</h6></li>
@@ -7531,6 +7734,8 @@ function jumpToPage(targetIdx) {
         openRemoteWorkspacePanel();
       } else if(action === 'archive'){
         openWorkspaceArchiveModal();
+      } else if(action === 'checkpoint'){
+        triggerWorkspaceCheckpoint();
       } else if(action === 'password'){
         openProjectPasswordModal();
       } else if(action === 'unlock'){
@@ -9822,7 +10027,7 @@ function syncMarkdownEditorToPreview(container) {
     const md = page.notes || '';
     const slices = [];
     if (!md.trim()) {
-      markdownSlideCache.set(pageIdx, slices);
+      rememberMarkdownCache(pageIdx, slices);
       return slices;
     }
     let tokens;
@@ -9830,7 +10035,7 @@ function syncMarkdownEditorToPreview(container) {
       tokens = marked.lexer(md);
     } catch (err) {
       console.warn('Markdown 切片解析失败', err);
-      markdownSlideCache.set(pageIdx, slices);
+      rememberMarkdownCache(pageIdx, slices);
       return slices;
     }
     rewriteMarkdownTokensForAttachments(tokens);
@@ -9867,7 +10072,7 @@ function syncMarkdownEditorToPreview(container) {
       current.push(token);
     });
     pushSlice();
-    markdownSlideCache.set(pageIdx, slices);
+    rememberMarkdownCache(pageIdx, slices);
     markdownPageDirty.delete(pageIdx);
     return slices;
   }
@@ -9974,8 +10179,8 @@ function syncMarkdownEditorToPreview(container) {
       if (scriptInput) scriptInput.value = val;
       if (scriptSaveTimer) clearTimeout(scriptSaveTimer);
       scriptSaveTimer = setTimeout(() => {
-        saveProject();
-      }, 400);
+        markPageDirtyForSave(pageIdx);
+      }, 300);
     });
   }
 
@@ -10113,7 +10318,7 @@ function syncMarkdownEditorToPreview(container) {
           }
           const page = pagesData[targetPage] || (pagesData[targetPage] = {content: '', notes: '', script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}});
           page.recording = {hasRecording: true, mime: blob.type || 'audio/webm', updatedAt: Date.now()};
-          saveProject();
+          markPageDirtyForSave(targetPage);
         }).catch(err => {
           console.warn('上传录播失败', err);
           showStatus('录播上传失败', 'warning', 2800);
@@ -10308,7 +10513,7 @@ function syncMarkdownEditorToPreview(container) {
           return cached.doc;
         }
         const docPromise = pdfjsLib.getDocument(url).promise;
-        latexDocCache.set(pageIdx, {url, doc: docPromise});
+        rememberLatexDoc(pageIdx, {url, doc: docPromise});
         return docPromise;
       })
       .then(pdf => {
@@ -10316,7 +10521,7 @@ function syncMarkdownEditorToPreview(container) {
         const total = pdf.numPages || 1;
         latexPageDirty.delete(pageIdx);
         latexSlideCounts.set(pageIdx, total);
-        latexDocCache.set(pageIdx, {url: pdfUrl || null, doc: pdf});
+        rememberLatexDoc(pageIdx, {url: pdfUrl || null, doc: pdf});
         slideshowState.slideCount = Math.max(1, total);
         slideshowState.slideIdx = Math.min(Math.max(slideIdx, 0), total - 1);
         updateSlideshowChrome();
@@ -11168,23 +11373,19 @@ function syncMarkdownEditorToPreview(container) {
         const from = parseInt(e.dataTransfer.getData('text/plain'));
         const to = idx;
         if (from !== to) {
-          const moved = pagesData.splice(from, 1)[0];
-          pagesData.splice(to, 0, moved);
-          if (currentPageIdx === from) currentPageIdx = to;
-          else if (from < currentPageIdx && to >= currentPageIdx) currentPageIdx--;
-          else if (from > currentPageIdx && to <= currentPageIdx) currentPageIdx++;
-          saveProject();
+            const moved = pagesData.splice(from, 1)[0];
+            pagesData.splice(to, 0, moved);
+            if (currentPageIdx === from) currentPageIdx = to;
+            else if (from < currentPageIdx && to >= currentPageIdx) currentPageIdx--;
+            else if (from > currentPageIdx && to <= currentPageIdx) currentPageIdx++;
+            pagesStructureDirty = true;
+            saveProject({includePages: true});
           renderTabsModal();
-          renderSingleEditor();
-          updatePageNumLabel();
-          refreshPreview();
+          switchToPage(currentPageIdx);
         }
       };
       tab.onclick = () => {
-        currentPageIdx = idx;
-        renderSingleEditor();
-        refreshPreview();
-        updatePageNumLabel();
+        switchToPage(idx);
         renderTabsModal();
       };
       tabs.appendChild(tab);
@@ -11433,7 +11634,8 @@ function syncMarkdownEditorToPreview(container) {
     if (!pagesData[currentPageIdx]) {
       pagesData[currentPageIdx] = {content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
     }
-    const page = pagesData[currentPageIdx];
+    const targetIdx = currentPageIdx;
+    const page = pagesData[targetIdx];
     singleEditor = CodeMirror.fromTextArea(wrapper.querySelector('textarea'), {
       mode: currentEditMode === 'markdown' ? 'markdown' : 'stex',
       lineNumbers: true,
@@ -11447,6 +11649,18 @@ function syncMarkdownEditorToPreview(container) {
     singleEditor.setOption('readOnly', false);
     bindEditorSelectionCleanup(singleEditor);
     clearEditorGhostSelection(singleEditor);
+    if (!page.contentLoaded) {
+      ensurePageLoaded(targetIdx).then(loaded => {
+        if (!loaded || targetIdx !== currentPageIdx || !singleEditor) return;
+        const freshVal = currentEditMode === 'markdown' ? (loaded.notes || '') : (loaded.content || '');
+        if (singleEditor.getValue() !== freshVal) {
+          singleEditor.setValue(freshVal);
+        }
+        if (currentEditMode === 'markdown') {
+          renderMarkdownPreview();
+        }
+      });
+    }
     singleEditor.on('paste', handleEditorPaste);
     singleEditor.on('change', function() {
       const value = singleEditor.getValue();
@@ -11469,7 +11683,7 @@ function syncMarkdownEditorToPreview(container) {
         }
       }
       if (slideshowState.open && showScriptPanel) updateScriptPanel();
-      saveProject();
+      markPageDirtyForSave(currentPageIdx);
       queueCompile();
     });
     bindMarkdownEditorScrollSync(singleEditor);
@@ -11544,7 +11758,8 @@ function syncMarkdownEditorToPreview(container) {
     pagesData.splice(currentPageIdx, 1);
     if(currentPageIdx >= pagesData.length) currentPageIdx = pagesData.length - 1;
     invalidateAllSlides();
-    saveProject();
+    pagesStructureDirty = true;
+    saveProject({includePages: true});
     renderSingleEditor();
     updatePageNumLabel();
   }
@@ -11790,6 +12005,92 @@ function syncMarkdownEditorToPreview(container) {
   };
 
   
+  function buildPageSavePayload(idx) {
+    const page = pagesData[idx];
+    if (!page || typeof idx !== 'number') return null;
+    return {
+      pageId: page.pageId || page.id,
+      content: page.content || '',
+      notes: page.notes || '',
+      script: page.script || '',
+      resources: Array.isArray(page.resources) ? page.resources : [],
+      bib: normalizeBibList(page.bib || []),
+      clientUpdatedAt: projectUpdatedAt,
+    };
+  }
+
+  function applyPagePayload(idx, payload) {
+    if (!payload || typeof idx !== 'number') return;
+    const target = pagesData[idx] || {};
+    target.pageId = payload.pageId || payload.id || target.pageId || generatePageId();
+    target.content = payload.content || '';
+    target.notes = payload.notes || '';
+    target.script = payload.script || '';
+    target.resources = Array.isArray(payload.resources) ? payload.resources.slice() : [];
+    target.bib = normalizeBibList(payload.bib || []);
+    target.recording = normalizeRecordingMeta(payload.recording);
+    target.contentLoaded = true;
+    pagesData[idx] = target;
+  }
+
+  function markPageDirtyForSave(idx) {
+    if (typeof idx !== 'number' || idx < 0 || idx >= pagesData.length) return;
+    pendingPageSaveIds.add(idx);
+    hasLocalChanges = true;
+    if (pageSaveTimer) {
+      clearTimeout(pageSaveTimer);
+    }
+    pageSaveTimer = setTimeout(() => {
+      pageSaveTimer = null;
+      flushPageSaves();
+    }, PAGE_SAVE_DEBOUNCE_MS);
+  }
+
+  function flushPageSaves() {
+    if (!pendingPageSaveIds.size) return;
+    if (!ensureWorkspaceReady({silent: true})) {
+      return;
+    }
+    const ids = Array.from(pendingPageSaveIds);
+    pendingPageSaveIds.clear();
+    pageSaveQueue = pageSaveQueue
+      .catch(() => {})
+      .then(async () => {
+        for (const idx of ids) {
+          const payload = buildPageSavePayload(idx);
+          if (!payload || !payload.pageId) continue;
+          const buildPatchUrl = PROJECT_ENDPOINTS.pagePatch;
+          const patchUrl = typeof buildPatchUrl === 'function' ? buildPatchUrl(payload.pageId) : null;
+          if (!patchUrl) continue;
+          const res = await fetch(patchUrl, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(withWorkspacePayload(payload)),
+          });
+          const parsed = await parseJsonSafe(res);
+          const ok = res.ok && (!parsed.json || parsed.json.success !== false);
+          if (!ok) {
+            const message = (parsed.json && parsed.json.error) ? parsed.json.error : (parsed.text || (`HTTP ${res.status}`));
+            showStatus('保存页面失败：' + message, 'danger', 5000);
+            continue;
+          }
+          const patched = parsed.json && parsed.json.page ? parsed.json.page : null;
+          if (patched) {
+            applyPagePayload(idx, patched);
+          }
+          if (parsed.json && Object.prototype.hasOwnProperty.call(parsed.json, 'updatedAt')) {
+            updateProjectTimestamp(parsed.json.updatedAt);
+          }
+        }
+      })
+      .finally(() => {
+        if (!pendingPageSaveIds.size) {
+          hasLocalChanges = false;
+        }
+      });
+  }
+
+  
   // export-tex button removed; unified export flow handled by export modal
 
   // New unified export flow
@@ -11947,7 +12248,7 @@ function syncMarkdownEditorToPreview(container) {
     }
   });
   
-  function flushProjectSave(callbacks) {
+  function flushProjectSave(callbacks, options = {}) {
     if(!ensureWorkspaceReady({silent: true})){
       return;
     }
@@ -11956,14 +12257,17 @@ function syncMarkdownEditorToPreview(container) {
       promptWorkspaceSelection('请先选择工作区后再保存项目');
       return;
     }
+    const includePages = !!options.includePages || pagesStructureDirty;
     const payload = {
       template: {...latexTemplate},
       markdownTemplate: {...markdownTemplate},
-      pages: pagesData,
       resources: globalResources,
       llm: getLlmPayload(),
       clientUpdatedAt: projectUpdatedAt,
     };
+    if (includePages) {
+      payload.pages = pagesData;
+    }
     saveInFlight = true;
     saveRequestQueue = saveRequestQueue
       .catch(() => {})
@@ -11990,6 +12294,9 @@ function syncMarkdownEditorToPreview(container) {
         if(parsed && Object.prototype.hasOwnProperty.call(parsed, 'updatedAt')){
           updateProjectTimestamp(parsed.updatedAt);
           hasLocalChanges = false;
+          if (includePages) {
+            pagesStructureDirty = false;
+          }
         }
         callbacks.forEach(cb => {
           try {
@@ -12009,10 +12316,17 @@ function syncMarkdownEditorToPreview(container) {
       });
   }
 
-  function saveProject(cb) {
+  function saveProject(options, cb) {
+    let opts = options;
+    let callback = cb;
+    if (typeof options === 'function') {
+      callback = options;
+      opts = {};
+    }
+    opts = opts || {};
     hasLocalChanges = true;
-    if (typeof cb === 'function') {
-      pendingSaveCallbacks.push(cb);
+    if (typeof callback === 'function') {
+      pendingSaveCallbacks.push(callback);
     }
     if (saveProjectTimer) {
       clearTimeout(saveProjectTimer);
@@ -12021,18 +12335,54 @@ function syncMarkdownEditorToPreview(container) {
       saveProjectTimer = null;
       const callbacks = pendingSaveCallbacks.slice();
       pendingSaveCallbacks = [];
-      flushProjectSave(callbacks);
-    }, 400);
+      flushProjectSave(callbacks, opts);
+    }, PROJECT_SAVE_DEBOUNCE_MS);
   }
 
-  
+ 
+  let pageLoadRequestId = 0;
+
+  function ensurePageLoaded(idx, options = {}) {
+    if (typeof idx !== 'number' || idx < 0 || idx >= pagesData.length) {
+      return Promise.resolve(null);
+    }
+    const page = pagesData[idx];
+    if (!page || page.contentLoaded) {
+      return Promise.resolve(page);
+    }
+    const buildDetail = PROJECT_ENDPOINTS.pageDetail;
+    const pageId = page.pageId || page.id;
+    const detailUrl = typeof buildDetail === 'function' ? buildDetail(pageId) : null;
+    if (!detailUrl) return Promise.resolve(page);
+    const requestId = ++pageLoadRequestId;
+    return fetch(detailUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (!data || data.success === false || !data.page) return page;
+        if (requestId !== pageLoadRequestId) return page;
+        applyPagePayload(idx, data.page);
+        if (Object.prototype.hasOwnProperty.call(data, 'updatedAt')) {
+          updateProjectTimestamp(data.updatedAt);
+        }
+        return pagesData[idx];
+      })
+      .catch(err => {
+        console.warn('加载页面内容失败', err);
+        return page;
+      });
+  }
+
+ 
   function loadProject(cb) {
     if(!ensureWorkspaceReady({silent: true})){
       return Promise.resolve(null);
     }
     const targetProject = typeof currentProject === 'string' ? currentProject : '';
     const promptsChanged = handleLearningProjectSwitch(targetProject, {force: false});
-    const projectUrl = PROJECT_ENDPOINTS.project;
+    let projectUrl = PROJECT_ENDPOINTS.project;
+    if(projectUrl){
+      projectUrl = projectUrl + (projectUrl.includes('?') ? '&' : '?') + 'pages=meta';
+    }
     if(!projectUrl){
       promptWorkspaceSelection('请先选择工作区后再加载项目');
       return Promise.resolve(null);
@@ -12096,7 +12446,7 @@ function syncMarkdownEditorToPreview(container) {
 
         pagesData = (data.pages || []).map((p, index) => {
           if (typeof p !== 'object' || p === null) {
-            return {content: String(p || ''), script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
+            return {content: String(p || ''), script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}, contentLoaded: false};
           }
           const pageObj = {...p};
           pageObj.content = pageObj.content || '';
@@ -12107,6 +12457,7 @@ function syncMarkdownEditorToPreview(container) {
           const pidSource = (typeof pageObj.pageId === 'string' && pageObj.pageId) || (typeof pageObj.id === 'string' && pageObj.id);
           pageObj.pageId = pidSource && pidSource.trim() ? pidSource.trim() : generatePageId();
           pageObj.recording = normalizeRecordingMeta(pageObj.recording);
+          pageObj.contentLoaded = !!(p && (typeof p.content === 'string' || typeof p.notes === 'string' || typeof p.script === 'string'));
           delete pageObj.id;
           return pageObj;
         });
@@ -12115,6 +12466,7 @@ function syncMarkdownEditorToPreview(container) {
         globalResources = Array.isArray(data.resources) ? data.resources.slice() : [];
         bibData = normalizeBibList(data.bib || []);
         currentPageIdx = Math.min(currentPageIdx, pagesData.length - 1);
+        const preloadPromise = ensurePageLoaded(currentPageIdx);
         updateProjectButtonLabel();
         renderSingleEditor();
         updatePageNumLabel();
@@ -12135,6 +12487,11 @@ function syncMarkdownEditorToPreview(container) {
         hasLocalChanges = false;
         saveInFlight = false;
         restartRemoteMetaPolling();
+        refreshWorkspaceHealth();
+        preloadPromise.catch(() => {}).then(() => {
+          renderSingleEditor();
+          refreshPreview();
+        });
         if(cb) cb();
       })
       .catch(err => {
@@ -12148,7 +12505,7 @@ function syncMarkdownEditorToPreview(container) {
     if(!e.target) return;
     if(e.target.id === 'page-script') {
       pagesData[currentPageIdx].script = e.target.value;
-      saveProject();
+      markPageDirtyForSave(currentPageIdx);
       queueCompile();
     }
   });
@@ -12627,7 +12984,7 @@ applyDefaultWorkspaceIfNeeded();
       }
       if (slideshowState.open && showScriptPanel) updateScriptPanel();
       renderSingleEditor();
-      saveProject();
+      markPageDirtyForSave(currentPageIdx);
       queueCompile();
     }
     var modal = bootstrap.Modal.getInstance(document.getElementById('aiModal'));
@@ -12665,7 +13022,7 @@ applyDefaultWorkspaceIfNeeded();
     if(val){
       pagesData[currentPageIdx].script = val;
       document.getElementById('page-script').value = val;
-      saveProject();
+      markPageDirtyForSave(currentPageIdx);
       queueCompile();
     }
     var modal = bootstrap.Modal.getInstance(document.getElementById('aiScriptModal'));
@@ -12709,7 +13066,7 @@ applyDefaultWorkspaceIfNeeded();
         renderSlideshowGrid();
       }
       if (slideshowState.open && showScriptPanel) updateScriptPanel();
-      saveProject();
+      markPageDirtyForSave(currentPageIdx);
       queueCompile();
     }
     var modal = bootstrap.Modal.getInstance(document.getElementById('aiNoteModal'));
@@ -13919,7 +14276,7 @@ applyDefaultWorkspaceIfNeeded();
         scriptEl.setSelectionRange(safeStart, selectionEnd);
         scriptEl.focus();
       }
-      saveProject();
+      markPageDirtyForSave(currentPageIdx);
       queueCompile();
       showStatus('已将学习结果写入讲稿', 'success', 2600);
       return;
@@ -15558,14 +15915,14 @@ applyDefaultWorkspaceIfNeeded();
           variant: 'outline-danger',
           onClick: () => {
             if (!confirm('确认删除这条文献吗？')) return;
-            if (scope === 'page') {
-              const idx = findBibIndex(pageEntries, entry.id);
-              if (idx > -1) {
-                pageEntries.splice(idx, 1);
-                saveProject();
-                queueCompile();
-              }
-            } else {
+              if (scope === 'page') {
+                const idx = findBibIndex(pageEntries, entry.id);
+                if (idx > -1) {
+                  pageEntries.splice(idx, 1);
+                  markPageDirtyForSave(currentPageIdx);
+                  queueCompile();
+                }
+              } else {
               const idx = findBibIndex(bibData, entry.id);
               if (idx > -1) {
                 bibData.splice(idx, 1);
@@ -15633,7 +15990,7 @@ applyDefaultWorkspaceIfNeeded();
         delete entry.note;
       }
       if (bibEditState.scope === 'page') {
-        saveProject();
+        markPageDirtyForSave(currentPageIdx);
         queueCompile();
       } else {
         saveGlobalBib();
@@ -15667,7 +16024,7 @@ applyDefaultWorkspaceIfNeeded();
           if(scope === 'page') {
             const pageEntries = currentPageBib();
             pageEntries.push(entry);
-            saveProject();
+            markPageDirtyForSave(currentPageIdx);
             queueCompile();
           } else {
             bibData.push(entry);
@@ -15716,7 +16073,7 @@ applyDefaultWorkspaceIfNeeded();
       if(scope === 'page') {
         const pageEntries = currentPageBib();
         pageEntries.push(entry);
-        saveProject();
+        markPageDirtyForSave(currentPageIdx);
         queueCompile();
       } else {
         bibData.push(entry);

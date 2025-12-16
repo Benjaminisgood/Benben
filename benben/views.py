@@ -86,6 +86,8 @@ from .workspace import (
     set_workspace_password,
     sync_remote_workspace,
     unlock_workspace,
+    record_workspace_save,
+    run_local_maintenance,
 )
 from .rag import RagUnavailableError, ensure_markdown_index, search_markdown
 
@@ -1103,6 +1105,29 @@ def _workspace_cache_dir(workspace_id: str) -> Path:
     return cache_base
 
 
+def _safe_path_size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
+
+
+def _dir_size(path: Path) -> int:
+    total = 0
+    if not path.exists():
+        return total
+    try:
+        for root, _, files in os.walk(path):
+            for name in files:
+                try:
+                    total += (Path(root) / name).stat().st_size
+                except OSError:
+                    continue
+    except Exception:
+        return total
+    return total
+
+
 def _asset_metadata_from_upload(file_storage, data: bytes) -> dict[str, Any]:
     metadata: dict[str, Any] = {
         "size": len(data),
@@ -1549,6 +1574,7 @@ def _build_rag_contexts(
         manifest,
         llm_config,
         headers,
+        package=package,
         embedding_model=embedding_model,
         top_k=top_k,
         allowed_page_ids=allowed_pages,
@@ -2975,6 +3001,11 @@ def api_workspace_project(workspace_id: str):
     payload = package.export_project()
     if not isinstance(payload, dict):
         payload = {}
+    pages_mode = request.args.get("pages", "").strip().lower()
+    if pages_mode == "meta":
+        payload["pages"] = package.list_page_meta()
+    elif pages_mode in {"none", "meta_only", "metaonly"}:
+        payload["pages"] = []
     payload["locked"] = handle.locked
     payload["unlocked"] = handle.unlocked
     return jsonify(payload)
@@ -2998,6 +3029,105 @@ def api_workspace_project_meta(workspace_id: str):
     return jsonify(meta)
 
 
+@bp.route("/workspaces/<workspace_id>/health", methods=["GET"])
+def api_workspace_health(workspace_id: str):
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    try:
+        package = get_workspace_package(workspace_id)
+    except WorkspaceLockedError:
+        return _workspace_locked_response()
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    db_path = Path(handle.local_path or package.path)
+    wal_path = Path(f"{db_path}-wal")
+    shm_path = Path(f"{db_path}-shm")
+    cache_dir = _workspace_cache_dir(workspace_id)
+    payload = {
+        "dbSize": _safe_path_size(db_path),
+        "walSize": _safe_path_size(wal_path),
+        "shmSize": _safe_path_size(shm_path),
+        "attachments": len(package.list_assets("attachment", include_data=False)),
+        "resources": len(package.list_assets("resource", include_data=False)),
+        "cacheSize": _dir_size(cache_dir),
+        "updatedAt": package.get_project_meta().get("updatedAt"),
+        "locked": handle.locked,
+        "unlocked": handle.unlocked,
+    }
+    return api_success(payload)
+
+
+@bp.route("/workspaces/<workspace_id>/checkpoint", methods=["POST"])
+def api_workspace_checkpoint(workspace_id: str):
+    payload = request.get_json(silent=True) or {}
+    probe_payload = payload.get("probe") if isinstance(payload, dict) else None
+    if probe_payload is None and isinstance(payload, dict):
+        probe_payload = {
+            "pageId": payload.get("pageId") or payload.get("page_id"),
+            "expectedUpdatedAt": payload.get("expectedUpdatedAt")
+            or payload.get("projectUpdatedAt")
+            or payload.get("updatedAt"),
+        }
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    if handle.locked and not handle.unlocked:
+        return _workspace_locked_response()
+    package = handle.package
+    try:
+        checkpoint = package.checkpoint_and_verify(probe_payload if isinstance(probe_payload, dict) else None)
+    except Exception as exc:
+        return api_error(str(exc), 500)
+    checkpoint["workspace"] = workspace_id
+    checkpoint["mode"] = handle.mode
+    checkpoint["locked"] = handle.locked
+    checkpoint["unlocked"] = handle.unlocked
+    return api_success({"checkpoint": checkpoint})
+
+
+@bp.route("/workspaces/<workspace_id>/pages/meta", methods=["GET"])
+def api_workspace_pages_meta(workspace_id: str):
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    try:
+        package = get_workspace_package(workspace_id)
+    except WorkspaceLockedError:
+        return _workspace_locked_response()
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    entries = package.list_page_meta()
+    meta = package.get_project_meta()
+    meta["locked"] = handle.locked
+    meta["unlocked"] = handle.unlocked
+    return api_success({"pages": entries, "project": meta})
+
+
+@bp.route("/workspaces/<workspace_id>/pages/<page_id>", methods=["GET"])
+def api_workspace_page_detail(workspace_id: str, page_id: str):
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    try:
+        package = get_workspace_package(workspace_id)
+    except WorkspaceLockedError:
+        return _workspace_locked_response()
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    payload = package.get_page_payload(page_id)
+    if payload is None:
+        return api_error("页面不存在", 404)
+    meta = package.get_project_meta()
+    meta["locked"] = handle.locked
+    meta["unlocked"] = handle.unlocked
+    return api_success({"page": payload, "updatedAt": meta.get("updatedAt")})
+
+
 @bp.route("/workspaces/<workspace_id>/project", methods=["POST"])
 def api_workspace_project_save(workspace_id: str):
     data = request.get_json(silent=True) or {}
@@ -3014,6 +3144,7 @@ def api_workspace_project_save(workspace_id: str):
         return api_error(str(exc), 409)
     except Exception as exc:
         return api_error(str(exc), 500)
+    record_workspace_save(handle)
     if handle.mode == "cloud":
         try:
             sync_remote_workspace(handle)
@@ -3024,6 +3155,38 @@ def api_workspace_project_save(workspace_id: str):
     updated["locked"] = handle.locked
     updated["unlocked"] = handle.unlocked
     return api_success(updated)
+
+
+@bp.route("/workspaces/<workspace_id>/pages/<page_id>", methods=["PATCH"])
+def api_workspace_page_patch(workspace_id: str, page_id: str):
+    data = request.get_json(silent=True) or {}
+    data["pageId"] = page_id
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    if handle.locked and not handle.unlocked:
+        return _workspace_locked_response()
+    package = handle.package
+    expected_ts = data.get("clientUpdatedAt") or data.get("expectedUpdatedAt")
+    expected_value: float | None
+    try:
+        expected_value = float(expected_ts) if expected_ts is not None else None
+    except (TypeError, ValueError):
+        expected_value = None
+    try:
+        page_payload = package.save_page(data, expected_ts=expected_value)
+    except WorkspaceVersionConflict as exc:
+        return api_error(str(exc), 409)
+    except KeyError:
+        return api_error("页面不存在", 404)
+    except Exception as exc:
+        return api_error(str(exc), 500)
+    record_workspace_save(handle)
+    meta = package.get_project_meta()
+    meta["locked"] = handle.locked
+    meta["unlocked"] = handle.unlocked
+    return api_success({"page": page_payload, "updatedAt": meta.get("updatedAt")})
 
 
 @bp.route("/workspaces/<workspace_id>/archives", methods=["GET"])

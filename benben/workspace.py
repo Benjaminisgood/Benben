@@ -407,6 +407,66 @@ def _shared_unlock_exists(handle: WorkspaceHandle) -> bool:
     return False
 
 
+# Lightweight maintenance counters to keep local workspaces tidy.
+_MAINTENANCE_STATE: dict[str, dict[str, float | int]] = {}
+_MAINTENANCE_SAVE_THRESHOLD = int(os.environ.get("BENBEN_MAINTENANCE_SAVE_THRESHOLD", "50") or "50")
+_MAINTENANCE_MIN_INTERVAL_SECONDS = int(os.environ.get("BENBEN_MAINTENANCE_MIN_INTERVAL", str(12 * 3600)) or str(12 * 3600))
+
+
+def _maintenance_state(handle: WorkspaceHandle) -> dict[str, float | int]:
+    return _MAINTENANCE_STATE.setdefault(handle.workspace_id, {"saves": 0, "last": 0.0})
+
+
+def run_local_maintenance(handle: WorkspaceHandle, *, force: bool = False, reason: str = "") -> None:
+    """Run WAL checkpoint + optimize + VACUUM for local workspaces."""
+
+    if getattr(handle, "mode", "") != "local":
+        return
+    if not hasattr(handle, "package"):
+        return
+    state = _maintenance_state(handle)
+    now = time.time()
+    if not force:
+        last = float(state.get("last") or 0.0)
+        saves = int(state.get("saves") or 0)
+        if saves < _MAINTENANCE_SAVE_THRESHOLD and (now - last) < _MAINTENANCE_MIN_INTERVAL_SECONDS:
+            return
+    package = handle.package
+    try:
+        with getattr(package, "_lock", _LOCK):
+            try:
+                package.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            try:
+                package.conn.execute("PRAGMA optimize")  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            try:
+                package.conn.execute("VACUUM")  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            try:
+                package.conn.commit()  # type: ignore[attr-defined]
+            except Exception:
+                pass
+    except Exception as exc:
+        print(f"[benben] maintenance skipped ({reason or 'periodic'}): {exc}")
+    finally:
+        state["saves"] = 0
+        state["last"] = now
+
+
+def record_workspace_save(handle: WorkspaceHandle) -> None:
+    """Increment save counters and run maintenance when thresholds are met."""
+
+    if getattr(handle, "mode", "") != "local":
+        return
+    state = _maintenance_state(handle)
+    state["saves"] = int(state.get("saves") or 0) + 1
+    run_local_maintenance(handle, reason="threshold")
+
+
 def _recover_workspace(workspace_id: str) -> WorkspaceHandle:
     """Re-open a workspace in the current process using the shared registry."""
 
@@ -880,6 +940,7 @@ def close_workspace(workspace_id: str) -> None:
     if handle and _PORTABLE_HANDLE_ID and handle.workspace_id == _PORTABLE_HANDLE_ID:
         _PORTABLE_HANDLE_ID = None
     if handle:
+        run_local_maintenance(handle, force=True, reason="close")
         local_path = getattr(handle, "local_path", None) or getattr(handle.package, "path", None)
         handle.package.close()
 
@@ -1002,6 +1063,8 @@ __all__ = [
     "unlock_workspace",
     "ensure_portable_workspace_loaded",
     "portable_workspace_context",
+    "run_local_maintenance",
+    "record_workspace_save",
 ]
 
 if os.environ.get("BENBEN_PORTABLE_WORKSPACE"):

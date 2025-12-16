@@ -1122,6 +1122,153 @@ class BenbenPackage:
         self.save_template("markdown", get_default_markdown_template())
 
     # Pages -----------------------------------------------------------------
+    def _fetch_page_order(self, page_id: str) -> Optional[int]:
+        with self._lock:
+            row = self.conn.execute("SELECT idx FROM page_latex WHERE page_id = ?", (page_id,)).fetchone()
+        if not row:
+            return None
+        try:
+            return int(row["idx"])
+        except Exception:
+            return None
+
+    def get_page_payload(self, page_id: str) -> Optional[dict[str, Any]]:
+        """Return a single page payload without loading the whole project."""
+
+        page_id = (page_id or "").strip()
+        if not page_id:
+            return None
+        with self._lock:
+            latex_row = self.conn.execute(
+                "SELECT page_id, idx, meta, content FROM page_latex WHERE page_id = ?",
+                (page_id,),
+            ).fetchone()
+            if not latex_row:
+                return None
+            markdown_row = self.conn.execute(
+                "SELECT content FROM page_markdown WHERE page_id = ?",
+                (page_id,),
+            ).fetchone()
+            note_row = self.conn.execute(
+                "SELECT content FROM page_notes WHERE page_id = ?",
+                (page_id,),
+            ).fetchone()
+            resource_rows = self.conn.execute(
+                "SELECT position, name FROM page_resources WHERE page_id = ? ORDER BY position",
+                (page_id,),
+            ).fetchall()
+            reference_rows = self.conn.execute(
+                "SELECT position, data FROM page_references WHERE page_id = ? ORDER BY position",
+                (page_id,),
+            ).fetchall()
+        resources = [row["name"] for row in resource_rows if isinstance(row["name"], str)]
+        references: list[dict[str, Any]] = []
+        for row in reference_rows:
+            payload = _deserialize(row["data"])
+            if isinstance(payload, dict):
+                references.append(payload)
+            elif isinstance(payload, str):
+                references.append({"entry": payload})
+        meta = _deserialize(latex_row["meta"])
+        payload = dict(meta) if isinstance(meta, dict) else {}
+        payload["pageId"] = payload.get("pageId") or latex_row["page_id"]
+        payload["content"] = latex_row["content"] or ""
+        payload["notes"] = markdown_row["content"] if markdown_row and markdown_row["content"] else ""
+        payload["script"] = note_row["content"] if note_row and note_row["content"] else ""
+        payload["resources"] = resources
+        payload["bib"] = references
+        rec_meta = self._get_page_recording_meta(page_id)
+        if rec_meta:
+            payload["recording"] = {
+                "hasRecording": True,
+                "mime": rec_meta.get("mime", ""),
+                "updatedAt": rec_meta.get("updatedAt"),
+            }
+        else:
+            payload["recording"] = {"hasRecording": False}
+        return payload
+
+    def list_page_meta(self) -> list[dict[str, Any]]:
+        """Return lightweight page ordering + metadata without loading bodies."""
+
+        with self._lock:
+            rows = self.conn.execute(
+                "SELECT page_id, idx, meta FROM page_latex ORDER BY idx ASC, page_id ASC"
+            ).fetchall()
+            resource_rows = self.conn.execute(
+                "SELECT page_id, position, name FROM page_resources ORDER BY page_id, position"
+            ).fetchall()
+            reference_rows = self.conn.execute(
+                "SELECT page_id, position, data FROM page_references ORDER BY page_id, position"
+            ).fetchall()
+        resources_map: dict[str, list[str]] = defaultdict(list)
+        for row in resource_rows:
+            pid = row["page_id"]
+            resources_map[pid].append(row["name"] if isinstance(row["name"], str) else "")
+        references_map: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for row in reference_rows:
+            payload = _deserialize(row["data"])
+            if isinstance(payload, dict):
+                references_map[row["page_id"]].append(payload)
+            elif isinstance(payload, str):
+                references_map[row["page_id"]].append({"entry": payload})
+        entries: list[dict[str, Any]] = []
+        for row in rows:
+            meta = _deserialize(row["meta"])
+            payload = dict(meta) if isinstance(meta, dict) else {}
+            payload["pageId"] = payload.get("pageId") or row["page_id"]
+            payload["order"] = row["idx"]
+            payload["resources"] = list(resources_map.get(row["page_id"], []))
+            payload["bib"] = list(references_map.get(row["page_id"], []))
+            rec_meta = self._get_page_recording_meta(row["page_id"])
+            if rec_meta:
+                payload["recording"] = {
+                    "hasRecording": True,
+                    "mime": rec_meta.get("mime", ""),
+                    "updatedAt": rec_meta.get("updatedAt"),
+                }
+            else:
+                payload["recording"] = {"hasRecording": False}
+            entries.append(payload)
+        return entries
+
+    def save_page(self, page: dict[str, Any], *, expected_ts: Optional[float] = None) -> dict[str, Any]:
+        """Update a single page while preserving order."""
+
+        normalized = self._normalize_page_payload(page)
+        page_id = normalized["pageId"]
+        order = self._fetch_page_order(page_id)
+        if order is None:
+            raise KeyError(f"page not found: {page_id}")
+
+        existing_meta = self._get_meta("project", {}) or {}
+        if not isinstance(existing_meta, dict):
+            existing_meta = {}
+        if expected_ts is not None:
+            current_ts_raw = existing_meta.get("updatedAt")
+            try:
+                current_ts = float(current_ts_raw) if current_ts_raw is not None else None
+            except (TypeError, ValueError):
+                current_ts = None
+            if current_ts is not None and current_ts - expected_ts > 1e-6:
+                raise WorkspaceVersionConflict("工作区已被其他会话更新，请刷新后再保存")
+
+        extras = self._extract_page_meta(normalized)
+        with self._lock:
+            self.conn.execute("BEGIN IMMEDIATE")
+            self._upsert_page_latex(page_id, order, normalized.get("content", ""), extras)
+            self._upsert_page_text("page_markdown", page_id, normalized.get("notes", ""))
+            self._upsert_page_text("page_notes", page_id, normalized.get("script", ""))
+            self._rewrite_page_resources(page_id, normalized.get("resources", []))
+            self._rewrite_page_references(page_id, normalized.get("bib", []))
+            self.conn.commit()
+
+        existing_meta["updatedAt"] = time.time()
+        self._set_meta("project", existing_meta)
+        payload = self.get_page_payload(page_id) or {}
+        payload["order"] = order
+        return payload
+
     def list_pages(self) -> list[PageRecord]:
         with self._lock:
             rows = self.conn.execute(
@@ -1352,6 +1499,152 @@ class BenbenPackage:
             )
         asset.metadata = metadata
         return asset
+
+    def checkpoint_and_verify(self, probe: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+        """Force WAL checkpoint and integrity check using a fresh connection."""
+
+        def _coerce_float(value: Any) -> Optional[float]:
+            try:
+                num = float(value)
+                if num > 0:
+                    return num
+            except (TypeError, ValueError):
+                return None
+            return None
+
+        page_probe: Optional[str] = None
+        expected_updated_at = None
+        if isinstance(probe, dict):
+            raw_page = probe.get("pageId") or probe.get("page_id")
+            if isinstance(raw_page, str):
+                page_probe = raw_page.strip() or None
+            elif raw_page is not None:
+                page_probe = str(raw_page).strip() or None
+            expected_updated_at = _coerce_float(
+                probe.get("expectedUpdatedAt")
+                or probe.get("projectUpdatedAt")
+                or probe.get("updatedAt")
+            )
+
+        checkpoint_info: dict[str, Any] = {"ok": False, "busy": None, "result": None, "error": None, "commitError": None}
+        integrity_info: dict[str, Any] = {"ok": False, "message": None, "error": None}
+        probe_info: dict[str, Any] = {
+            "ok": False,
+            "counts": {},
+            "page": None,
+            "metaName": None,
+            "metaUpdatedAt": None,
+            "matchesExpected": None,
+            "error": None,
+        }
+        file_size: Optional[int] = None
+        try:
+            file_size = self.path.stat().st_size
+        except OSError:
+            pass
+
+        with self._lock:
+            try:
+                self.conn.commit()
+            except Exception as exc:
+                checkpoint_info["commitError"] = str(exc)
+
+        def _probe_database(conn: sqlite3.Connection) -> dict[str, Any]:
+            info = dict(probe_info)
+            try:
+                meta_row = conn.execute("SELECT value FROM meta WHERE key = 'project'").fetchone()
+                if meta_row:
+                    meta_value = _deserialize(meta_row["value"]) or {}
+                    if isinstance(meta_value, dict):
+                        info["metaName"] = meta_value.get("name")
+                        info["metaUpdatedAt"] = _coerce_float(meta_value.get("updatedAt"))
+                        if expected_updated_at is not None and info["metaUpdatedAt"] is not None:
+                            info["matchesExpected"] = info["metaUpdatedAt"] >= expected_updated_at
+                counts = {}
+                for table, key in (("page_latex", "pages"), ("attachments", "attachments"), ("learning_records", "learningRecords")):
+                    row = conn.execute(f"SELECT COUNT(1) AS c FROM {table}").fetchone()
+                    counts[key] = int(row[0] if row else 0)
+                info["counts"] = counts
+                if page_probe:
+                    row = conn.execute(
+                        "SELECT page_id, updated_at FROM page_latex WHERE page_id = ?",
+                        (page_probe,),
+                    ).fetchone()
+                else:
+                    row = conn.execute(
+                        "SELECT page_id, updated_at FROM page_latex ORDER BY updated_at DESC LIMIT 1"
+                    ).fetchone()
+                if row:
+                    info["page"] = {
+                        "pageId": row["page_id"],
+                        "found": True,
+                        "updatedAt": row["updated_at"],
+                    }
+                elif page_probe:
+                    info["page"] = {"pageId": page_probe, "found": False, "updatedAt": None}
+                info["ok"] = info["error"] is None and (not page_probe or (info["page"] and info["page"].get("found")))
+            except Exception as exc:
+                info["error"] = str(exc)
+                info["ok"] = False
+            return info
+
+        conn: Optional[sqlite3.Connection] = None
+        try:
+            conn = _connect(str(self.path))
+            try:
+                conn.execute("PRAGMA busy_timeout = 5000")
+            except Exception:
+                pass
+            try:
+                conn.execute("PRAGMA synchronous=FULL;")
+            except Exception:
+                pass
+            try:
+                checkpoint_row = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+                if checkpoint_row is not None:
+                    try:
+                        checkpoint_info["busy"] = int(checkpoint_row[0])
+                    except Exception:
+                        checkpoint_info["busy"] = None
+                    try:
+                        checkpoint_info["result"] = dict(checkpoint_row)
+                    except Exception:
+                        checkpoint_info["result"] = list(checkpoint_row)
+                    checkpoint_info["ok"] = checkpoint_info["busy"] in (None, 0)
+                    if checkpoint_info["busy"] not in (None, 0) and checkpoint_info["error"] is None:
+                        checkpoint_info["error"] = "checkpoint reported busy writers"
+                else:
+                    checkpoint_info["error"] = "checkpoint returned no data"
+            except Exception as exc:
+                checkpoint_info["error"] = str(exc) if checkpoint_info["error"] is None else checkpoint_info["error"]
+
+            try:
+                integrity_row = conn.execute("PRAGMA integrity_check;").fetchone()
+                if integrity_row:
+                    message = integrity_row[0] if len(integrity_row) else None
+                    integrity_info["message"] = message
+                    integrity_info["ok"] = str(message).lower() == "ok"
+                else:
+                    integrity_info["error"] = "integrity_check returned no data"
+            except Exception as exc:
+                integrity_info["error"] = str(exc)
+
+            probe_info = _probe_database(conn)
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+        return {
+            "path": str(self.path),
+            "fileSize": file_size,
+            "timestamp": time.time(),
+            "walCheckpoint": checkpoint_info,
+            "integrity": integrity_info,
+            "probe": probe_info,
+        }
 
     def snapshot_to(self, dest_path: str | Path) -> str:
         """Create a consistent copy of the current `.benben` database."""
