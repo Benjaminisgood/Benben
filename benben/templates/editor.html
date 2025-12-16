@@ -16028,7 +16028,7 @@ applyDefaultWorkspaceIfNeeded();
     fetch('/ai_bib', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(withLlmConfig({ref: val}))
+      body: JSON.stringify(withWorkspacePayload(withLlmConfig({ref: val})))
     }).then(res=>res.json()).then(data=>{
       if(data.success && (data.entry || data.bib)) {
         const payload = data.entry ? {...data.entry} : {entry: data.bib};
