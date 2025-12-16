@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import time
 import tempfile
 import threading
@@ -67,6 +69,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _PORTABLE_HANDLE_ID: Optional[str] = None
 _PORTABLE_ERROR: Optional[str] = None
 _SHARED_REGISTRY_DIR = Path(tempfile.gettempdir()) / "benben_workspace_registry"
+_ARCHIVE_LOCK = threading.RLock()
 
 
 def _resolve_remote_cache_ttl_seconds() -> int:
@@ -239,6 +242,101 @@ def _canonical_local_path(raw: Optional[str]) -> Optional[Path]:
         return Path(_ensure_suffix(raw)).expanduser().resolve()
     except Exception:
         return None
+
+
+def _workspace_archive_base_dir(handle: WorkspaceHandle) -> Path:
+    """Determine the root directory for storing archives of a workspace."""
+
+    env_dir = (os.environ.get("BENBEN_ARCHIVE_ROOT") or "").strip()
+    candidates: list[Path] = []
+    if env_dir:
+        candidates.append(Path(env_dir).expanduser())
+    if handle.mode == "local":
+        local_path = _canonical_local_path(handle.local_path)
+        if local_path:
+            candidates.append(local_path.parent / ".benben_archives")
+    candidates.append(Path.home() / ".cache" / "benben" / "archives")
+    candidates.append(Path(tempfile.gettempdir()) / "benben_archives")
+    for base in candidates:
+        try:
+            base.mkdir(parents=True, exist_ok=True)
+            return base
+        except Exception:
+            continue
+    return Path(tempfile.gettempdir())
+
+
+def _workspace_archive_slug(handle: WorkspaceHandle) -> str:
+    source = handle.source or handle.local_path or handle.workspace_id
+    digest = hashlib.sha1(source.encode("utf-8", errors="ignore")).hexdigest()[:8]  # nosec B324
+    label_source = handle.display_name or Path(source).stem or "workspace"
+    safe_label = secure_filename(label_source) or "workspace"
+    return f"{safe_label}-{digest}"
+
+
+def workspace_archive_dir(handle: WorkspaceHandle) -> Path:
+    """Get the directory dedicated to archives for the given workspace."""
+
+    base = _workspace_archive_base_dir(handle)
+    target = base / _workspace_archive_slug(handle)
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    return target
+
+
+def _archive_index_path(archive_dir: Path) -> Path:
+    return archive_dir / "index.json"
+
+
+def _load_archive_index(archive_dir: Path) -> list[dict]:
+    path = _archive_index_path(archive_dir)
+    try:
+        with path.open("r", encoding="utf-8") as fp:
+            payload = json.load(fp)
+    except FileNotFoundError:
+        return []
+    except Exception:
+        return []
+    raw_entries = []
+    if isinstance(payload, dict) and isinstance(payload.get("archives"), list):
+        raw_entries = payload.get("archives", [])
+    elif isinstance(payload, list):
+        raw_entries = payload
+    entries: list[dict] = []
+    for entry in raw_entries:
+        if not isinstance(entry, dict):
+            continue
+        archive_id = str(entry.get("id") or entry.get("archive_id") or "").strip()
+        filename = str(entry.get("filename") or "").strip()
+        if not archive_id or not filename:
+            continue
+        note = str(entry.get("note") or entry.get("label") or "").strip()
+        created_at = _coerce_timestamp(entry.get("created_at") or entry.get("createdAt"))
+        entries.append(
+            {
+                "id": archive_id,
+                "filename": filename,
+                "note": note,
+                "created_at": created_at,
+            }
+        )
+    return entries
+
+
+def _save_archive_index(archive_dir: Path, entries: list[dict]) -> None:
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    path = _archive_index_path(archive_dir)
+    temp_path = path.with_suffix(".tmp")
+    payload = {"archives": entries, "updated_at": time.time()}
+    with temp_path.open("w", encoding="utf-8") as fp:
+        json.dump(payload, fp, ensure_ascii=False, indent=2)
+    temp_path.replace(path)
+
+
+class WorkspaceArchiveNotFoundError(FileNotFoundError):
+    pass
 
 
 def _persist_workspace_record(handle: WorkspaceHandle) -> None:

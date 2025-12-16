@@ -49,6 +49,7 @@
       --preview-table-bg: color-mix(in srgb, var(--surface-2) 92%, #000 4%);
       --preview-table-head: color-mix(in srgb, var(--surface-2) 80%, var(--accent) 10%);
       --preview-table-row: color-mix(in srgb, var(--surface-2) 86%, var(--accent) 6%);
+      --editor-selection-bg: color-mix(in srgb, var(--accent) 28%, rgba(59, 130, 246, 0.2));
       --btn-chrome-bg: color-mix(in srgb, var(--surface-2) 82%, var(--accent) 18%); /* 按钮底色带一点主题色，减少灰块感 */
       --btn-chrome-border: color-mix(in srgb, var(--surface-border) 82%, var(--accent-strong) 18%); /* 边框轻微染色以贴合皮肤色 */
       --btn-chrome-text: var(--shell-text); /* 文本色跟随整体文字 */
@@ -1034,6 +1035,43 @@
     .CodeMirror-gutters {
       border-right: 1px solid var(--preview-border);
     }
+    /* 编辑区仅保留配色，去掉粗体/斜体渲染避免误导 */
+    .CodeMirror .cm-em,
+    .CodeMirror .cm-strong,
+    .CodeMirror .cm-emstrong,
+    .CodeMirror .cm-formatting,
+    .CodeMirror .cm-header,
+    .CodeMirror .cm-quote {
+      font-style: normal;
+      font-weight: inherit;
+    }
+    /* 选区仅在编辑器聚焦时高亮，失焦后去除残影 */
+    .CodeMirror .CodeMirror-selected {
+      background: transparent;
+    }
+    .CodeMirror-focused .CodeMirror-selected {
+      background: var(--editor-selection-bg) !important;
+    }
+    .CodeMirror .CodeMirror-line::selection,
+    .CodeMirror .CodeMirror-line > span::selection,
+    .CodeMirror .CodeMirror-line > span > span::selection {
+      background: transparent;
+    }
+    .CodeMirror-focused .CodeMirror-line::selection,
+    .CodeMirror-focused .CodeMirror-line > span::selection,
+    .CodeMirror-focused .CodeMirror-line > span > span::selection {
+      background: var(--editor-selection-bg);
+    }
+    .CodeMirror .CodeMirror-line::-moz-selection,
+    .CodeMirror .CodeMirror-line > span::-moz-selection,
+    .CodeMirror .CodeMirror-line > span > span::-moz-selection {
+      background: transparent;
+    }
+    .CodeMirror-focused .CodeMirror-line::-moz-selection,
+    .CodeMirror-focused .CodeMirror-line > span::-moz-selection,
+    .CodeMirror-focused .CodeMirror-line > span > span::-moz-selection {
+      background: var(--editor-selection-bg);
+    }
     /* .modal-header/footer 控制弹窗头部/脚部的背景和边框 */
     .modal-header,
     .modal-footer {
@@ -1535,7 +1573,10 @@
     }
     /* 选中区域背景用半透明蓝，保持与 accent 颜色一致 */
     body.theme-dark .CodeMirror-selected {
-      background: rgba(59, 130, 246, 0.25) !important;
+      background: transparent !important;
+    }
+    body.theme-dark .CodeMirror-focused .CodeMirror-selected {
+      background: var(--editor-selection-bg) !important;
     }
     /* 深色预览区域的颜色、链接、图片在 dark 模式里也单独处理 */
     body.theme-dark .markdown-preview-content {
@@ -4025,8 +4066,10 @@
     tex: {
       inlineMath: [['$', '$'], ['\\(', '\\)']],
       displayMath: [['$$', '$$'], ['\\[', '\\]']],
-      processEscapes: true
+      processEscapes: true,
+      packages: {'[+]': ['ams', 'amscd', 'mathtools', 'physics', 'textmacros', 'noerrors', 'noundefined']}
     },
+    loader: {load: ['[tex]/amscd', '[tex]/mathtools', '[tex]/physics', '[tex]/textmacros', '[tex]/noerrors', '[tex]/noundefined']},
     svg: { fontCache: 'global' }
   };
 </script>
@@ -10987,6 +11030,43 @@ function syncMarkdownEditorToPreview(container) {
     }
   }
 
+  function clearEditorGhostSelection(cm) {
+    if (!cm || typeof cm.getWrapperElement !== 'function') return;
+    const doc = typeof cm.getDoc === 'function' ? cm.getDoc() : null;
+    const hasSelection = (doc && typeof doc.somethingSelected === 'function') ? doc.somethingSelected() : (typeof cm.somethingSelected === 'function' && cm.somethingSelected());
+    if (hasSelection) return;
+    const wrapper = cm.getWrapperElement();
+    let removed = false;
+    const nativeSel = typeof window.getSelection === 'function' ? window.getSelection() : null;
+    if (nativeSel && nativeSel.rangeCount && !nativeSel.isCollapsed && wrapper.contains(nativeSel.anchorNode)) {
+      nativeSel.removeAllRanges();
+      removed = true;
+    }
+    wrapper.querySelectorAll('.CodeMirror-selected, .CodeMirror-selectedtext').forEach(node => {
+      node.classList.remove('CodeMirror-selected');
+      node.classList.remove('CodeMirror-selectedtext');
+      removed = true;
+    });
+    if (removed && typeof cm.refresh === 'function') {
+      cm.refresh();
+    }
+  }
+
+  function bindEditorSelectionCleanup(cm) {
+    if (!cm || cm._selectionCleanupBound) return;
+    const handler = () => setTimeout(() => clearEditorGhostSelection(cm), 20);
+    if (typeof cm.on === 'function') {
+      cm.on('cursorActivity', handler);
+      cm.on('blur', handler);
+    }
+    const wrapper = typeof cm.getWrapperElement === 'function' ? cm.getWrapperElement() : null;
+    if (wrapper && typeof wrapper.addEventListener === 'function') {
+      wrapper.addEventListener('mouseup', handler);
+      wrapper.addEventListener('mouseleave', handler);
+    }
+    cm._selectionCleanupBound = true;
+  }
+
   function renderSingleEditor() {
     const list = document.getElementById('pages-list');
     list.innerHTML = '';
@@ -11009,6 +11089,8 @@ function syncMarkdownEditorToPreview(container) {
     singleEditor.setValue(initialValue);
     singleEditor.setSize('100%', '100%');
     singleEditor.setOption('readOnly', false);
+    bindEditorSelectionCleanup(singleEditor);
+    clearEditorGhostSelection(singleEditor);
     singleEditor.on('paste', handleEditorPaste);
     singleEditor.on('change', function() {
       const value = singleEditor.getValue();
