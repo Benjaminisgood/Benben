@@ -5212,7 +5212,7 @@ function jumpToPage(targetIdx) {
   }
 
   function hasDirtyLocal(){
-    return hasLocalChanges || !!saveProjectTimer || saveInFlight;
+    return hasLocalChanges || !!saveProjectTimer || !!pageSaveTimer || saveInFlight || pendingPageSaveIds.size > 0;
   }
 
   function stopRemoteMetaPolling(){
@@ -6427,6 +6427,14 @@ function jumpToPage(targetIdx) {
     attachmentsFilterTerm = '';
     unusedAttachmentsCache = [];
     clearingUnusedAttachments = false;
+    pendingPageSaveIds.clear();
+    pagesStructureDirty = false;
+    if(pageSaveTimer){
+      clearTimeout(pageSaveTimer);
+      pageSaveTimer = null;
+    }
+    markdownSlideCache.clear();
+    latexDocCache.clear();
     if(workspace && workspace.workspace_id){
       primeAttachmentUrlIndex({force: true, reRender: currentEditMode === 'markdown'});
     }
@@ -10572,6 +10580,14 @@ function syncMarkdownEditorToPreview(container) {
     currentPageIdx = slideshowState.pageIdx;
     updatePageNumLabel();
     const page = pagesData[slideshowState.pageIdx] || {};
+    if (!page.contentLoaded) {
+      ensurePageLoaded(slideshowState.pageIdx).then(() => {
+        if (slideshowState.open) {
+          renderSlideshowGrid();
+        }
+      });
+      return;
+    }
     const pendingHeading = (slideshowState.pendingHeading || '').trim().toLowerCase();
     const card = document.createElement('div');
     card.className = 'slideshow-card';
@@ -12462,7 +12478,7 @@ function syncMarkdownEditorToPreview(container) {
           return pageObj;
         });
         invalidateAllSlides();
-        if(pagesData.length === 0) pagesData = [{content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}}];
+        if(pagesData.length === 0) pagesData = [{content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}, contentLoaded: true}];
         globalResources = Array.isArray(data.resources) ? data.resources.slice() : [];
         bibData = normalizeBibList(data.bib || []);
         currentPageIdx = Math.min(currentPageIdx, pagesData.length - 1);
