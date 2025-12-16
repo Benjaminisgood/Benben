@@ -72,7 +72,13 @@ from .workspace import (
     discover_local_workspaces,
     get_workspace,
     get_workspace_package,
+    WorkspaceArchiveNotFoundError,
     list_remote_workspaces,
+    list_workspace_archives,
+    create_workspace_archive,
+    delete_workspace_archive,
+    restore_workspace_archive,
+    workspace_archive_dir,
     list_workspaces,
     open_local_workspace,
     open_remote_workspace,
@@ -3018,6 +3024,119 @@ def api_workspace_project_save(workspace_id: str):
     updated["locked"] = handle.locked
     updated["unlocked"] = handle.unlocked
     return api_success(updated)
+
+
+@bp.route("/workspaces/<workspace_id>/archives", methods=["GET"])
+def api_list_workspace_archives(workspace_id: str):
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    try:
+        get_workspace_package(workspace_id)
+    except WorkspaceLockedError:
+        return _workspace_locked_response()
+    archives = list_workspace_archives(handle)
+    return jsonify(
+        {
+            "archives": archives,
+            "archiveRoot": str(workspace_archive_dir(handle)),
+            "workspace": handle.to_dict(),
+        }
+    )
+
+
+@bp.route("/workspaces/<workspace_id>/archives", methods=["POST"])
+def api_create_workspace_archive(workspace_id: str):
+    payload = request.get_json(silent=True) or {}
+    note = (payload.get("note") or payload.get("label") or "").strip()
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    try:
+        get_workspace_package(workspace_id)
+    except WorkspaceLockedError:
+        return _workspace_locked_response()
+    try:
+        record = create_workspace_archive(handle, note=note)
+    except Exception as exc:
+        return api_error(f"创建存档失败：{exc}", 500)
+    return api_success(
+        {
+            "archive": record,
+            "archiveRoot": str(workspace_archive_dir(handle)),
+        }
+    )
+
+
+@bp.route("/workspaces/<workspace_id>/archives/<archive_id>", methods=["DELETE"])
+def api_delete_workspace_archive(workspace_id: str, archive_id: str):
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    try:
+        get_workspace_package(workspace_id)
+    except WorkspaceLockedError:
+        return _workspace_locked_response()
+    try:
+        delete_workspace_archive(handle, archive_id)
+    except WorkspaceArchiveNotFoundError:
+        return api_error("存档未找到", 404)
+    except Exception as exc:
+        return api_error(f"删除存档失败：{exc}", 500)
+    return api_success({"archive": archive_id})
+
+
+@bp.route("/workspaces/<workspace_id>/archives/<archive_id>/restore", methods=["POST"])
+def api_restore_workspace_archive(workspace_id: str, archive_id: str):
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    try:
+        get_workspace_package(workspace_id)
+    except WorkspaceLockedError:
+        return _workspace_locked_response()
+    try:
+        record = restore_workspace_archive(handle, archive_id)
+    except WorkspaceArchiveNotFoundError:
+        return api_error("存档未找到", 404)
+    except Exception as exc:
+        return api_error(f"恢复存档失败：{exc}", 500)
+    return api_success(
+        {
+            "archive": record,
+            "workspace": handle.to_dict(),
+        }
+    )
+
+
+@bp.route("/workspaces/<workspace_id>/archives/<archive_id>/download", methods=["GET"])
+def download_workspace_archive(workspace_id: str, archive_id: str):
+    try:
+        handle = get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        return api_error("workspace 未找到", 404)
+    try:
+        get_workspace_package(workspace_id)
+    except WorkspaceLockedError:
+        return _workspace_locked_response()
+    archives = list_workspace_archives(handle)
+    target = next((item for item in archives if item.get("id") == archive_id), None)
+    if not target:
+        return api_error("存档未找到", 404)
+    archive_path = target.get("path") or ""
+    if not archive_path or not Path(archive_path).exists():
+        return api_error("存档文件缺失", 404)
+    download_name = Path(target.get("filename") or archive_path).name
+    return send_file(
+        str(archive_path),
+        mimetype="application/octet-stream",
+        as_attachment=True,
+        download_name=download_name,
+    )
 
 
 @bp.route("/workspaces/<workspace_id>/password", methods=["POST"])

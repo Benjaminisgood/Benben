@@ -679,6 +679,199 @@ def sync_remote_workspace(handle: WorkspaceHandle) -> None:
                 pass
 
 
+def _clean_missing_archives(archive_dir: Path, entries: list[dict]) -> list[dict]:
+    cleaned: list[dict] = []
+    changed = False
+    for entry in entries:
+        archive_path = archive_dir / entry["filename"]
+        if not archive_path.exists():
+            changed = True
+            continue
+        cleaned.append(entry)
+    if changed:
+        _save_archive_index(archive_dir, cleaned)
+    return cleaned
+
+
+def list_workspace_archives(handle: WorkspaceHandle) -> list[dict]:
+    """Return archive metadata (newest first) for a workspace."""
+
+    archive_dir = workspace_archive_dir(handle)
+    with _ARCHIVE_LOCK:
+        entries = _clean_missing_archives(archive_dir, _load_archive_index(archive_dir))
+        records: list[dict] = []
+        for entry in entries:
+            archive_path = archive_dir / entry["filename"]
+            try:
+                stat_result = archive_path.stat()
+                size = stat_result.st_size
+                created_at = entry.get("created_at") or stat_result.st_mtime
+            except OSError:
+                size = 0
+                created_at = entry.get("created_at") or time.time()
+            records.append(
+                {
+                    "id": entry["id"],
+                    "filename": archive_path.name,
+                    "path": str(archive_path),
+                    "note": entry.get("note") or "",
+                    "created_at": created_at,
+                    "size": size,
+                }
+            )
+    records.sort(key=lambda rec: rec.get("created_at") or 0, reverse=True)
+    return records
+
+
+def create_workspace_archive(handle: WorkspaceHandle, note: Optional[str] = None) -> dict:
+    """Snapshot current workspace to an archive file and record metadata."""
+
+    archive_dir = workspace_archive_dir(handle)
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = time.time()
+    archive_id = uuid.uuid4().hex
+    ts_label = datetime.fromtimestamp(timestamp).strftime("%Y%m%d_%H%M%S")
+    safe_note = secure_filename(note or "") or ""
+    components = [ts_label]
+    if safe_note:
+        components.append(safe_note[:40])
+    components.append(archive_id[:8])
+    filename = "_".join(components) + ".benben"
+    archive_path = archive_dir / filename
+    package = handle.package
+    try:
+        with getattr(package, "_lock", _LOCK):
+            try:
+                package.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            package.snapshot_to(archive_path)
+    except Exception:
+        try:
+            archive_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise
+
+    size = 0
+    try:
+        size = archive_path.stat().st_size
+    except OSError:
+        pass
+    entry = {
+        "id": archive_id,
+        "filename": filename,
+        "note": (note or "").strip(),
+        "created_at": timestamp,
+    }
+    with _ARCHIVE_LOCK:
+        entries = _load_archive_index(archive_dir)
+        entries.append(entry)
+        _save_archive_index(archive_dir, entries)
+    return {
+        "id": archive_id,
+        "filename": filename,
+        "path": str(archive_path),
+        "note": (note or "").strip(),
+        "created_at": timestamp,
+        "size": size,
+    }
+
+
+def _remove_archive_files(archive_path: Path) -> None:
+    try:
+        archive_path.unlink(missing_ok=True)
+    except Exception:
+        pass
+    for suffix in ("-wal", "-shm"):
+        try:
+            Path(f"{archive_path}{suffix}").unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def delete_workspace_archive(handle: WorkspaceHandle, archive_id: str) -> None:
+    archive_dir = workspace_archive_dir(handle)
+    with _ARCHIVE_LOCK:
+        entries = _load_archive_index(archive_dir)
+        remaining: list[dict] = []
+        target_entry: Optional[dict] = None
+        for entry in entries:
+            if entry.get("id") == archive_id:
+                target_entry = entry
+                continue
+            remaining.append(entry)
+        if not target_entry:
+            raise WorkspaceArchiveNotFoundError(f"Archive {archive_id} not found")
+        archive_path = archive_dir / target_entry["filename"]
+        _remove_archive_files(archive_path)
+        _save_archive_index(archive_dir, remaining)
+
+
+def restore_workspace_archive(handle: WorkspaceHandle, archive_id: str) -> dict:
+    """Restore workspace data from a specific archive."""
+
+    archive_dir = workspace_archive_dir(handle)
+    with _ARCHIVE_LOCK:
+        entries = _load_archive_index(archive_dir)
+        target_entry: Optional[dict] = None
+        for entry in entries:
+            if entry.get("id") == archive_id:
+                target_entry = entry
+                break
+    if not target_entry:
+        raise WorkspaceArchiveNotFoundError(f"Archive {archive_id} not found")
+    archive_path = archive_dir / target_entry["filename"]
+    if not archive_path.exists():
+        raise WorkspaceArchiveNotFoundError(f"Archive file missing: {archive_path}")
+
+    target_path = Path(handle.local_path)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.NamedTemporaryFile(prefix="benben_restore_", suffix=".benben", delete=False) as tmp:
+        temp_copy = Path(tmp.name)
+    try:
+        shutil.copy2(archive_path, temp_copy)
+        try:
+            handle.package.close()
+        except Exception:
+            pass
+        _remove_archive_files(target_path)
+        shutil.copy2(temp_copy, target_path)
+        handle.package = BenbenPackage(str(target_path))
+        _refresh_handle_security(handle, preserve_unlock=True, persist=True)
+    finally:
+        try:
+            temp_copy.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    remote_synced = False
+    remote_error: Optional[str] = None
+    if handle.mode == "cloud":
+        try:
+            sync_remote_workspace(handle)
+            remote_synced = True
+        except Exception as exc:
+            remote_error = str(exc)
+
+    size = 0
+    try:
+        size = target_path.stat().st_size
+    except OSError:
+        pass
+    return {
+        "id": target_entry["id"],
+        "filename": target_entry["filename"],
+        "path": str(archive_path),
+        "note": target_entry.get("note") or "",
+        "created_at": target_entry.get("created_at"),
+        "size": size,
+        "remoteSynced": remote_synced,
+        "remoteSyncError": remote_error,
+    }
+
+
 def close_workspace(workspace_id: str) -> None:
     _remove_workspace_record(workspace_id)
     with _LOCK:

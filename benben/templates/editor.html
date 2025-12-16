@@ -2714,6 +2714,37 @@
     </div>
   </div>
 </div>
+<div class="modal fade" id="workspaceArchiveModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content p-4 p-md-4">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3">
+        <div>
+          <h2 class="h4 mb-1">历史存档</h2>
+          <div class="text-muted small" id="workspace-archive-context">将当前工作区保存为可恢复的历史版本。</div>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">关闭</button>
+      </div>
+      <div class="workspace-form p-3 mb-3">
+        <label for="workspace-archive-note" class="form-label small text-muted">存档备注（可选）</label>
+        <div class="input-group">
+          <input type="text" class="form-control" id="workspace-archive-note" placeholder="如：改版前备份" autocomplete="off">
+          <button type="button" class="btn btn-primary" id="workspace-archive-create-btn">立即存档</button>
+        </div>
+        <div class="form-text" id="workspace-archive-root">存档会保存在工作区所在目录的 <code>.benben_archives</code> 下。</div>
+      </div>
+      <div class="workspace-form p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-semibold">历史记录</div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="workspace-archive-refresh-btn">刷新</button>
+          </div>
+        </div>
+        <div id="workspace-archive-status" class="text-muted small mb-2"></div>
+        <div id="workspace-archive-list" class="list-group"></div>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="app-shell">
 <div id="status-area" class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index:2000;"></div>
  
@@ -2736,6 +2767,11 @@
               <li>
                 <button type="button" class="dropdown-item d-flex align-items-center gap-2 workspace-menu-action" id="workspace-open-remote-btn" data-workspace-action="remote">
                   <span class="text-info">☁️</span><span>打开远程工作区</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item d-flex align-items-center gap-2 workspace-menu-action" data-workspace-action="archive">
+                  <span class="text-secondary">🗂️</span><span>历史存档</span>
                 </button>
               </li>
             </ul>
@@ -4821,6 +4857,22 @@ function jumpToPage(targetIdx) {
       if(!workspaceId) return null;
       return buildApiUrl(`/workspaces/${encodeURIComponent(workspaceId)}/unlock`);
     },
+    archives: (workspaceId) => {
+      if(!workspaceId) return null;
+      return buildApiUrl(`/workspaces/${encodeURIComponent(workspaceId)}/archives`);
+    },
+    archiveRestore: (workspaceId, archiveId) => {
+      if(!workspaceId || !archiveId) return null;
+      return buildApiUrl(`/workspaces/${encodeURIComponent(workspaceId)}/archives/${encodeURIComponent(archiveId)}/restore`);
+    },
+    archiveDelete: (workspaceId, archiveId) => {
+      if(!workspaceId || !archiveId) return null;
+      return buildApiUrl(`/workspaces/${encodeURIComponent(workspaceId)}/archives/${encodeURIComponent(archiveId)}`);
+    },
+    archiveDownload: (workspaceId, archiveId) => {
+      if(!workspaceId || !archiveId) return null;
+      return buildApiUrl(`/workspaces/${encodeURIComponent(workspaceId)}/archives/${encodeURIComponent(archiveId)}/download`);
+    },
   };
   const REMOTE_WORKSPACE_ENDPOINTS = {
     list: buildApiUrl('/workspaces/remote'),
@@ -4922,6 +4974,18 @@ function jumpToPage(targetIdx) {
       closeBtn: remoteWorkspaceCloseBtn,
     });
   }
+  const workspaceArchiveModalEl = document.getElementById('workspaceArchiveModal');
+  let workspaceArchiveModalInstance = null;
+  if(workspaceArchiveModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal){
+    workspaceArchiveModalInstance = bootstrap.Modal.getOrCreateInstance(workspaceArchiveModalEl);
+  }
+  const workspaceArchiveListEl = document.getElementById('workspace-archive-list');
+  const workspaceArchiveStatusEl = document.getElementById('workspace-archive-status');
+  const workspaceArchiveNoteInput = document.getElementById('workspace-archive-note');
+  const workspaceArchiveCreateBtn = document.getElementById('workspace-archive-create-btn');
+  const workspaceArchiveRefreshBtn = document.getElementById('workspace-archive-refresh-btn');
+  const workspaceArchiveRootEl = document.getElementById('workspace-archive-root');
+  const workspaceArchiveContextEl = document.getElementById('workspace-archive-context');
 
   function workspaceCloseEndpoint(id){
     return buildApiUrl(`/workspaces/${encodeURIComponent(id)}`);
@@ -5679,6 +5743,260 @@ function jumpToPage(targetIdx) {
     setWorkspaceOverlayMessage('已关闭当前工作区', 'info');
   }
 
+  function updateWorkspaceArchiveContext(rootHint){
+    if(workspaceArchiveContextEl){
+      const label = currentWorkspace ? (currentWorkspace.display_name || currentWorkspace.workspace_id) : '未选择';
+      workspaceArchiveContextEl.textContent = `当前工作区：${label}`;
+    }
+    if(workspaceArchiveRootEl && rootHint){
+      workspaceArchiveRootEl.textContent = `存档位置：${rootHint}`;
+    }
+  }
+
+  function resetWorkspaceArchiveUi(){
+    updateWorkspaceArchiveContext();
+    if(workspaceArchiveStatusEl){
+      workspaceArchiveStatusEl.textContent = '';
+      workspaceArchiveStatusEl.className = 'text-muted small mb-2';
+    }
+    if(workspaceArchiveListEl){
+      const message = currentWorkspace ? '暂无存档，点击上方“立即存档”。' : '请先选择工作区后再创建存档。';
+      const tone = currentWorkspace ? 'text-muted' : 'text-warning';
+      workspaceArchiveListEl.innerHTML = `<div class="list-group-item ${tone} text-center">${message}</div>`;
+    }
+  }
+
+  function setWorkspaceArchiveStatus(message, variant = 'muted'){
+    if(!workspaceArchiveStatusEl) return;
+    workspaceArchiveStatusEl.textContent = message || '';
+    workspaceArchiveStatusEl.className = `text-${variant} small mb-2`;
+  }
+
+  function renderWorkspaceArchiveList(items){
+    if(!workspaceArchiveListEl) return;
+    workspaceArchiveListEl.innerHTML = '';
+    if(!Array.isArray(items) || !items.length){
+      workspaceArchiveListEl.innerHTML = '<div class="list-group-item text-muted text-center">暂无存档，点击上方“立即存档”。</div>';
+      return;
+    }
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'list-group-item d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2';
+      const metaBox = document.createElement('div');
+      const title = document.createElement('div');
+      title.className = 'fw-semibold';
+      title.textContent = item.note || '未命名存档';
+      const subtitle = document.createElement('div');
+      subtitle.className = 'text-muted small';
+      const detailParts = [];
+      if(item.created_at){
+        try{
+          const dt = new Date(item.created_at * 1000);
+          if(!isNaN(dt.getTime())){
+            detailParts.push(dt.toLocaleString());
+          }
+        }catch(_) {}
+      }
+      if(item.size){
+        const sizeLabel = formatFileSize(item.size);
+        if(sizeLabel) detailParts.push(sizeLabel);
+      }
+      if(item.path){
+        detailParts.push(item.path);
+      }
+      subtitle.textContent = detailParts.join(' · ');
+      metaBox.appendChild(title);
+      metaBox.appendChild(subtitle);
+      const actions = document.createElement('div');
+      actions.className = 'd-flex gap-2 flex-shrink-0';
+      const restoreBtn = document.createElement('button');
+      restoreBtn.type = 'button';
+      restoreBtn.className = 'btn btn-sm btn-outline-primary';
+      restoreBtn.textContent = '恢复';
+      restoreBtn.dataset.archiveRestore = item.id;
+      const downloadLink = document.createElement('a');
+      downloadLink.className = 'btn btn-sm btn-outline-secondary';
+      downloadLink.textContent = '下载';
+      const downloadUrl = currentWorkspace ? WORKSPACE_ENDPOINTS.archiveDownload(currentWorkspace.workspace_id, item.id) : '';
+      if(downloadUrl){
+        downloadLink.href = downloadUrl;
+        downloadLink.target = '_blank';
+        downloadLink.rel = 'noopener';
+      } else {
+        downloadLink.classList.add('disabled');
+        downloadLink.setAttribute('aria-disabled', 'true');
+      }
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn btn-sm btn-outline-danger';
+      deleteBtn.textContent = '删除';
+      deleteBtn.dataset.archiveDelete = item.id;
+      actions.appendChild(restoreBtn);
+      actions.appendChild(downloadLink);
+      actions.appendChild(deleteBtn);
+      row.appendChild(metaBox);
+      row.appendChild(actions);
+      workspaceArchiveListEl.appendChild(row);
+    });
+  }
+
+  async function fetchWorkspaceArchives(options = {}){
+    const {silent = false} = options;
+    if(!workspaceArchiveListEl) return;
+    if(!ensureWorkspaceReady({silent})){
+      resetWorkspaceArchiveUi();
+      return;
+    }
+    const endpoint = WORKSPACE_ENDPOINTS.archives(currentWorkspace.workspace_id);
+    if(!endpoint) return;
+    workspaceArchiveListEl.innerHTML = '<div class="list-group-item text-muted text-center">加载中...</div>';
+    setWorkspaceArchiveStatus('正在加载存档...');
+    try{
+      const res = await fetch(endpoint);
+      const parsed = await parseJsonSafe(res);
+      if(res.status === 423){
+        handleProjectLocked((parsed.json && parsed.json.error) ? parsed.json.error : '');
+        return;
+      }
+      if(!res.ok){
+        const msg = (parsed.json && parsed.json.error) ? parsed.json.error : (parsed.text || (`HTTP ${res.status}`));
+        throw new Error(msg);
+      }
+      const payload = parsed.json || {};
+      const items = Array.isArray(payload.archives) ? payload.archives : [];
+      renderWorkspaceArchiveList(items);
+      setWorkspaceArchiveStatus(items.length ? `共 ${items.length} 条存档` : '暂无存档');
+      if(payload.archiveRoot){
+        updateWorkspaceArchiveContext(payload.archiveRoot);
+      } else {
+        updateWorkspaceArchiveContext();
+      }
+    }catch(err){
+      setWorkspaceArchiveStatus(err?.message || '加载失败', 'danger');
+      workspaceArchiveListEl.innerHTML = '<div class="list-group-item text-danger text-center">无法加载存档</div>';
+    }
+  }
+
+  async function createWorkspaceArchiveEntry(){
+    if(!ensureWorkspaceReady()) return;
+    if(hasDirtyLocal()){
+      const proceed = confirm('检测到尚未保存的改动，存档会基于上次保存的内容。继续吗？');
+      if(!proceed) return;
+    }
+    const endpoint = WORKSPACE_ENDPOINTS.archives(currentWorkspace.workspace_id);
+    if(!endpoint) return;
+    const note = workspaceArchiveNoteInput ? workspaceArchiveNoteInput.value.trim() : '';
+    if(workspaceArchiveCreateBtn){
+      workspaceArchiveCreateBtn.disabled = true;
+      workspaceArchiveCreateBtn.dataset.originalLabel = workspaceArchiveCreateBtn.dataset.originalLabel || workspaceArchiveCreateBtn.textContent || '';
+      workspaceArchiveCreateBtn.textContent = '存档中...';
+    }
+    setWorkspaceArchiveStatus('正在创建存档...');
+    try{
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({note}),
+      });
+      const parsed = await parseJsonSafe(res);
+      if(res.status === 423){
+        handleProjectLocked((parsed.json && parsed.json.error) ? parsed.json.error : '');
+        return;
+      }
+      if(!res.ok || (parsed.json && parsed.json.success === false)){
+        const msg = (parsed.json && parsed.json.error) ? parsed.json.error : (parsed.text || (`HTTP ${res.status}`));
+        throw new Error(msg);
+      }
+      if(workspaceArchiveNoteInput){
+        workspaceArchiveNoteInput.value = '';
+      }
+      showStatus('存档已创建', 'success', 3000);
+      fetchWorkspaceArchives({silent: true});
+    }catch(err){
+      showStatus('创建存档失败：' + (err?.message || err), 'danger', 5000);
+      setWorkspaceArchiveStatus(err?.message || '创建失败', 'danger');
+    }finally{
+      if(workspaceArchiveCreateBtn){
+        workspaceArchiveCreateBtn.disabled = false;
+        workspaceArchiveCreateBtn.textContent = workspaceArchiveCreateBtn.dataset.originalLabel || '立即存档';
+      }
+    }
+  }
+
+  async function restoreWorkspaceArchiveEntry(archiveId, trigger){
+    if(!archiveId || !ensureWorkspaceReady()) return;
+    const endpoint = WORKSPACE_ENDPOINTS.archiveRestore(currentWorkspace.workspace_id, archiveId);
+    if(!endpoint) return;
+    const confirmRestore = confirm('确定要恢复到该存档吗？未保存的改动将会丢失。');
+    if(!confirmRestore) return;
+    if(trigger) trigger.disabled = true;
+    setWorkspaceArchiveStatus('正在恢复存档...', 'info');
+    try{
+      const res = await fetch(endpoint, {method: 'POST'});
+      const parsed = await parseJsonSafe(res);
+      if(res.status === 423){
+        handleProjectLocked((parsed.json && parsed.json.error) ? parsed.json.error : '');
+        return;
+      }
+      if(!res.ok || (parsed.json && parsed.json.success === false)){
+        const msg = (parsed.json && parsed.json.error) ? parsed.json.error : (parsed.text || (`HTTP ${res.status}`));
+        throw new Error(msg);
+      }
+      const payload = parsed.json || {};
+      if(payload.workspace){
+        updateWorkspaceSecurityState(payload.workspace);
+      }
+      showStatus('已恢复到选定的存档', 'success', 4000);
+      setWorkspaceArchiveStatus('恢复完成', 'success');
+      fetchWorkspaceArchives({silent: true});
+      loadProject();
+    }catch(err){
+      showStatus('恢复存档失败：' + (err?.message || err), 'danger', 5000);
+      setWorkspaceArchiveStatus(err?.message || '恢复失败', 'danger');
+    }finally{
+      if(trigger) trigger.disabled = false;
+    }
+  }
+
+  async function deleteWorkspaceArchiveEntry(archiveId, trigger){
+    if(!archiveId || !ensureWorkspaceReady()) return;
+    const endpoint = WORKSPACE_ENDPOINTS.archiveDelete(currentWorkspace.workspace_id, archiveId);
+    if(!endpoint) return;
+    const confirmDelete = confirm('确定要删除该存档吗？此操作无法撤销。');
+    if(!confirmDelete) return;
+    if(trigger) trigger.disabled = true;
+    try{
+      const res = await fetch(endpoint, {method: 'DELETE'});
+      const parsed = await parseJsonSafe(res);
+      if(res.status === 423){
+        handleProjectLocked((parsed.json && parsed.json.error) ? parsed.json.error : '');
+        return;
+      }
+      if(!res.ok || (parsed.json && parsed.json.success === false)){
+        const msg = (parsed.json && parsed.json.error) ? parsed.json.error : (parsed.text || (`HTTP ${res.status}`));
+        throw new Error(msg);
+      }
+      showStatus('存档已删除', 'success', 2500);
+      fetchWorkspaceArchives({silent: true});
+    }catch(err){
+      showStatus('删除存档失败：' + (err?.message || err), 'danger', 4000);
+    }finally{
+      if(trigger) trigger.disabled = false;
+    }
+  }
+
+  function openWorkspaceArchiveModal(){
+    if(!ensureWorkspaceReady()) return;
+    updateWorkspaceArchiveContext();
+    if(workspaceArchiveModalInstance){
+      workspaceArchiveModalInstance.show();
+    } else if(workspaceArchiveModalEl){
+      workspaceArchiveModalEl.classList.add('show');
+      workspaceArchiveModalEl.style.display = 'block';
+    }
+    fetchWorkspaceArchives();
+  }
+
   function promptWorkspaceSelection(message){
     showStatus(message || '请使用“打开本地工作区”完成此操作', 'info', 5000);
     if(projectDropdownBtn){
@@ -5699,6 +6017,39 @@ function jumpToPage(targetIdx) {
       });
     }
   });
+
+  if(workspaceArchiveCreateBtn){
+    workspaceArchiveCreateBtn.addEventListener('click', () => {
+      createWorkspaceArchiveEntry();
+    });
+  }
+
+  if(workspaceArchiveRefreshBtn){
+    workspaceArchiveRefreshBtn.addEventListener('click', () => {
+      fetchWorkspaceArchives({silent: true});
+    });
+  }
+
+  if(workspaceArchiveListEl){
+    workspaceArchiveListEl.addEventListener('click', event => {
+      const restoreBtn = event.target.closest('[data-archive-restore]');
+      if(restoreBtn){
+        const archiveId = restoreBtn.getAttribute('data-archive-restore');
+        restoreWorkspaceArchiveEntry(archiveId, restoreBtn);
+        return;
+      }
+      const deleteBtn = event.target.closest('[data-archive-delete]');
+      if(deleteBtn){
+        const archiveId = deleteBtn.getAttribute('data-archive-delete');
+        deleteWorkspaceArchiveEntry(archiveId, deleteBtn);
+      }
+    });
+  }
+
+  onWorkspaceChange(() => {
+    resetWorkspaceArchiveUi();
+  });
+  resetWorkspaceArchiveUi();
 
   if(localWorkspaceRefreshBtn){
     localWorkspaceRefreshBtn.addEventListener('click', () => {
@@ -7149,6 +7500,9 @@ function jumpToPage(targetIdx) {
       <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 workspace-menu-action" data-workspace-action="remote">
         <span class="text-info">☁️</span><span>打开远程工作区</span>
       </button></li>
+      <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 workspace-menu-action" data-workspace-action="archive">
+        <span class="text-secondary">🗂️</span><span>历史存档</span>
+      </button></li>
       <li><hr class="dropdown-divider"></li>
       <li><h6 class="dropdown-header">安全</h6></li>
       <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 workspace-menu-action" data-workspace-action="password">
@@ -7175,6 +7529,8 @@ function jumpToPage(targetIdx) {
         showWorkspaceOverlay();
       } else if(action === 'remote'){
         openRemoteWorkspacePanel();
+      } else if(action === 'archive'){
+        openWorkspaceArchiveModal();
       } else if(action === 'password'){
         openProjectPasswordModal();
       } else if(action === 'unlock'){
