@@ -12,10 +12,10 @@ header: |
   \setCJKmainfont{PingFang SC}
   \setsansfont{PingFang SC}
   \setmainfont{PingFang SC}
-  % === Benben 媒体规范（仅附件） ===
-  % 图片统一存放于 attachments/，写法：\img[width=0.5\textwidth]{logo_1_white.png}
   \graphicspath{{.}{attachments/}}
   \makeatletter
+
+
   \newcommand{\benben@imginclude}[2][]{%
     \IfFileExists{attachments/#2}{\includegraphics[#1]{attachments/#2}}{%
       \IfFileExists{#2}{\includegraphics[#1]{#2}}{%
@@ -25,20 +25,8 @@ header: |
     }%
   }
   \newcommand{\img}[2][]{\benben@imginclude[#1]{#2}}
-  % 预设素材文件名（来自 attachments_seed）
-  \newcommand{\BenbenLogoPrimary}{logo_1_white.png}
-  \newcommand{\BenbenLogoSecondary}{logo_2_white.png}
-  % 报告封面：直接引入封面 PDF（放到 attachments/，默认 cover.pdf）
-  \newcommand{\BenbenReportCoverFile}{cover.pdf}
-  \newcommand{\BenbenReportCoverPdf}[1]{%
-    \IfFileExists{attachments/#1}{%
-      \thispagestyle{empty}%
-      \begin{center}%
-        \includegraphics[page=1,width=\paperwidth,height=\paperheight,keepaspectratio]{attachments/#1}%
-      \end{center}%
-      \clearpage%
-    }{}%
-  }
+
+
   \makeatother
   \usepackage[backend=bibtex,style=chem-acs,maxnames=6,giveninits=true,articletitle=true]{biblatex}
   \addbibresource{refs.bib}
@@ -48,8 +36,8 @@ header: |
   \date{\today}
 beforePages: |-
   \begin{document}
-  \BenbenReportCoverPdf{\BenbenReportCoverFile}
   \tableofcontents
+  \newpage
   
 footer: |-
   \printbibliography

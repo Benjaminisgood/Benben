@@ -24,13 +24,9 @@ FALLBACK_TEMPLATE: dict[str, str] = {
         \setCJKmainfont{PingFang SC}
         \setsansfont{PingFang SC}
         \setmainfont{PingFang SC}
-        % === Benben 媒体规范（仅附件） ===
-        % 图片统一存放于 attachments/，写法：\img[width=0.5\textwidth]{logo_1_white.png}
-        % 背景支持全局/单页：
-        %   \BenbenSetGlobalBackground{bg_1_red.png}
-        %   \begin{BenbenBgFrame}{bg_2_red.png} ... \end{BenbenBgFrame}
         \graphicspath{{.}{attachments/}}
         \makeatletter
+
         \newcommand{\benben@imginclude}[2][]{%
           \IfFileExists{attachments/#2}{\includegraphics[#1]{attachments/#2}}{%
             \IfFileExists{#2}{\includegraphics[#1]{#2}}{%
@@ -40,53 +36,7 @@ FALLBACK_TEMPLATE: dict[str, str] = {
           }%
         }
         \newcommand{\img}[2][]{\benben@imginclude[#1]{#2}}
-        % 预设素材文件名（来自 attachments_seed）
-        \newcommand{\BenbenLogoPrimary}{logo_1_white.png}
-        \newcommand{\BenbenLogoSecondary}{logo_2_white.png}
-        \newcommand{\BenbenBgRed}{bg_1_red.png}
-        \newcommand{\BenbenBgRedAlt}{bg_2_red.png}
-        \newcommand{\BenbenBgGreen}{bg_1_green.png}
-        % 标题页辅助
-        \newcommand{\BenbenSetupTitleGraphic}{%
-          \IfFileExists{attachments/\BenbenLogoPrimary}{%
-            \titlegraphic{\img[width=2.8cm]{\BenbenLogoPrimary}}%
-          }{}%
-        }
-        % 背景控制（全局/单页）
-        \newcommand{\BenbenGlobalBackground}{}
-        \newcommand{\BenbenUseBackground}[1]{%
-          \IfFileExists{attachments/#1}{%
-            \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{attachments/#1}}%
-          }{%
-            \IfFileExists{#1}{%
-              \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{#1}}%
-            }{%
-              \usebackgroundtemplate{}%
-            }%
-          }%
-        }
-        \newcommand{\BenbenApplyGlobalBackground}{%
-          \ifx\BenbenGlobalBackground\empty
-            \usebackgroundtemplate{}%
-          \else
-            \BenbenUseBackground{\BenbenGlobalBackground}%
-          \fi
-        }
-        \newcommand{\BenbenSetGlobalBackground}[1]{%
-          \def\BenbenGlobalBackground{#1}%
-          \BenbenApplyGlobalBackground%
-        }
-        \newcommand{\BenbenClearGlobalBackground}{%
-          \def\BenbenGlobalBackground{}%
-          \BenbenApplyGlobalBackground%
-        }
-        \newenvironment{BenbenBgFrame}[2][]{%
-          \BenbenUseBackground{#2}%
-          \begin{frame}[#1]
-        }{%
-          \end{frame}
-          \BenbenApplyGlobalBackground
-        }
+
         \makeatother
         \usepackage[backend=bibtex,style=chem-acs,maxnames=6,giveninits=true,articletitle=true]{biblatex}
         \addbibresource{refs.bib}
@@ -95,7 +45,7 @@ FALLBACK_TEMPLATE: dict[str, str] = {
         \author{Ben}
         """
     ).strip(),
-    "beforePages": "\\begin{document}\n\\BenbenSetupTitleGraphic",
+    "beforePages": "\\begin{document}",
     "footer": "\\end{document}",
 }
 
@@ -974,10 +924,6 @@ COMPONENT_LIBRARY = {
                     "name": "目录（Table of Contents）",
                     "code": "\\tableofcontents",
                 },
-                {
-                    "name": "过渡页",
-                    "code": "\\begin{frame}[plain]\n  \\centering\\Huge 章节标题\n\\end{frame}",
-                },
             ],
         },
         {
@@ -1081,53 +1027,45 @@ COMPONENT_LIBRARY = {
             "items": [
                 {
                     "name": "插入图片",
-                    "code": "\\begin{center}\n  \\includegraphics[width=0.7\\textwidth]{example-image}\n\\end{center}",
+                    "code": "\\begin{center}\n  \\img[width=0.7\\textwidth]{example-image}\n\\end{center}",
                 },
                 {
                     "name": "浮动图片（figure）",
-                    "code": "\\begin{figure}[htbp]\n  \\centering\n  \\includegraphics[width=0.6\\textwidth]{example-image}\n  \\caption{图片标题}\n  \\label{fig:label}\n\\end{figure}",
+                    "code": "\\begin{figure}[htbp]\n  \\centering\n  \\img[width=0.6\\textwidth]{example-image}\n  \\caption{图片标题}\n  \\label{fig:label}\n\\end{figure}",
                 },
                 {
                     "name": "双图对比",
-                    "code": "\\begin{figure}[htbp]\n  \\centering\n  \\begin{subfigure}{0.48\\textwidth}\n    \\includegraphics[width=\\linewidth]{example-image-a}\n    \\caption{左图}\n  \\end{subfigure}\n  \\hfill\n  \\begin{subfigure}{0.48\\textwidth}\n    \\includegraphics[width=\\linewidth]{example-image-b}\n    \\caption{右图}\n  \\end{subfigure}\n\\end{figure}",
+                    "code": "\\begin{figure}[htbp]\n  \\centering\n  \\begin{subfigure}{0.48\\textwidth}\n    \\img[width=\\linewidth]{example-image-a}\n    \\caption{左图}\n  \\end{subfigure}\n  \\hfill\n  \\begin{subfigure}{0.48\\textwidth}\n    \\img[width=\\linewidth]{example-image-b}\n    \\caption{右图}\n  \\end{subfigure}\n\\end{figure}",
                 },
             ],
         },
         {
-            "group": "背景/主题",
+            "group": "幻灯片主题样式",
             "items": [
                 {
-                    "name": "设置全局背景",
-                    "code": "\\BenbenSetGlobalBackground{bg_1_red.png}",
-                },
-                {
-                    "name": "清除全局背景",
-                    "code": "\\BenbenClearGlobalBackground",
-                },
-                {
                     "name": "单页背景（自定义）",
-                    "code": "\\begin{BenbenBgFrame}{bg_2_red.png}\n  % 页面内容\n\\end{BenbenBgFrame}",
+                    "code": "\\begin{BenbenBgFrame}{bg_red_1.png}\n  % 页面内容\n\\end{BenbenBgFrame}",
                 },
                 {
                     "name": "单页背景（带 frame 选项）",
-                    "code": "\\begin{BenbenBgFrame}[plain]{bg_1_green.png}\n  % 页面内容\n\\end{BenbenBgFrame}",
+                    "code": "\\begin{BenbenBgFrame}[plain]{bg_red_1.png}\n  % 页面内容\n\\end{BenbenBgFrame}",
+                },
+                {
+                    "name": "过渡页（无背景）",
+                    "code": "\\begin{frame}[plain]\n  \\centering\\Huge 章节标题\n\\end{frame}",
                 },
             ],
         },
         {
-            "group": "报告/封面",
+            "group": "上科大论文样式",
             "items": [
                 {
-                    "name": "插入封面 PDF（默认 cover.pdf）",
-                    "code": "\\BenbenReportCoverPdf{cover.pdf}",
+                    "name": "插入封面 PDF（cover.pdf）",
+                    "code": "\\begin{titlepage}\n  \\centering\n  \\includegraphics[page=1,width=\\paperwidth,height=\\paperheight,keepaspectratio]{cover.pdf}\n\\end{titlepage}",
                 },
                 {
-                    "name": "自定义封面文件名变量",
-                    "code": "\\newcommand{\\BenbenReportCoverFile}{your_cover.pdf}\n\\BenbenReportCoverPdf{\\BenbenReportCoverFile}",
-                },
-                {
-                    "name": "封面 PDF（单页）",
-                    "code": "\\BenbenReportCoverPdf{cover.pdf}",
+                    "name": "插入封面 PDF（自定义文件名）",
+                    "code": "\\begin{titlepage}\n  \\centering\n  \\includegraphics[page=1,width=\\paperwidth,height=\\paperheight,keepaspectratio]{your_cover.pdf}\n\\end{titlepage}",
                 },
             ],
         },
@@ -1187,43 +1125,20 @@ COMPONENT_LIBRARY = {
                     "name": "会议笔记模板",
                     "code": (
                         "---\n"
-                        "meeting: 项目例会\n"
-                        "type: 周会\n"
-                        "date: \"2025-01-01\"\n"
-                        "time: \"10:00-11:00\"\n"
-                        "location: 远程会议室\n"
-                        "facilitator: 张三\n"
+                        "meeting: \n"
+                        "type: \n"
+                        "date: \"\"\n"
+                        "time: \"\"\n"
+                        "location: \n"
+                        "facilitator: \n"
                         "attendees:\n"
-                        "  - 张三 / PM\n"
-                        "  - 李四 / Tech Lead\n"
+                        "  \n"
+                        "  \n"
                         "objective: |\n"
-                        "  用一段话明确会议目标与衡量标准。\n"
-                        "context: \"背景 / 版本 / 关联项目\"\n"
+                        "  \n"
+                        "context: \"\"\n"
                         "---\n"
                         "\n"
-                        "## 议程概览\n"
-                        "| 时间 | 议题 | 引导人 | 预期输出 |\n"
-                        "| ---- | ---- | ------ | -------- |\n"
-                        "| 10:00 | 例行进度同步 | 张三 | 完成状态更新 |\n"
-                        "| 10:25 | 风险评估 | 李四 | 更新风险列表 |\n"
-                        "\n"
-                        "## 进度与阻塞\n"
-                        "- 模块 A：当前状态 / 里程碑 / 阻塞点\n"
-                        "- 模块 B：\n"
-                        "\n"
-                        "## 讨论与决策记录\n"
-                        "| 议题 | 核心信息 | 决策/结论 | 责任人 | 截止时间 |\n"
-                        "| ---- | -------- | ---------- | ------ | -------- |\n"
-                        "| 示例 | 要点 | 决策 | 负责人 | YYYY-MM-DD |\n"
-                        "\n"
-                        "## Action Items\n"
-                        "- [ ] 任务名称 | Owner | Due | 所需支持\n"
-                        "\n"
-                        "## 风险 & 依赖\n"
-                        "- 风险描述 / 影响范围 / 缓解动作\n"
-                        "\n"
-                        "## 待向上反馈 / 外部同步\n"
-                        "- \n"
                     ),
                 },
                 {
@@ -1232,13 +1147,9 @@ COMPONENT_LIBRARY = {
                         "---\n"
                         "topic: 课程/书籍名称\n"
                         "date: \"2025-01-01\"\n"
-                        "source: \"来源或讲者\"\n"
-                        "format: 线上课程\n"
-                        "difficulty: 中等\n"
                         "tags:\n"
                         "  - 知识管理\n"
                         "  - 专业技能\n"
-                        "learning_goal: \"我希望解决的具体问题\"\n"
                         "---\n"
                         "\n"
                         "## 章节脉络\n"
@@ -1296,15 +1207,6 @@ COMPONENT_LIBRARY = {
                         "- P1：\n"
                         "- P2：\n"
                         "\n"
-                        "## 沟通/会议\n"
-                        "| 时间 | 主题 | 参与人 | 需要准备 |\n"
-                        "| ---- | ---- | ------ | -------- |\n"
-                        "\n"
-                        "## 生活/健康\n"
-                        "- 运动：\n"
-                        "- 饮水/餐食：\n"
-                        "- 休息提醒：\n"
-                        "\n"
                         "## 日终复盘\n"
                         "- 完成度：\n"
                         "- 情绪/能量观察：\n"
@@ -1319,18 +1221,6 @@ COMPONENT_LIBRARY = {
                         "theme: \"以客户成功为中心\"\n"
                         "date_range: \"2025-03-10 ~ 2025-03-12\"\n"
                         "location: 上海会议中心\n"
-                        "owner: 王五\n"
-                        "expected_attendees: 120\n"
-                        "budget: 200000\n"
-                        "partners:\n"
-                        "  - 供应商A\n"
-                        "  - 媒体B\n"
-                        "---\n"
-                        "\n"
-                        "## 活动目标与受众画像\n"
-                        "- 目标：品牌曝光 / 转化 / 社群维护\n"
-                        "- 核心受众：\n"
-                        "\n"
                         "## 关键里程碑\n"
                         "| 截止时间 | 事项 | 负责人 | 状态 |\n"
                         "| -------- | ---- | ------ | ---- |\n"
@@ -1342,19 +1232,10 @@ COMPONENT_LIBRARY = {
                         "- 物料：\n"
                         "- 技术支持：\n"
                         "\n"
-                        "## 宣传/报名计划\n"
-                        "- 渠道：邮件 / 社媒 / 社群\n"
-                        "- 关键信息：\n"
-                        "- 指标：报名人数 / 转化率\n"
-                        "\n"
                         "## 活动当日日程\n"
                         "| 时间 | 环节 | 负责人 | 备注 |\n"
                         "| ---- | ---- | ------ | ---- |\n"
                         "| 09:00 | 签到 | 前台组 | 准备礼品 |\n"
-                        "\n"
-                        "## 风险与应急预案\n"
-                        "- 风险：\n"
-                        "- 应急措施：\n"
                         "\n"
                         "## 复盘要点\n"
                         "- 成果指标：到场人数 / NPS / 成交\n"

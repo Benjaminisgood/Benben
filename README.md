@@ -126,16 +126,7 @@ gunicorn -w 4 -b 0.0.0.0:5555 benben:app
 
 ### 附件与图片（统一走 attachments）
 - 媒体只需存放在 SQLite `attachments` 表；渲染/导出时会展开到临时 `attachments/` 目录。
-- 模板统一图片语法：`\\img[width=...]{file.png}`，不写路径。Beamer 背景支持全局/单页设置：
-  - 全局：`\\BenbenSetGlobalBackground{bg_1_red.png}`
-  - 单页：`\\begin{BenbenBgFrame}{bg_2_red.png} ... \\end{BenbenBgFrame}`
-- 建议把公共素材放到 `temps/attachments_seed/`（例：`logo_1_white.png`、`logo_2_white.png`、`bg_1_red.png`、`bg_2_red.png`、`bg_1_green.png`，报告封面可选 `cover.pdf`），新项目创建时会自动注入。
-- 资源表 `resource_files` 仍可用作额外存储，但不会参与图片查找或模板默认路径。  
-主 Logo：logo_1_white.png
-备用 Logo：logo_2_white.png
-背景（红）：bg_1_red.png / bg_2_red.png
-背景（绿）：bg_1_green.png
-报告封面 PDF（可选）：cover.pdf
+- 模板统一图片语法：`\\img[width=...]{file.png}`，不写路径。Beamer 背景仅支持单页手动插入：`\\begin{BenbenBgFrame}{bg_red_1.png} ... \\end{BenbenBgFrame}`。
 
 ---
 
