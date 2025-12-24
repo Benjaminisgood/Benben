@@ -13,13 +13,43 @@ header: |
   \setCJKmainfont{PingFang SC}
   \setsansfont{PingFang SC}
   \setmainfont{PingFang SC}
-  \graphicspath{{.}{images/}{../images/}{../attachments/}{../}}
+  % === Benben 媒体规范（仅附件） ===
+  % 图片统一存放于 attachments/，写法：\img[width=0.5\textwidth]{logo_primary.png}
+  % 导出会打包 attachments/，保持文件名即可，无需写路径。
+  \graphicspath{{.}{attachments/}}
   \makeatletter
-  \newcommand{\img}[2][]{
-    \IfFileExists{#2}{\includegraphics[#1]{#2}}{
-      \typeout{[warn] Missing image #2, using placeholder}
-      \includegraphics[#1]{example-image}
-    }
+  \newcommand{\benben@imginclude}[2][]{%
+    \IfFileExists{attachments/#2}{\includegraphics[#1]{attachments/#2}}{%
+      \IfFileExists{#2}{\includegraphics[#1]{#2}}{%
+        \typeout{[warn] Missing image #2, using placeholder}%
+        \includegraphics[#1]{example-image}%
+      }%
+    }%
+  }
+  \newcommand{\img}[2][]{\benben@imginclude[#1]{#2}}
+  % 预设素材文件名（将素材放在 attachments/ 即可自动生效）
+  \newcommand{\BenbenMainLogo}{logo_primary.png}
+  \newcommand{\BenbenAltLogo}{logo_secondary.png}
+  \newcommand{\BenbenMotto}{motto_green.png}
+  \newcommand{\BenbenReportCoverBg}{bg_report_cover.png}
+  \newcommand{\BenbenReportCover}{%
+    \begin{titlepage}
+      \thispagestyle{empty}
+      \begin{center}
+        \IfFileExists{attachments/\BenbenReportCoverBg}{%
+          \vspace*{-1cm}
+          \img[width=\paperwidth,height=0.4\paperheight,keepaspectratio]{\BenbenReportCoverBg}\\[1cm]
+        }{}
+        \IfFileExists{attachments/\BenbenMainLogo}{\img[height=2.4cm]{\BenbenMainLogo}\\[0.6cm]}{}
+        \vfill
+        {\huge\bfseries \title\\[0.8cm]}
+        {\Large \author\\[0.4cm]}
+        {\large \date}
+        \vfill
+        \IfFileExists{attachments/\BenbenMotto}{\img[height=1.6cm]{\BenbenMotto}\\[0.4cm]}{}
+      \end{center}
+      \clearpage
+    \end{titlepage}
   }
   \makeatother
   \usepackage[backend=bibtex,style=chem-acs,maxnames=6,giveninits=true,articletitle=true]{biblatex}
@@ -30,7 +60,7 @@ header: |
   \date{\today}
 beforePages: |-
   \begin{document}
-  \maketitle
+  \BenbenReportCover
   \tableofcontents
   
 footer: |-

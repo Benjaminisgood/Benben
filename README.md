@@ -22,6 +22,7 @@ Benben 是一个围绕 LaTeX Beamer 演示创作构建的全栈平台：后端�
 - **访问加密**：每个 `.benben` 工作区都可以设置访问密码，密码会以 `projectSecurity` 形式保存在容器的 `meta` 表中；密码留空即视为未加密，任何人都可直接打开。
 - **附件与资源管理**：在单个 `.benben` 内保存二进制文件，计划中的逻辑会避免在多个页面引用时被误删。
 - **工作区入口**：导航栏左侧的下拉菜单包含“打开本地工作区 / 打开远程工作区”按钮。本地模式直接在磁盘上读写 `.benben` 文件；远程模式会列出 OSS 上的 `.benben` 包，可在线选择、创建并自动同步。
+- **附件种子**：在仓库 `temps/attachments_seed/` 放置校徽、封面背景、校训图等公用素材，新建 `.benben` 时会自动写入 SQLite `attachments` 表，无需每个项目重复上传。模板中的 `\img{...}`、背景/封面宏会直接使用这些附件文件名。
 
 ---
 
@@ -122,6 +123,17 @@ gunicorn -w 4 -b 0.0.0.0:5555 benben:app
   - 其他业务表：`templates`（默认/自定义模板）、`settings` 等。
 - `benben/package.py` 封装了所有读写逻辑（加载/保存项目、附件、模板等），前端 API 只需操作 `/workspaces/<id>/project`。
 - 支持 WAL 以获得更好的并发写入与崩溃恢复。
+
+### 附件与图片（统一走 attachments）
+- 媒体只需存放在 SQLite `attachments` 表；渲染/导出时会展开到临时 `attachments/` 目录。
+- 模板统一图片语法：`\\img[width=...]{file.png}`，不写路径。背景/封面宏会自动尝试同名文件。
+- 建议把公共素材放到 `temps/attachments_seed/`（例：`logo_primary.png`、`bg_slide_red.png`、`bg_cover_red.png`、`motto_green.png` 等），新项目创建时会自动注入。
+- 资源表 `resource_files` 仍可用作额外存储，但不会参与图片查找或模板默认路径。  
+校徽/主 Logo：logo_primary.png
+备用 Logo：logo_secondary.png
+校训/口号：motto_green.png
+幻灯片背景：bg_slide_red.png
+幻灯片封面背景：bg_cover_red.png
 
 ---
 

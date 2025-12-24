@@ -8,6 +8,7 @@ import sqlite3
 import threading
 import time
 import uuid
+import mimetypes
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -68,6 +69,10 @@ DEFAULT_PAGES: list[dict[str, Any]] = [
 
 PROJECT_SECURITY_META_KEY = "projectSecurity"
 LEGACY_SECURITY_META_KEYS: tuple[str, ...] = ("workspaceSecurity",)
+
+PACKAGE_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = PACKAGE_ROOT.parent
+ATTACHMENT_SEED_DIR = REPO_ROOT / "temps" / "attachments_seed"
 
 
 SCHEMA_STATEMENTS: tuple[str, ...] = (
@@ -1103,6 +1108,45 @@ class BenbenPackage:
         for key in ("latexTemplate", "markdownTemplate", "template"):
             self._delete_meta(key)
 
+    def _seed_default_attachments(self) -> None:
+        """预置附件：将 temps/attachments_seed 下的文件写入 attachments 表。"""
+
+        seed_dir = ATTACHMENT_SEED_DIR
+        if not seed_dir.exists() or not seed_dir.is_dir():
+            return
+        existing = {asset.name for asset in self.list_assets("attachment", include_data=False)}
+        for path in seed_dir.rglob("*"):
+            if not path.is_file():
+                continue
+            try:
+                rel = path.relative_to(seed_dir).as_posix()
+            except Exception:
+                rel = path.name
+            if rel in existing:
+                continue
+            try:
+                data = path.read_bytes()
+            except OSError:
+                continue
+            mime = mimetypes.guess_type(str(path.name))[0]
+            metadata = {
+                "seeded": True,
+                "size": len(data),
+                "uploadedAt": time.time(),
+                "hasLocal": True,
+            }
+            try:
+                self.save_asset(
+                    name=rel,
+                    scope="attachment",
+                    data=data,
+                    mime=mime,
+                    metadata=metadata,
+                )
+                existing.add(rel)
+            except Exception:
+                continue
+
     def initialize_defaults(self, project_name: str) -> None:
         timestamp = time.time()
         self._set_meta(
@@ -1120,6 +1164,7 @@ class BenbenPackage:
         self.save_pages(DEFAULT_PAGES)
         self.save_template("latex", get_default_template())
         self.save_template("markdown", get_default_markdown_template())
+        self._seed_default_attachments()
 
     # Pages -----------------------------------------------------------------
     def _fetch_page_order(self, page_id: str) -> Optional[int]:

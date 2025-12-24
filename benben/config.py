@@ -24,14 +24,55 @@ FALLBACK_TEMPLATE: dict[str, str] = {
         \setCJKmainfont{PingFang SC}
         \setsansfont{PingFang SC}
         \setmainfont{PingFang SC}
-        \graphicspath{{.}{images/}{../images/}{../attachments/}{../}}
+        % === Benben 媒体规范（仅附件） ===
+        % 图片统一存放于 attachments/，写法：\img[width=0.5\textwidth]{logo_primary.png}
+        % 导出会把 attachments/ 打包，无需写路径。
+        \graphicspath{{.}{attachments/}}
         \makeatletter
-        \newcommand{\img}[2][]{
-          \IfFileExists{#2}{\includegraphics[#1]{#2}}{
-            \typeout{[warn] Missing image #2, using placeholder}
-            \includegraphics[#1]{example-image}
-          }
+        \newcommand{\benben@imginclude}[2][]{%
+          \IfFileExists{attachments/#2}{\includegraphics[#1]{attachments/#2}}{%
+            \IfFileExists{#2}{\includegraphics[#1]{#2}}{%
+              \typeout{[warn] Missing image #2, using placeholder}%
+              \includegraphics[#1]{example-image}%
+            }%
+          }%
         }
+        \newcommand{\img}[2][]{\benben@imginclude[#1]{#2}}
+        % 预设素材文件名（可在 attachments/ 中放置同名文件以自动应用）
+        \newcommand{\BenbenMainLogo}{logo_primary.png}
+        \newcommand{\BenbenAltLogo}{logo_secondary.png}
+        \newcommand{\BenbenMotto}{motto_green.png}
+        \newcommand{\BenbenSlideBg}{bg_slide_red.png}
+        \newcommand{\BenbenCoverBg}{bg_cover_red.png}
+        % 标题页/背景辅助
+        \newcommand{\BenbenSetupTitleGraphic}{%
+          \IfFileExists{attachments/\BenbenMainLogo}{%
+            \titlegraphic{\img[width=2.8cm]{\BenbenMainLogo}}%
+          }{}%
+        }
+        \newcommand{\BenbenSetSlideBackground}{%
+          \IfFileExists{attachments/\BenbenSlideBg}{%
+            \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{attachments/\BenbenSlideBg}}%
+          }{%
+            \usebackgroundtemplate{}%
+          }%
+        }
+        \newcommand{\BenbenCoverFrame}{%
+          \begin{frame}[plain]
+            \BenbenResetBackground
+            \IfFileExists{attachments/\BenbenCoverBg}{%
+              \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{attachments/\BenbenCoverBg}}%
+            }{%
+              \usebackgroundtemplate{}%
+            }%
+            \vfill
+            \titlepage
+            \vfill
+            \BenbenResetBackground
+          \end{frame}
+          \BenbenSetSlideBackground
+        }
+        \newcommand{\BenbenResetBackground}{\usebackgroundtemplate{}}
         \makeatother
         \usepackage[backend=bibtex,style=chem-acs,maxnames=6,giveninits=true,articletitle=true]{biblatex}
         \addbibresource{refs.bib}
@@ -40,7 +81,7 @@ FALLBACK_TEMPLATE: dict[str, str] = {
         \author{Ben}
         """
     ).strip(),
-    "beforePages": "\\begin{document}",
+    "beforePages": "\\begin{document}\n\\BenbenSetupTitleGraphic\n\\BenbenSetSlideBackground",
     "footer": "\\end{document}",
 }
 

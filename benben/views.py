@@ -2251,6 +2251,215 @@ def _build_markdown_export_html(
     return document
 
 
+def _resolve_export_asset_target(
+    target: str,
+    project_name: str,
+    attachments_folder: str,
+    resources_folder: str,
+    attachment_map: Optional[dict[str, str]] = None,
+) -> tuple[str, str] | None:
+    """Resolve an asset reference to (source_path, bundled_relative_path)."""
+
+    cleaned = _normalize_link_target(target)
+    if not cleaned:
+        return None
+
+    def _within(base: str, candidate: str) -> bool:
+        if not base:
+            return False
+        try:
+            return os.path.commonpath([os.path.abspath(base), os.path.abspath(candidate)]) == os.path.abspath(base)
+        except Exception:
+            return False
+
+    source_path = _resolve_local_asset_path(cleaned, project_name, attachments_folder, resources_folder)
+    scope = None
+    if source_path and _within(attachments_folder, source_path):
+        scope = "attachments"
+    elif source_path and _within(resources_folder, source_path):
+        scope = "resources"
+    elif attachment_map:
+        candidate = attachment_map.get(cleaned) or attachment_map.get(os.path.basename(cleaned))
+        if candidate and os.path.exists(candidate):
+            source_path = candidate
+            scope = "attachments"
+
+    if not source_path or not scope or not os.path.exists(source_path):
+        return None
+    base_dir = attachments_folder if scope == "attachments" else resources_folder
+    try:
+        rel_part = os.path.relpath(source_path, base_dir)
+    except Exception:
+        rel_part = os.path.basename(source_path)
+    rel_path = os.path.join(scope, rel_part).replace("\\", "/")
+    return source_path, rel_path
+
+
+def _rewrite_markdown_for_export(
+    markdown_text: str,
+    project_name: str,
+    attachments_folder: str,
+    resources_folder: str,
+    attachment_map: Optional[dict[str, str]] = None,
+) -> tuple[str, dict[str, str]]:
+    """Rewrite Markdown links to bundled asset paths and collect copy targets."""
+
+    assets: dict[str, str] = {}
+
+    def _register(target: str) -> Optional[str]:
+        resolved = _resolve_export_asset_target(
+            target,
+            project_name,
+            attachments_folder,
+            resources_folder,
+            attachment_map=attachment_map,
+        )
+        if not resolved:
+            return None
+        src_path, rel_path = resolved
+        assets.setdefault(rel_path, src_path)
+        return rel_path
+
+    def _rewrite_markdown_link(match: re.Match[str]) -> str:
+        target = match.group(1)
+        new_target = _register(target)
+        if not new_target:
+            return match.group(0)
+        return match.group(0).replace(target, new_target, 1)
+
+    def _rewrite_html_src(match: re.Match[str]) -> str:
+        target = match.group(1)
+        new_target = _register(target)
+        if not new_target:
+            return match.group(0)
+        return match.group(0).replace(target, new_target, 1)
+
+    rewritten = _MARKDOWN_LINK_RE.sub(_rewrite_markdown_link, markdown_text)
+    rewritten = _HTML_SRC_RE.sub(_rewrite_html_src, rewritten)
+    rewritten = _HTML_HREF_RE.sub(_rewrite_html_src, rewritten)
+    return rewritten, assets
+
+
+def _build_markdown_bundle(
+    markdown_text: str,
+    export_filename: str,
+    project_name: str,
+    attachments_folder: str,
+    resources_folder: str,
+    attachment_map: Optional[dict[str, str]] = None,
+) -> tuple[Path, Path]:
+    """Write Markdown plus referenced assets into a temporary bundle and zip it."""
+
+    safe_name = secure_filename(export_filename) or export_filename or "notes.md"
+    rewritten_md, assets = _rewrite_markdown_for_export(
+        markdown_text,
+        project_name,
+        attachments_folder,
+        resources_folder,
+        attachment_map=attachment_map,
+    )
+    bundle_dir = Path(tempfile.mkdtemp(prefix="benben_md_export_"))
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    md_path = bundle_dir / safe_name
+    md_path.write_text(rewritten_md, encoding="utf-8")
+
+    for rel_path, src_path in assets.items():
+        dest = bundle_dir / rel_path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.copy2(src_path, dest)
+        except Exception:
+            continue
+
+    archive_path = Path(shutil.make_archive(str(bundle_dir), "zip", bundle_dir))
+    return archive_path, bundle_dir
+
+
+def _collect_bib_entries_for_export(project: dict) -> list[str]:
+    """Extract BibTeX entries from project-level与页面引用。"""
+
+    entries: list[str] = []
+
+    def _add_entry(candidate: Optional[str]) -> None:
+        if not candidate:
+            return
+        text = str(candidate).strip()
+        if text:
+            entries.append(text)
+
+    pages = project.get("pages", []) if isinstance(project, dict) else []
+    for page in pages if isinstance(pages, list) else []:
+        for entry in page.get("bib", []) or []:
+            if isinstance(entry, dict):
+                _add_entry(entry.get("bibtex") or entry.get("entry"))
+            else:
+                _add_entry(entry)
+
+    for entry in project.get("bib", []) or []:
+        if isinstance(entry, dict):
+            _add_entry(entry.get("bibtex") or entry.get("entry"))
+        else:
+            _add_entry(entry)
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for entry in entries:
+        if entry in seen:
+            continue
+        seen.add(entry)
+        deduped.append(entry)
+    return deduped
+
+
+def _copy_asset_tree(src_dir: str, dest_dir: Path) -> None:
+    """Copy all files under src_dir into dest_dir, preserving relative paths."""
+
+    if not src_dir or not os.path.exists(src_dir):
+        return
+    for root, _, files in os.walk(src_dir):
+        for fname in files:
+            src_path = Path(root) / fname
+            try:
+                rel = Path(os.path.relpath(src_path, src_dir))
+            except Exception:
+                rel = Path(fname)
+            dest_path = dest_dir / rel
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                shutil.copy2(src_path, dest_path)
+            except Exception:
+                continue
+
+
+def _build_full_latex_document(project: dict, attachments_folder: str, resources_folder: str) -> tuple[str, list[str]]:
+    """Assemble the full LaTeX document and return text plus chunks for asset scanning."""
+
+    default_template = get_default_template()
+    default_header = default_template.get("header", get_default_header())
+    default_before = default_template.get("beforePages", "\\begin{document}")
+    default_footer = default_template.get("footer", "\\end{document}")
+
+    template = project.get("template") if isinstance(project, dict) else {}
+    if isinstance(template, dict):
+        header = normalize_latex_content(template.get("header", default_header), attachments_folder, resources_folder)
+        before = normalize_latex_content(template.get("beforePages", default_before), attachments_folder, resources_folder)
+        footer = normalize_latex_content(template.get("footer", default_footer), attachments_folder, resources_folder)
+    else:
+        header = normalize_latex_content(str(template) if template else default_header, attachments_folder, resources_folder)
+        before = normalize_latex_content(default_before, attachments_folder, resources_folder)
+        footer = normalize_latex_content(default_footer, attachments_folder, resources_folder)
+
+    pages = project.get("pages", []) if isinstance(project, dict) else []
+    page_chunks: list[str] = []
+    for page in pages if isinstance(pages, list) else []:
+        raw = page["content"] if isinstance(page, dict) else str(page)
+        page_chunks.append(normalize_latex_content(raw or "", attachments_folder, resources_folder))
+
+    joined_pages = "\n\n".join(chunk for chunk in page_chunks if chunk)
+    document = f"{header}\n{before}\n\n{joined_pages}\n\n{footer}\n"
+    return document, [header, before, *page_chunks, footer]
+
+
 def _resolve_markdown_template(project: Optional[dict]) -> dict:
     """Return the effective Markdown export template for a project."""
 
@@ -2925,6 +3134,61 @@ def export_project_bundle():
     return send_file(
         str(file_path),
         mimetype=mimetype,
+        as_attachment=True,
+        download_name=download_name,
+    )
+
+
+@bp.route("/export_tex", methods=["GET"])
+def export_tex():
+    """导出完整 LaTeX 文件并打包所需媒体资源。"""
+
+    _, package, project, error = _require_workspace_project_response()
+    if error:
+        return error
+
+    pages = project.get("pages", []) if isinstance(project, dict) else []
+    if not pages:
+        return api_error("项目中没有幻灯片页", 400)
+
+    project_label = _workspace_project_label(package, project)
+    safe_label = secure_filename(project_label) or project_label or "project"
+
+    with _workspace_runtime_dirs(package) as paths:
+        latex_doc, chunks = _build_full_latex_document(project, paths["attachments"], paths["resources"])
+        export_dir = Path(tempfile.mkdtemp(prefix="benben_tex_export_"))
+        tex_name = f"{safe_label}.tex"
+        tex_path = export_dir / tex_name
+        tex_path.write_text(latex_doc, encoding="utf-8")
+
+        bib_entries = _collect_bib_entries_for_export(project)
+        bib_path = export_dir / "refs.bib"
+        if bib_entries:
+            bib_path.write_text("\n\n".join(bib_entries) + "\n", encoding="utf-8")
+        else:
+            bib_path.write_text("% Empty bibliography\n", encoding="utf-8")
+
+        _copy_asset_tree(paths["attachments"], export_dir / "attachments")
+        _copy_asset_tree(paths["resources"], export_dir / "resources")
+        prepare_latex_assets(chunks, paths["attachments"], paths["resources"], str(export_dir))
+
+        archive_path = Path(shutil.make_archive(str(export_dir), "zip", export_dir))
+
+    @after_this_request
+    def _cleanup_bundle(response):
+        try:
+            shutil.rmtree(export_dir, ignore_errors=True)
+        finally:
+            try:
+                os.remove(archive_path)
+            except Exception:
+                pass
+        return response
+
+    download_name = f"{safe_label}_tex_bundle.zip"
+    return send_file(
+        str(archive_path),
+        mimetype="application/zip",
         as_attachment=True,
         download_name=download_name,
     )
@@ -4068,11 +4332,50 @@ def export_page_notes():
     if not notes.strip():
         return jsonify({"success": False, "error": "当前页没有笔记可导出"}), 400
 
-    buffer = io.BytesIO(notes.encode("utf-8"))
-    download_name = f"page_{page_idx + 1}_notes.md"
+    raw_flag = _parse_bool_flag(request.args.get("raw") or request.args.get("plain"))
+    bundle_flag = _parse_bool_flag(request.args.get("bundle"))
+    use_bundle = True
+    if raw_flag is True or bundle_flag is False:
+        use_bundle = False
+
+    if not use_bundle:
+        buffer = io.BytesIO(notes.encode("utf-8"))
+        download_name = f"page_{page_idx + 1}_notes.md"
+        return send_file(
+            buffer,
+            mimetype="text/markdown",
+            as_attachment=True,
+            download_name=download_name,
+        )
+
+    project_name = _workspace_project_label(package, project)
+    safe_project = secure_filename(project_name) or project_name or "project"
+    md_name = f"page_{page_idx + 1}_notes.md"
+    with _workspace_runtime_dirs(package) as paths:
+        archive_path, bundle_dir = _build_markdown_bundle(
+            notes,
+            md_name,
+            project_name,
+            paths["attachments"],
+            paths["resources"],
+            attachment_map=paths.get("attachment_map"),
+        )
+
+    @after_this_request
+    def _cleanup_bundle(response):
+        try:
+            shutil.rmtree(bundle_dir, ignore_errors=True)
+        finally:
+            try:
+                os.remove(archive_path)
+            except Exception:
+                pass
+        return response
+
+    download_name = f"{safe_project}_page_{page_idx + 1}_notes_bundle.zip"
     return send_file(
-        buffer,
-        mimetype="text/markdown",
+        str(archive_path),
+        mimetype="application/zip",
         as_attachment=True,
         download_name=download_name,
     )
@@ -4136,16 +4439,52 @@ def export_notes():
     if not merged_markdown.strip():
         return jsonify({"success": False, "error": "项目中没有可导出的笔记"}), 400
 
+    raw_flag = _parse_bool_flag(request.args.get("raw") or request.args.get("plain"))
+    bundle_flag = _parse_bool_flag(request.args.get("bundle"))
+    use_bundle = True
+    if raw_flag is True or bundle_flag is False:
+        use_bundle = False
+
     project_label = _workspace_project_label(package, project)
     safe_label = secure_filename(project_label) or project_label or "notes"
     download_name = f"{safe_label}_notes.md"
 
-    buffer = io.BytesIO(merged_markdown.encode("utf-8"))
+    if not use_bundle:
+        buffer = io.BytesIO(merged_markdown.encode("utf-8"))
+        return send_file(
+            buffer,
+            mimetype="text/markdown",
+            as_attachment=True,
+            download_name=download_name,
+        )
+
+    with _workspace_runtime_dirs(package) as paths:
+        archive_path, bundle_dir = _build_markdown_bundle(
+            merged_markdown,
+            download_name,
+            project_label,
+            paths["attachments"],
+            paths["resources"],
+            attachment_map=paths.get("attachment_map"),
+        )
+
+    @after_this_request
+    def _cleanup_bundle(response):
+        try:
+            shutil.rmtree(bundle_dir, ignore_errors=True)
+        finally:
+            try:
+                os.remove(archive_path)
+            except Exception:
+                pass
+        return response
+
+    bundle_name = f"{safe_label}_notes_bundle.zip"
     return send_file(
-        buffer,
-        mimetype="text/markdown",
+        str(archive_path),
+        mimetype="application/zip",
         as_attachment=True,
-        download_name=download_name,
+        download_name=bundle_name,
     )
 
 
