@@ -6,9 +6,13 @@ import shutil
 from collections.abc import Iterable
 
 
-# 匹配 ``\includegraphics{...}`` 以及自定义 ``\img{...}`` 包装
+# 匹配 ``\includegraphics{...}``、``\img{...}`` 以及 Benben 背景引用
 _INCLUDEGRAPHICS_RE = re.compile(r'(\\includegraphics(?:\[[^]]*\])?)(\{+)([^{}]+?)(\}+)')
 _CUSTOM_IMG_RE = re.compile(r'(\\img(?:\[[^]]*\])?)(\{+)([^{}]+?)(\}+)')
+_BG_FRAME_RE = re.compile(
+    r'(\\begin\{BenbenBgFrame\}\s*(?:\[[^]]*\])?\s*)(\{+)([^{}]+?)(\}+)'
+)
+_BG_CMD_RE = re.compile(r'(\\BenbenUseBackground\s*)(\{+)([^{}]+?)(\}+)')
 
 
 def _clean_latex_path(path: str) -> str:
@@ -46,8 +50,8 @@ def normalize_latex_content(content: str, attachments_folder: str, resources_fol
             return f"{prefix}{opens}{normalized}{closes}"
         return f"{prefix}{{{normalized}}}"
 
-    content = _INCLUDEGRAPHICS_RE.sub(_rewrite, content)
-    content = _CUSTOM_IMG_RE.sub(_rewrite, content)
+    for pattern in (_INCLUDEGRAPHICS_RE, _CUSTOM_IMG_RE, _BG_FRAME_RE, _BG_CMD_RE):
+        content = pattern.sub(_rewrite, content)
     return content
 
 
@@ -57,7 +61,7 @@ def _extract_graphics_paths(tex: str) -> set[str]:
     if not tex:
         return set()
     paths: set[str] = set()
-    for pattern in (_INCLUDEGRAPHICS_RE, _CUSTOM_IMG_RE):
+    for pattern in (_INCLUDEGRAPHICS_RE, _CUSTOM_IMG_RE, _BG_FRAME_RE, _BG_CMD_RE):
         for match in pattern.finditer(tex):
             path = match.group(3)
             if "#" in path:

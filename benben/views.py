@@ -106,6 +106,8 @@ _DOI_PATTERN = re.compile(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", flags=re.IGNORECASE)
 
 _LATEX_INCLUDE_RE = re.compile(r"\\includegraphics(?:\[[^]]*])?\{([^}]+)\}")
 _LATEX_IMG_RE = re.compile(r"\\img(?:\[[^]]*])?\{([^}]+)\}")
+_LATEX_BG_FRAME_RE = re.compile(r"\\begin\{BenbenBgFrame\}\s*(?:\[[^]]*])?\s*\{([^}]+)\}")
+_LATEX_BG_CMD_RE = re.compile(r"\\BenbenUseBackground\s*\{([^}]+)\}")
 _LATEX_HREF_RE = re.compile(r"\\href\{([^}]+)\}")
 _LATEX_URL_RE = re.compile(r"\\url\{([^}]+)\}")
 _LATEX_COMMAND_RE = re.compile(r"\\([A-Za-z@]+)")
@@ -2774,7 +2776,14 @@ def _collect_attachment_references(project: dict) -> dict[str, list[str]]:
         content = str(text)
         if not content:
             return
-        for pattern in (_LATEX_INCLUDE_RE, _LATEX_IMG_RE, _LATEX_HREF_RE, _LATEX_URL_RE):
+        for pattern in (
+            _LATEX_INCLUDE_RE,
+            _LATEX_IMG_RE,
+            _LATEX_BG_FRAME_RE,
+            _LATEX_BG_CMD_RE,
+            _LATEX_HREF_RE,
+            _LATEX_URL_RE,
+        ):
             for match in pattern.finditer(content):
                 _register(match.group(1), context)
         for match in _MARKDOWN_LINK_RE.finditer(content):
