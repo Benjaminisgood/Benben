@@ -108,6 +108,19 @@ _LATEX_INCLUDE_RE = re.compile(r"\\includegraphics(?:\[[^]]*])?\{([^}]+)\}")
 _LATEX_IMG_RE = re.compile(r"\\img(?:\[[^]]*])?\{([^}]+)\}")
 _LATEX_HREF_RE = re.compile(r"\\href\{([^}]+)\}")
 _LATEX_URL_RE = re.compile(r"\\url\{([^}]+)\}")
+_LATEX_COMMAND_RE = re.compile(r"\\([A-Za-z@]+)")
+_LATEX_ENV_BEGIN_RE = re.compile(r"\\begin\{([^}]+)\}")
+_LATEX_ENV_END_RE = re.compile(r"\\end\{([^}]+)\}")
+_LATEX_MATH_PATTERNS = (
+    r"\\begin\{equation\*?\}.*?\\end\{equation\*?\}",
+    r"\\begin\{align\*?\}.*?\\end\{align\*?\}",
+    r"\\begin\{gather\*?\}.*?\\end\{gather\*?\}",
+    r"\\begin\{multline\*?\}.*?\\end\{multline\*?\}",
+    r"\\\[.*?\\\]",
+    r"\\\((.*?)\\\)",
+    r"\$\$.*?\$\$",
+    r"(?<!\\)\$.*?(?<!\\)\$",
+)
 _MARKDOWN_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 _HTML_SRC_RE = re.compile(r'\bsrc=["\']([^"\']+)["\']', re.IGNORECASE)
 _HTML_HREF_RE = re.compile(r'\bhref=["\']([^"\']+)["\']', re.IGNORECASE)
@@ -1608,7 +1621,7 @@ def _get_project_template_header(project: Optional[dict]) -> str:
     return header
 
 
-def _describe_template_constraints(project: Optional[dict]) -> tuple[str, str]:
+def _describe_template_constraints(project: Optional[dict]) -> tuple[str, str, list[str], list[str]]:
     """分析模板中允许的宏包与自定义命令。"""
 
     header_tex = _get_project_template_header(project) or ""
@@ -1624,7 +1637,121 @@ def _describe_template_constraints(project: Optional[dict]) -> tuple[str, str]:
     allowed_text = ", ".join(allowed_packages) if allowed_packages else "无可用宏包"
     macros = re.findall(r"\\newcommand\{(\\[^}]+)\}", header_tex)
     macros_text = ", ".join(macros) if macros else "无自定义命令"
-    return allowed_text, macros_text
+    return allowed_text, macros_text, allowed_packages, macros
+
+
+def _iter_component_items(library: dict, mode: str):
+    """Yield component library items for prompt/validation."""
+
+    groups = library.get(mode, [])
+    if not isinstance(groups, list):
+        return
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        group_name = str(group.get("group") or "").strip()
+        items = group.get("items", [])
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name") or "").strip()
+            code = item.get("code")
+            if code is None:
+                code = ""
+            yield group_name, name, str(code).strip()
+
+
+def _format_component_library_for_prompt(mode: str) -> str:
+    """Format component library as a strict whitelist for LLM prompts."""
+
+    lines: list[str] = []
+    current_group = None
+    for group_name, name, code in _iter_component_items(COMPONENT_LIBRARY, mode):
+        if group_name and group_name != current_group:
+            lines.append(f"[{group_name}]")
+            current_group = group_name
+        if name:
+            lines.append(f"- {name}")
+        if code:
+            lines.append(code)
+    return "\n".join(lines).strip()
+
+
+def _component_library_prompt_text(mode: str) -> str:
+    text = _format_component_library_for_prompt(mode)
+    return text if text else "无"
+
+
+def _collect_latex_component_allowlist() -> tuple[set[str], set[str]]:
+    """Extract allowed commands/environments from LaTeX component snippets."""
+
+    commands: set[str] = set()
+    envs: set[str] = set()
+    for _group, _name, code in _iter_component_items(COMPONENT_LIBRARY, "latex"):
+        if not code:
+            continue
+        commands.update(cmd.lstrip("\\") for cmd in re.findall(r"\\[A-Za-z@]+", code))
+        envs.update(re.findall(r"\\begin\{([^}]+)\}", code))
+        envs.update(re.findall(r"\\end\{([^}]+)\}", code))
+    return commands, {env.strip() for env in envs if env}
+
+
+def _strip_latex_math(content: str) -> str:
+    """Remove math blocks to avoid false positives in command validation."""
+
+    if not content:
+        return ""
+    stripped = content
+    for pattern in _LATEX_MATH_PATTERNS:
+        stripped = re.sub(pattern, "", stripped, flags=re.DOTALL)
+    return stripped
+
+
+def _validate_latex_component_usage(
+    content: str,
+    allowed_commands: set[str],
+    allowed_envs: set[str],
+    custom_macros: set[str],
+) -> tuple[list[str], list[str]]:
+    """Return lists of disallowed commands/environments in LaTeX content."""
+
+    if not content or not content.strip():
+        return ["<empty>"], []
+
+    envs = set(_LATEX_ENV_BEGIN_RE.findall(content))
+    envs.update(_LATEX_ENV_END_RE.findall(content))
+    illegal_envs = sorted(
+        env for env in envs
+        if env
+        and env not in allowed_envs
+        and not (env.endswith("*") and env[:-1] in allowed_envs)
+    )
+
+    stripped = _strip_latex_math(content)
+    commands = set(_LATEX_COMMAND_RE.findall(stripped))
+    commands.discard("begin")
+    commands.discard("end")
+    allowed = set(allowed_commands)
+    allowed.update(custom_macros)
+    illegal_commands = sorted(cmd for cmd in commands if cmd not in allowed)
+    return illegal_commands, illegal_envs
+
+
+def _truncate_items(items: list[str], limit: int = 12) -> str:
+    if len(items) <= limit:
+        return ", ".join(items)
+    return ", ".join(items[:limit]) + f"...(+{len(items) - limit})"
+
+
+def _format_component_violations(commands: list[str], envs: list[str]) -> str:
+    parts: list[str] = []
+    if commands:
+        parts.append(f"非法命令: {_truncate_items(commands)}")
+    if envs:
+        parts.append(f"非法环境: {_truncate_items(envs)}")
+    return "；".join(parts) if parts else "未提供违规项"
 
 
 @bp.route("/llm/test", methods=["POST"])
@@ -1750,6 +1877,10 @@ def ai_optimize():
     if opt_type not in AI_PROMPTS:
         opt_type = "latex"
 
+    allowed_text = ""
+    macros_text = ""
+    component_library_text = ""
+    template_macros: list[str] = []
     if opt_type == "script":
         prompt_template = AI_PROMPTS["script"]["template"]
         system_text = AI_PROMPTS["script"]["system"]
@@ -1757,16 +1888,23 @@ def ai_optimize():
     elif opt_type == "note":
         prompt_template = AI_PROMPTS["note"]["template"]
         system_text = AI_PROMPTS["note"]["system"]
-        user_prompt = prompt_template.format(latex=latex_text, markdown=markdown_text)
+        component_library_text = _component_library_prompt_text("markdown")
+        user_prompt = prompt_template.format(
+            latex=latex_text,
+            markdown=markdown_text,
+            component_library=component_library_text,
+        )
     else:
-        allowed_text, macros_text = _describe_template_constraints(project)
+        allowed_text, macros_text, _allowed_packages, template_macros = _describe_template_constraints(project)
         prompt_template = AI_PROMPTS["latex"]["template"]
         system_text = AI_PROMPTS["latex"]["system"]
+        component_library_text = _component_library_prompt_text("latex")
         user_prompt = prompt_template.format(
             latex=latex_text,
             markdown=markdown_text,
             allowed_packages=allowed_text,
             custom_macros=macros_text,
+            component_library=component_library_text,
         )
 
     try:
@@ -1793,6 +1931,69 @@ def ai_optimize():
         result = resp.json()["choices"][0]["message"]["content"]
     except (KeyError, IndexError, ValueError, TypeError) as exc:  # pragma: no cover
         return api_error(f"解析 LLM 响应失败: {exc}", 500)
+
+    if opt_type == "latex":
+        allowed_commands, allowed_envs = _collect_latex_component_allowlist()
+        macro_names = {macro.lstrip("\\") for macro in template_macros}
+        illegal_commands, illegal_envs = _validate_latex_component_usage(
+            result,
+            allowed_commands,
+            allowed_envs,
+            macro_names,
+        )
+        if illegal_commands or illegal_envs:
+            violations = _format_component_violations(illegal_commands, illegal_envs)
+            repair_prompt = (
+                "你刚才生成的 LaTeX 草稿违反了模板/组件库限制，需要修复。\n"
+                f"{violations}\n\n"
+                "请在不新增宏包或命令的前提下，用组件库允许的语法重写草稿，保持内容含义。\n"
+                f"允许宏包: {allowed_text}\n"
+                f"允许自定义命令: {macros_text}\n"
+                "组件库清单如下：\n"
+                f"{component_library_text}\n\n"
+                "需要修复的草稿如下：\n"
+                f"{result}\n\n"
+                "原始 LaTeX 内容如下（供参考）：\n"
+                f"{latex_text}\n\n"
+                "当前页笔记如下（供参考）：\n"
+                f"{markdown_text}\n\n"
+                "只返回修复后的 LaTeX 代码，不要解释。\n"
+            )
+            try:
+                repair_resp = requests.post(
+                    llm_config["endpoint"],
+                    headers=headers,
+                    json={
+                        "model": model_name,
+                        "messages": [
+                            {"role": "system", "content": system_text},
+                            {"role": "user", "content": repair_prompt},
+                        ],
+                        "temperature": 0.2,
+                    },
+                    timeout=_resolve_llm_timeout(llm_config, 60),
+                )
+            except Exception as exc:  # pragma: no cover - network errors
+                return api_error(str(exc), 500)
+
+            if repair_resp.status_code != 200:
+                return api_error(f"{_llm_provider_label(llm_config)} API错误: {repair_resp.text}", 500)
+
+            try:
+                repaired = repair_resp.json()["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, ValueError, TypeError) as exc:  # pragma: no cover
+                return api_error(f"解析 LLM 修复响应失败: {exc}", 500)
+
+            illegal_commands, illegal_envs = _validate_latex_component_usage(
+                repaired,
+                allowed_commands,
+                allowed_envs,
+                macro_names,
+            )
+            if illegal_commands or illegal_envs:
+                violations = _format_component_violations(illegal_commands, illegal_envs)
+                return api_error(f"AI输出不符合组件库限制: {violations}", 400)
+            result = repaired
 
     return api_success({"result": result})
 
