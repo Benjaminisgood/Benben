@@ -25,54 +25,68 @@ FALLBACK_TEMPLATE: dict[str, str] = {
         \setsansfont{PingFang SC}
         \setmainfont{PingFang SC}
         % === Benben 媒体规范（仅附件） ===
-        % 图片统一存放于 attachments/，写法：\img[width=0.5\textwidth]{logo_primary.png}
-        % 导出会把 attachments/ 打包，无需写路径。
+        % 图片统一存放于 attachments/，写法：\img[width=0.5\textwidth]{logo_1_white.png}
+        % 背景支持全局/单页：
+        %   \BenbenSetGlobalBackground{bg_1_red.png}
+        %   \begin{BenbenBgFrame}{bg_2_red.png} ... \end{BenbenBgFrame}
         \graphicspath{{.}{attachments/}}
         \makeatletter
         \newcommand{\benben@imginclude}[2][]{%
           \IfFileExists{attachments/#2}{\includegraphics[#1]{attachments/#2}}{%
             \IfFileExists{#2}{\includegraphics[#1]{#2}}{%
-              \typeout{[warn] Missing image #2, using placeholder}%
-              \includegraphics[#1]{example-image}%
+              \typeout{[warn] Missing image #2}%
+              \fbox{\rule{0pt}{1.5cm}\rule{1.5cm}{0pt}}%
             }%
           }%
         }
         \newcommand{\img}[2][]{\benben@imginclude[#1]{#2}}
-        % 预设素材文件名（可在 attachments/ 中放置同名文件以自动应用）
-        \newcommand{\BenbenMainLogo}{logo_primary.png}
-        \newcommand{\BenbenAltLogo}{logo_secondary.png}
-        \newcommand{\BenbenMotto}{motto_green.png}
-        \newcommand{\BenbenSlideBg}{bg_slide_red.png}
-        \newcommand{\BenbenCoverBg}{bg_cover_red.png}
-        % 标题页/背景辅助
+        % 预设素材文件名（来自 attachments_seed）
+        \newcommand{\BenbenLogoPrimary}{logo_1_white.png}
+        \newcommand{\BenbenLogoSecondary}{logo_2_white.png}
+        \newcommand{\BenbenBgRed}{bg_1_red.png}
+        \newcommand{\BenbenBgRedAlt}{bg_2_red.png}
+        \newcommand{\BenbenBgGreen}{bg_1_green.png}
+        % 标题页辅助
         \newcommand{\BenbenSetupTitleGraphic}{%
-          \IfFileExists{attachments/\BenbenMainLogo}{%
-            \titlegraphic{\img[width=2.8cm]{\BenbenMainLogo}}%
+          \IfFileExists{attachments/\BenbenLogoPrimary}{%
+            \titlegraphic{\img[width=2.8cm]{\BenbenLogoPrimary}}%
           }{}%
         }
-        \newcommand{\BenbenSetSlideBackground}{%
-          \IfFileExists{attachments/\BenbenSlideBg}{%
-            \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{attachments/\BenbenSlideBg}}%
+        % 背景控制（全局/单页）
+        \newcommand{\BenbenGlobalBackground}{}
+        \newcommand{\BenbenUseBackground}[1]{%
+          \IfFileExists{attachments/#1}{%
+            \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{attachments/#1}}%
           }{%
-            \usebackgroundtemplate{}%
-          }%
-        }
-        \newcommand{\BenbenCoverFrame}{%
-          \begin{frame}[plain]
-            \BenbenResetBackground
-            \IfFileExists{attachments/\BenbenCoverBg}{%
-              \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{attachments/\BenbenCoverBg}}%
+            \IfFileExists{#1}{%
+              \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{#1}}%
             }{%
               \usebackgroundtemplate{}%
             }%
-            \vfill
-            \titlepage
-            \vfill
-            \BenbenResetBackground
-          \end{frame}
-          \BenbenSetSlideBackground
+          }%
         }
-        \newcommand{\BenbenResetBackground}{\usebackgroundtemplate{}}
+        \newcommand{\BenbenApplyGlobalBackground}{%
+          \ifx\BenbenGlobalBackground\empty
+            \usebackgroundtemplate{}%
+          \else
+            \BenbenUseBackground{\BenbenGlobalBackground}%
+          \fi
+        }
+        \newcommand{\BenbenSetGlobalBackground}[1]{%
+          \def\BenbenGlobalBackground{#1}%
+          \BenbenApplyGlobalBackground%
+        }
+        \newcommand{\BenbenClearGlobalBackground}{%
+          \def\BenbenGlobalBackground{}%
+          \BenbenApplyGlobalBackground%
+        }
+        \newenvironment{BenbenBgFrame}[2][]{%
+          \BenbenUseBackground{#2}%
+          \begin{frame}[#1]
+        }{%
+          \end{frame}
+          \BenbenApplyGlobalBackground
+        }
         \makeatother
         \usepackage[backend=bibtex,style=chem-acs,maxnames=6,giveninits=true,articletitle=true]{biblatex}
         \addbibresource{refs.bib}
@@ -81,7 +95,7 @@ FALLBACK_TEMPLATE: dict[str, str] = {
         \author{Ben}
         """
     ).strip(),
-    "beforePages": "\\begin{document}\n\\BenbenSetupTitleGraphic\n\\BenbenSetSlideBackground",
+    "beforePages": "\\begin{document}\n\\BenbenSetupTitleGraphic",
     "footer": "\\end{document}",
 }
 
@@ -1076,6 +1090,44 @@ COMPONENT_LIBRARY = {
                 {
                     "name": "双图对比",
                     "code": "\\begin{figure}[htbp]\n  \\centering\n  \\begin{subfigure}{0.48\\textwidth}\n    \\includegraphics[width=\\linewidth]{example-image-a}\n    \\caption{左图}\n  \\end{subfigure}\n  \\hfill\n  \\begin{subfigure}{0.48\\textwidth}\n    \\includegraphics[width=\\linewidth]{example-image-b}\n    \\caption{右图}\n  \\end{subfigure}\n\\end{figure}",
+                },
+            ],
+        },
+        {
+            "group": "背景/主题",
+            "items": [
+                {
+                    "name": "设置全局背景",
+                    "code": "\\BenbenSetGlobalBackground{bg_1_red.png}",
+                },
+                {
+                    "name": "清除全局背景",
+                    "code": "\\BenbenClearGlobalBackground",
+                },
+                {
+                    "name": "单页背景（自定义）",
+                    "code": "\\begin{BenbenBgFrame}{bg_2_red.png}\n  % 页面内容\n\\end{BenbenBgFrame}",
+                },
+                {
+                    "name": "单页背景（带 frame 选项）",
+                    "code": "\\begin{BenbenBgFrame}[plain]{bg_1_green.png}\n  % 页面内容\n\\end{BenbenBgFrame}",
+                },
+            ],
+        },
+        {
+            "group": "报告/封面",
+            "items": [
+                {
+                    "name": "插入封面 PDF（默认 cover.pdf）",
+                    "code": "\\BenbenReportCoverPdf{cover.pdf}",
+                },
+                {
+                    "name": "自定义封面文件名变量",
+                    "code": "\\newcommand{\\BenbenReportCoverFile}{your_cover.pdf}\n\\BenbenReportCoverPdf{\\BenbenReportCoverFile}",
+                },
+                {
+                    "name": "封面 PDF（单页）",
+                    "code": "\\BenbenReportCoverPdf{cover.pdf}",
                 },
             ],
         },

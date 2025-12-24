@@ -22,7 +22,7 @@ Benben 是一个围绕 LaTeX Beamer 演示创作构建的全栈平台：后端�
 - **访问加密**：每个 `.benben` 工作区都可以设置访问密码，密码会以 `projectSecurity` 形式保存在容器的 `meta` 表中；密码留空即视为未加密，任何人都可直接打开。
 - **附件与资源管理**：在单个 `.benben` 内保存二进制文件，计划中的逻辑会避免在多个页面引用时被误删。
 - **工作区入口**：导航栏左侧的下拉菜单包含“打开本地工作区 / 打开远程工作区”按钮。本地模式直接在磁盘上读写 `.benben` 文件；远程模式会列出 OSS 上的 `.benben` 包，可在线选择、创建并自动同步。
-- **附件种子**：在仓库 `temps/attachments_seed/` 放置校徽、封面背景、校训图等公用素材，新建 `.benben` 时会自动写入 SQLite `attachments` 表，无需每个项目重复上传。模板中的 `\img{...}`、背景/封面宏会直接使用这些附件文件名。
+- **附件种子**：在仓库 `temps/attachments_seed/` 放置校徽、背景图、封面 PDF 等公用素材，新建 `.benben` 时会自动写入 SQLite `attachments` 表，无需每个项目重复上传。模板中的 `\img{...}` 与背景/封面指令会直接使用这些附件文件名。
 
 ---
 
@@ -126,14 +126,16 @@ gunicorn -w 4 -b 0.0.0.0:5555 benben:app
 
 ### 附件与图片（统一走 attachments）
 - 媒体只需存放在 SQLite `attachments` 表；渲染/导出时会展开到临时 `attachments/` 目录。
-- 模板统一图片语法：`\\img[width=...]{file.png}`，不写路径。背景/封面宏会自动尝试同名文件。
-- 建议把公共素材放到 `temps/attachments_seed/`（例：`logo_primary.png`、`bg_slide_red.png`、`bg_cover_red.png`、`motto_green.png` 等），新项目创建时会自动注入。
+- 模板统一图片语法：`\\img[width=...]{file.png}`，不写路径。Beamer 背景支持全局/单页设置：
+  - 全局：`\\BenbenSetGlobalBackground{bg_1_red.png}`
+  - 单页：`\\begin{BenbenBgFrame}{bg_2_red.png} ... \\end{BenbenBgFrame}`
+- 建议把公共素材放到 `temps/attachments_seed/`（例：`logo_1_white.png`、`logo_2_white.png`、`bg_1_red.png`、`bg_2_red.png`、`bg_1_green.png`，报告封面可选 `cover.pdf`），新项目创建时会自动注入。
 - 资源表 `resource_files` 仍可用作额外存储，但不会参与图片查找或模板默认路径。  
-校徽/主 Logo：logo_primary.png
-备用 Logo：logo_secondary.png
-校训/口号：motto_green.png
-幻灯片背景：bg_slide_red.png
-幻灯片封面背景：bg_cover_red.png
+主 Logo：logo_1_white.png
+备用 Logo：logo_2_white.png
+背景（红）：bg_1_red.png / bg_2_red.png
+背景（绿）：bg_1_green.png
+报告封面 PDF（可选）：cover.pdf
 
 ---
 
@@ -165,16 +167,6 @@ gunicorn -w 4 -b 0.0.0.0:5555 benben:app
 - 自定义：可通过环境变量覆写 `LLM_BASE_URL`、`LLM_EMBEDDING_PATH`（默认 `/embeddings`）、`LLM_EMBEDDING_MODEL`、`LLM_PROVIDER`、`LLM_CHAT_PATH`、`LLM_MODEL` 等；前端请求也会带上 provider/model。
 - 前端开关：导航栏 “AI助理” -> 勾/不勾 “使用 RAG” 切换是否检索笔记；未命中上下文自动回退为普通对话。
 - 配额提醒：所选 provider 的 API Key 需有可用额度，否则会返回 `insufficient_quota`。
-
----
-
-### 编辑体验
-
-- [ ] 手机端窄屏适配：默认进入 Markdown 编辑模式，仅在 default 工作区暴露少量功能（换页/编辑）。
-- [ ] 允许页面拖拽跨项目，并支持悬停预览缩略图。
-- [ ] 双击导航栏页码跳转到当前项目第一页，用作目录页。
-- [ ] Markdown 插入对话框新增常用模板（博客 Front Matter、日记、记账、笔记等），Front Matter 采用 YAML 示例。
-- [ ] Markdown ↔ 预览滚动同步：继续维护“主导权 + 阈值 + 定时器防抖”的机制，减少抖动。
 
 ---
 
