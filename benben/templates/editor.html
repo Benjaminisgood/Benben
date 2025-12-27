@@ -1802,7 +1802,7 @@
       border-bottom-style: solid;
     }
     .markdown-review-tooltip {
-      position: absolute;
+      position: fixed;
       z-index: 2000;
       max-width: min(360px, 86vw);
       max-height: min(55vh, 360px);
@@ -14954,13 +14954,17 @@ applyDefaultWorkspaceIfNeeded();
     const rect = anchor.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
     const margin = 12;
-    let top = window.scrollY + rect.top - tooltipRect.height - 10;
-    if (top < window.scrollY + margin) {
-      top = window.scrollY + rect.bottom + 10;
+    const spaceAbove = rect.top - margin;
+    const spaceBelow = window.innerHeight - rect.bottom - margin;
+    let top = rect.top - tooltipRect.height - 10;
+    if (tooltipRect.height > spaceAbove && spaceBelow >= spaceAbove) {
+      top = rect.bottom + 10;
     }
-    let left = window.scrollX + rect.left + rect.width / 2 - tooltipRect.width / 2;
-    const minLeft = window.scrollX + margin;
-    const maxLeft = window.scrollX + window.innerWidth - tooltipRect.width - margin;
+    const maxTop = window.innerHeight - tooltipRect.height - margin;
+    top = Math.max(margin, Math.min(top, maxTop));
+    let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+    const minLeft = margin;
+    const maxLeft = window.innerWidth - tooltipRect.width - margin;
     left = Math.max(minLeft, Math.min(left, maxLeft));
     tooltip.style.top = `${top}px`;
     tooltip.style.left = `${left}px`;
