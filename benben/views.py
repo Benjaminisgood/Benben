@@ -157,12 +157,74 @@ def _build_markdown_callout_renderer(name: str):
     return _render
 
 
+def _build_markdown_inline_span_rule(marker: str, token_type: str):
+    marker_len = len(marker)
+
+    def _rule(state, silent):
+        pos = state.pos
+        if state.src[pos : pos + marker_len] != marker:
+            return False
+        start = pos + marker_len
+        if start >= state.posMax:
+            return False
+        end = state.src.find(marker, start)
+        if end == -1:
+            return False
+        content = state.src[start:end]
+        if not content or not content.strip():
+            return False
+        if "\n" in content or "\r" in content:
+            return False
+        if not silent:
+            token = state.push(token_type, "", 0)
+            token.markup = marker
+            token.content = content
+            token.children = []
+            state.md.inline.parse(content, state.md, state.env, token.children)
+        state.pos = end + marker_len
+        return True
+
+    return _rule
+
+
+def _render_markdown_inline(tag: str, attrs: str):
+    def _render(self, tokens, idx, options, env):
+        token = tokens[idx]
+        children = token.children or []
+        inner = self.renderInline(children, options, env) if children else escapeHtml(token.content or "")
+        return f"<{tag}{attrs}>{inner}</{tag}>"
+
+    return _render
+
+
+def _register_markdown_inline_extras(md: MarkdownIt) -> None:
+    md.inline.ruler.before(
+        "emphasis",
+        "markdown_highlight",
+        _build_markdown_inline_span_rule("==", "markdown_highlight"),
+    )
+    md.inline.ruler.before(
+        "emphasis",
+        "markdown_blur",
+        _build_markdown_inline_span_rule("??", "markdown_blur"),
+    )
+    md.renderer.rules["markdown_highlight"] = _render_markdown_inline(
+        "mark",
+        ' class="markdown-highlight"',
+    )
+    md.renderer.rules["markdown_blur"] = _render_markdown_inline(
+        "span",
+        ' class="markdown-blur" tabindex="0"',
+    )
+
+
 _MARKDOWN_RENDERER = (
     MarkdownIt("commonmark", {"html": True, "linkify": True, "typographer": True})
     .enable("table")
     .enable("strikethrough")
     .use(tasklists_plugin, enabled=True, label=True)
     .use(footnote_plugin)
+    .use(_register_markdown_inline_extras)
 )
 for _callout_name in ("info", "tip", "warning"):
     _MARKDOWN_RENDERER.use(
@@ -392,6 +454,33 @@ details.markdown-qa .markdown-qa-answer { margin-top: 10px; }
 .markdown-media audio, .markdown-media video { width: 100%; display: block; border-radius: 10px; outline: none; background: #000; }
 .markdown-media video { max-height: min(420px, 48vh); object-fit: contain; }
 .markdown-media .markdown-media-caption { margin-top: 8px; font-size: 0.95rem; color: rgba(0,0,0,0.7); }
+.markdown-highlight,
+.markdown-blur {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+mark.markdown-highlight {
+  color: inherit;
+}
+.markdown-highlight {
+  background: color-mix(in srgb, #f59e0b 32%, transparent);
+  border-radius: 0.2em;
+  padding: 0.05em 0.2em;
+}
+.markdown-blur {
+  filter: blur(6px);
+  opacity: 0.35;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+  cursor: pointer;
+  padding: 0.05em 0.2em;
+  border-radius: 0.2em;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.markdown-blur:hover,
+.markdown-blur:focus {
+  filter: none;
+  opacity: 1;
+}
 
 """
 

@@ -1757,6 +1757,33 @@
     .markdown-media audio, .markdown-media video { width: 100%; display: block; border-radius: 10px; outline: none; background: #000; }
     .markdown-media video { max-height: min(420px, 48vh); object-fit: contain; }
     .markdown-media .markdown-media-caption { margin-top: 8px; font-size: 0.95rem; color: var(--preview-muted); }
+    .markdown-highlight,
+    .markdown-blur {
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+    mark.markdown-highlight {
+      color: inherit;
+    }
+    .markdown-highlight {
+      background: color-mix(in srgb, var(--accent, #f59e0b) 28%, transparent);
+      border-radius: 0.2em;
+      padding: 0.05em 0.2em;
+    }
+    .markdown-blur {
+      filter: blur(6px);
+      opacity: 0.35;
+      transition: filter 0.2s ease, opacity 0.2s ease;
+      cursor: pointer;
+      padding: 0.05em 0.2em;
+      border-radius: 0.2em;
+      background: color-mix(in srgb, var(--preview-text, #111827) 8%, transparent);
+    }
+    .markdown-blur:hover,
+    .markdown-blur:focus {
+      filter: none;
+      opacity: 1;
+    }
 
 
 
@@ -4337,6 +4364,56 @@
       }
     };
     marked.use({extensions: [containerExtension]});
+  })();
+
+  (function registerMarkdownInlineExtras() {
+    const highlightExtension = {
+      name: 'markdownHighlight',
+      level: 'inline',
+      start(src) {
+        const match = src.indexOf('==');
+        return match >= 0 ? match : undefined;
+      },
+      tokenizer(src) {
+        const match = /^==([^\n\r]+?)==/.exec(src);
+        if (!match) return undefined;
+        const text = match[1] || '';
+        if (!text.trim()) return undefined;
+        return {
+          type: 'markdownHighlight',
+          raw: match[0],
+          text
+        };
+      },
+      renderer(token) {
+        const inner = token.text ? marked.parseInline(token.text) : '';
+        return `<mark class="markdown-highlight">${inner}</mark>`;
+      }
+    };
+    const blurExtension = {
+      name: 'markdownBlur',
+      level: 'inline',
+      start(src) {
+        const match = src.indexOf('??');
+        return match >= 0 ? match : undefined;
+      },
+      tokenizer(src) {
+        const match = /^\?\?([^\n\r]+?)\?\?/.exec(src);
+        if (!match) return undefined;
+        const text = match[1] || '';
+        if (!text.trim()) return undefined;
+        return {
+          type: 'markdownBlur',
+          raw: match[0],
+          text
+        };
+      },
+      renderer(token) {
+        const inner = token.text ? marked.parseInline(token.text) : '';
+        return `<span class="markdown-blur" tabindex="0">${inner}</span>`;
+      }
+    };
+    marked.use({extensions: [highlightExtension, blurExtension]});
   })();
 
   function escapeHtml(text) {
