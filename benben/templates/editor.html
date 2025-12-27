@@ -1784,6 +1784,81 @@
       filter: none;
       opacity: 1;
     }
+    .markdown-review-hit {
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+      border-bottom: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+      border-radius: 0.2em;
+      padding: 0.05em 0.2em;
+      cursor: help;
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+    .markdown-review-hit:hover,
+    .markdown-review-hit:focus {
+      background: color-mix(in srgb, var(--accent) 26%, transparent);
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 24%, transparent);
+      outline: none;
+    }
+    .markdown-review-hit--favorite {
+      border-bottom-style: solid;
+    }
+    .markdown-review-tooltip {
+      position: absolute;
+      z-index: 2000;
+      max-width: min(360px, 86vw);
+      max-height: min(55vh, 360px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--surface-border);
+      background: var(--surface-1);
+      color: var(--shell-text);
+      box-shadow: var(--surface-shadow);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.12s ease, transform 0.12s ease;
+    }
+    .markdown-review-tooltip.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .markdown-review-tooltip__title {
+      font-weight: 650;
+      margin-bottom: 4px;
+    }
+    .markdown-review-tooltip__body {
+      overflow: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      padding-right: 4px;
+      margin-right: -4px;
+      scrollbar-gutter: stable;
+    }
+    .markdown-review-tooltip__output {
+      margin: 6px 0 4px;
+      white-space: pre-wrap;
+    }
+    .markdown-review-tooltip__note {
+      margin: 4px 0 0;
+      white-space: pre-wrap;
+      color: var(--preview-muted);
+    }
+    .markdown-review-tooltip__meta {
+      margin-top: 6px;
+      font-size: 0.82rem;
+      color: var(--preview-muted);
+    }
+    .markdown-review-tooltip__meta-item {
+      color: var(--preview-muted);
+    }
+    .markdown-review-tooltip__meta-method,
+    .markdown-review-tooltip__meta-due {
+      color: color-mix(in srgb, var(--accent) 78%, var(--shell-text) 22%);
+      font-weight: 600;
+    }
 
 
 
@@ -9554,6 +9629,8 @@ function syncMarkdownEditorToPreview(container) {
       });
     }
     enhanceCodeCopy(preview);
+    loadLearningReviewIndex(false);
+    refreshMarkdownReviewHighlights();
     if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
       try {
         if (typeof window.MathJax.typesetClear === 'function') {
@@ -9563,7 +9640,10 @@ function syncMarkdownEditorToPreview(container) {
         console.warn('清理 MathJax 队列失败', err);
       }
       window.MathJax.typesetPromise([preview])
-        .then(() => enhanceMathCopy(preview))
+        .then(() => {
+          enhanceMathCopy(preview);
+          refreshMarkdownReviewHighlights();
+        })
         .catch(err => console.warn('MathJax 渲染失败', err));
     }
     if (markdownScrollSyncState.enabled && currentEditMode === 'markdown' && singleEditor) {
@@ -10565,8 +10645,13 @@ function syncMarkdownEditorToPreview(container) {
       bodyEl.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
     }
     enhanceCodeCopy(bodyEl);
+    loadLearningReviewIndex(false);
+    applyReviewHighlights(bodyEl);
+    bindReviewHighlightInteractions(bodyEl);
     if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-      window.MathJax.typesetPromise([bodyEl]).catch(err => console.warn('幻灯 MathJax 渲染失败', err));
+      window.MathJax.typesetPromise([bodyEl])
+        .then(() => applyReviewHighlights(bodyEl))
+        .catch(err => console.warn('幻灯 MathJax 渲染失败', err));
     }
     if (!bodyEl.dataset.slideshowLinksBound) {
       bodyEl.addEventListener('click', handleSlideshowLinkClick);
@@ -13207,6 +13292,14 @@ applyDefaultWorkspaceIfNeeded();
         dueOnly: false,
       },
     },
+    reviewHighlight: {
+      loading: false,
+      initialized: false,
+      records: [],
+      index: null,
+      project: '',
+      lastAttemptAt: 0,
+    },
     reviewSession: {
       modal: null,
       active: null,
@@ -13239,6 +13332,10 @@ applyDefaultWorkspaceIfNeeded();
     good: 4,
     easy: 5,
   };
+  const REVIEW_HIGHLIGHT_MIN_LENGTH = 2;
+  const REVIEW_HIGHLIGHT_MAX_LENGTH = 200;
+  const REVIEW_HIGHLIGHT_LIMIT = 240;
+  const REVIEW_HIGHLIGHT_RETRY_MS = 30000;
 
   // Cache the last selection (text + images) before focus moves away (e.g., clicking AI 学习)
   let lastLearningSelectionSnapshot = null;
@@ -13274,6 +13371,14 @@ applyDefaultWorkspaceIfNeeded();
         search: '',
         dueOnly: false,
       };
+      if (learningAssistantState.reviewHighlight) {
+        learningAssistantState.reviewHighlight.loading = false;
+        learningAssistantState.reviewHighlight.initialized = false;
+        learningAssistantState.reviewHighlight.records = [];
+        learningAssistantState.reviewHighlight.index = null;
+        learningAssistantState.reviewHighlight.project = normalized;
+        learningAssistantState.reviewHighlight.lastAttemptAt = 0;
+      }
       learningAssistantState.reviewSession.active = null;
       learningAssistantState.reviewSession.backdrop = null;
       if (typeof renderLearningPrompts === 'function') {
@@ -14526,6 +14631,7 @@ applyDefaultWorkspaceIfNeeded();
       showStatus(state.recordId ? '学习记录已更新' : '学习记录已保存', 'success', 2600);
       learningAssistantState.review.initialized = false;
       loadLearningReviewData(true);
+      loadLearningReviewIndex(true);
     } catch (err) {
       console.error('保存学习记录失败:', err);
       showStatus('保存学习记录失败：' + (err?.message || err || '未知错误'), 'danger', 6000);
@@ -14722,6 +14828,350 @@ applyDefaultWorkspaceIfNeeded();
     } finally {
       state.loading = false;
     }
+  }
+
+  const REVIEW_HIGHLIGHT_SKIP_SELECTOR = [
+    'code',
+    'pre',
+    'kbd',
+    'samp',
+    'textarea',
+    'input',
+    'select',
+    'option',
+    'script',
+    'style',
+    '.markdown-blur',
+    '.markdown-highlight',
+    '.markdown-review-hit',
+    '.markdown-review-tooltip',
+    'mjx-container',
+    '.MathJax'
+  ].join(',');
+
+  let activeReviewTooltip = null;
+  let activeReviewTooltipAnchor = null;
+  let reviewTooltipHideTimer = null;
+
+  function escapeRegExp(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function normalizeReviewHighlightText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function buildReviewHighlightPattern(value) {
+    const normalized = normalizeReviewHighlightText(value);
+    if (!normalized) return '';
+    let pattern = escapeRegExp(normalized).replace(/\s+/g, '\\s+');
+    if (/^[A-Za-z0-9]+$/.test(normalized)) {
+      pattern = `\\b${pattern}\\b`;
+    }
+    return pattern;
+  }
+
+  function buildLearningReviewHighlightIndex(records) {
+    const entries = new Map();
+    (records || []).forEach(rec => {
+      const normalized = normalizeReviewHighlightText(rec && rec.input ? rec.input : '');
+      if (!normalized) return;
+      if (normalized.length < REVIEW_HIGHLIGHT_MIN_LENGTH) return;
+      if (normalized.length > REVIEW_HIGHLIGHT_MAX_LENGTH) return;
+      let entry = entries.get(normalized);
+      if (!entry) {
+        entry = {key: normalized, records: [], hasFavorite: false};
+        entries.set(normalized, entry);
+      }
+      entry.records.push(rec);
+      if (rec && rec.favorite) {
+        entry.hasFavorite = true;
+      }
+    });
+    const sorted = Array.from(entries.values());
+    sorted.forEach(entry => {
+      entry.records.sort((a, b) => (b?.savedAt || 0) - (a?.savedAt || 0));
+    });
+    sorted.sort((a, b) => (b?.records?.[0]?.savedAt || 0) - (a?.records?.[0]?.savedAt || 0));
+    const limited = sorted.slice(0, REVIEW_HIGHLIGHT_LIMIT);
+    limited.sort((a, b) => b.key.length - a.key.length);
+    const patterns = limited.map(entry => buildReviewHighlightPattern(entry.key)).filter(Boolean);
+    const regex = patterns.length ? new RegExp(patterns.join('|'), 'g') : null;
+    const lookup = new Map(limited.map(entry => [entry.key, entry]));
+    return {entries: limited, lookup, regex};
+  }
+
+  async function loadLearningReviewIndex(force = false) {
+    const state = learningAssistantState.reviewHighlight;
+    if (!state || state.loading) return;
+    const targetProject = typeof currentProject === 'string' ? currentProject : '';
+    if (!force && state.initialized && state.project === targetProject) {
+      return;
+    }
+    const now = Date.now();
+    if (!force && state.lastAttemptAt && now - state.lastAttemptAt < REVIEW_HIGHLIGHT_RETRY_MS) {
+      return;
+    }
+    state.loading = true;
+    state.project = targetProject;
+    state.lastAttemptAt = now;
+    try {
+      const res = await fetch(appendWorkspaceQuery('/learn/records'));
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (!data || data.success === false) {
+        throw new Error((data && data.error) || '加载失败');
+      }
+      state.records = Array.isArray(data.records) ? data.records : [];
+      state.index = buildLearningReviewHighlightIndex(state.records);
+      state.initialized = true;
+      refreshMarkdownReviewHighlights();
+    } catch (err) {
+      console.warn('加载复习高亮索引失败:', err);
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  function closeReviewTooltip() {
+    if (reviewTooltipHideTimer) {
+      clearTimeout(reviewTooltipHideTimer);
+      reviewTooltipHideTimer = null;
+    }
+    if (activeReviewTooltip) {
+      activeReviewTooltip.remove();
+      activeReviewTooltip = null;
+    }
+    activeReviewTooltipAnchor = null;
+    window.removeEventListener('resize', handleReviewTooltipWindowChange);
+    window.removeEventListener('scroll', handleReviewTooltipWindowChange, true);
+  }
+
+  function positionReviewTooltip(tooltip, anchor) {
+    if (!tooltip || !anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const margin = 12;
+    let top = window.scrollY + rect.top - tooltipRect.height - 10;
+    if (top < window.scrollY + margin) {
+      top = window.scrollY + rect.bottom + 10;
+    }
+    let left = window.scrollX + rect.left + rect.width / 2 - tooltipRect.width / 2;
+    const minLeft = window.scrollX + margin;
+    const maxLeft = window.scrollX + window.innerWidth - tooltipRect.width - margin;
+    left = Math.max(minLeft, Math.min(left, maxLeft));
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${left}px`;
+  }
+
+  function handleReviewTooltipWindowChange() {
+    if (!activeReviewTooltip || !activeReviewTooltipAnchor) {
+      closeReviewTooltip();
+      return;
+    }
+    positionReviewTooltip(activeReviewTooltip, activeReviewTooltipAnchor);
+  }
+
+  function scheduleReviewTooltipClose() {
+    if (reviewTooltipHideTimer) {
+      clearTimeout(reviewTooltipHideTimer);
+    }
+    reviewTooltipHideTimer = setTimeout(() => closeReviewTooltip(), 140);
+  }
+
+  function openReviewTooltip(anchor) {
+    const state = learningAssistantState.reviewHighlight;
+    if (!state || !state.index || !state.index.lookup) return;
+    const key = normalizeReviewHighlightText(anchor?.dataset?.reviewKey || anchor?.textContent || '');
+    if (!key) return;
+    const entry = state.index.lookup.get(key);
+    if (!entry || !entry.records.length) return;
+    if (activeReviewTooltipAnchor === anchor) return;
+    closeReviewTooltip();
+    const record = entry.records[0] || {};
+    const tooltip = document.createElement('div');
+    tooltip.className = 'markdown-review-tooltip';
+    const title = document.createElement('div');
+    title.className = 'markdown-review-tooltip__title';
+    const titleParts = [];
+    if (record.promptName) titleParts.push(record.promptName);
+    if (!titleParts.length && record.method) titleParts.push(record.method);
+    if (!titleParts.length) titleParts.push('AI 复习记录');
+    if (entry.records.length > 1) titleParts.push(`共 ${entry.records.length} 条`);
+    title.textContent = titleParts.join(' · ');
+    tooltip.appendChild(title);
+
+    const body = document.createElement('div');
+    body.className = 'markdown-review-tooltip__body';
+
+    const outputText = (record.output || '').trim() || (record.input || '').trim();
+    if (outputText) {
+      const output = document.createElement('div');
+      output.className = 'markdown-review-tooltip__output';
+      output.textContent = outputText;
+      body.appendChild(output);
+    }
+
+    const reviewState = normalizeReviewState(record.review);
+    const schedule = describeReviewSchedule(reviewState);
+    const metaParts = [];
+    if (record.category) metaParts.push({text: `分类：${record.category}`, cls: 'markdown-review-tooltip__meta-item'});
+    if (record.method) metaParts.push({text: `方法：${record.method}`, cls: 'markdown-review-tooltip__meta-item markdown-review-tooltip__meta-method'});
+    if (schedule && schedule.dueLabel) metaParts.push({text: schedule.dueLabel, cls: 'markdown-review-tooltip__meta-item markdown-review-tooltip__meta-due'});
+    if (metaParts.length) {
+      const meta = document.createElement('div');
+      meta.className = 'markdown-review-tooltip__meta';
+      metaParts.forEach((part, idx) => {
+        if (idx > 0) {
+          meta.appendChild(document.createTextNode(' · '));
+        }
+        const span = document.createElement('span');
+        span.className = part.cls;
+        span.textContent = part.text;
+        meta.appendChild(span);
+      });
+      body.appendChild(meta);
+    }
+    if (reviewState.note) {
+      const note = document.createElement('div');
+      note.className = 'markdown-review-tooltip__note';
+      note.textContent = `复习笔记：${reviewState.note}`;
+      body.appendChild(note);
+    }
+    if (body.childNodes.length) {
+      tooltip.appendChild(body);
+    }
+
+    document.body.appendChild(tooltip);
+    activeReviewTooltip = tooltip;
+    activeReviewTooltipAnchor = anchor;
+    positionReviewTooltip(tooltip, anchor);
+    requestAnimationFrame(() => tooltip.classList.add('is-visible'));
+    tooltip.addEventListener('mouseenter', () => {
+      if (reviewTooltipHideTimer) {
+        clearTimeout(reviewTooltipHideTimer);
+        reviewTooltipHideTimer = null;
+      }
+    });
+    tooltip.addEventListener('mouseleave', scheduleReviewTooltipClose);
+    window.addEventListener('resize', handleReviewTooltipWindowChange);
+    window.addEventListener('scroll', handleReviewTooltipWindowChange, true);
+  }
+
+  function clearReviewHighlights(root) {
+    if (!root) return;
+    closeReviewTooltip();
+    root.querySelectorAll('.markdown-review-hit').forEach(node => {
+      const parent = node.parentNode;
+      if (!parent) return;
+      parent.replaceChild(document.createTextNode(node.textContent || ''), node);
+      parent.normalize();
+    });
+  }
+
+  function applyReviewHighlights(root) {
+    if (!root) return;
+    clearReviewHighlights(root);
+    const state = learningAssistantState.reviewHighlight;
+    const index = state && state.index;
+    if (!index || !index.regex || !index.entries.length) return;
+    const textNodes = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node || !node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        if (parent.closest(REVIEW_HIGHLIGHT_SKIP_SELECTOR)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    let node;
+    while ((node = walker.nextNode())) {
+      textNodes.push(node);
+    }
+    const regex = index.regex;
+    textNodes.forEach(textNode => {
+      const text = textNode.nodeValue;
+      if (!text) return;
+      regex.lastIndex = 0;
+      let match;
+      let lastIndex = 0;
+      let changed = false;
+      const fragment = document.createDocumentFragment();
+      while ((match = regex.exec(text)) !== null) {
+        const matchedText = match[0];
+        const normalized = normalizeReviewHighlightText(matchedText);
+        const entry = index.lookup.get(normalized);
+        if (!entry) {
+          if (regex.lastIndex === match.index) {
+            regex.lastIndex += 1;
+          }
+          continue;
+        }
+        if (match.index > lastIndex) {
+          fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+        }
+        const span = document.createElement('span');
+        span.className = 'markdown-review-hit';
+        if (entry.hasFavorite) {
+          span.classList.add('markdown-review-hit--favorite');
+        }
+        span.dataset.reviewKey = normalized;
+        span.tabIndex = 0;
+        span.textContent = matchedText;
+        fragment.appendChild(span);
+        lastIndex = match.index + matchedText.length;
+        changed = true;
+        if (regex.lastIndex === match.index) {
+          regex.lastIndex += 1;
+        }
+      }
+      if (!changed) return;
+      if (lastIndex < text.length) {
+        fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+      }
+      if (textNode.parentNode) {
+        textNode.parentNode.replaceChild(fragment, textNode);
+      }
+    });
+  }
+
+  function refreshMarkdownReviewHighlights() {
+    const preview = document.getElementById('markdown-preview-content');
+    if (!preview) return;
+    applyReviewHighlights(preview);
+    bindReviewHighlightInteractions(preview);
+  }
+
+  function bindReviewHighlightInteractions(container) {
+    if (!container || container.dataset.reviewHighlightBound) return;
+    container.dataset.reviewHighlightBound = '1';
+    container.addEventListener('mouseover', event => {
+      const target = event.target.closest('.markdown-review-hit');
+      if (!target || !container.contains(target)) return;
+      openReviewTooltip(target);
+    });
+    container.addEventListener('mouseout', event => {
+      const target = event.target.closest('.markdown-review-hit');
+      if (!target || !container.contains(target)) return;
+      const related = event.relatedTarget;
+      if (related && (target.contains(related) || (activeReviewTooltip && activeReviewTooltip.contains(related)))) {
+        return;
+      }
+      scheduleReviewTooltipClose();
+    });
+    container.addEventListener('focusin', event => {
+      const target = event.target.closest('.markdown-review-hit');
+      if (!target || !container.contains(target)) return;
+      openReviewTooltip(target);
+    });
+    container.addEventListener('focusout', event => {
+      const target = event.target.closest('.markdown-review-hit');
+      if (!target || !container.contains(target)) return;
+      scheduleReviewTooltipClose();
+    });
   }
 
   function normalizeReviewState(raw) {
@@ -15126,6 +15576,7 @@ applyDefaultWorkspaceIfNeeded();
       active.record.category = categoryVal;
       renderLearningReviewSession(active.record);
       loadLearningReviewData(true);
+      loadLearningReviewIndex(true);
       showStatus('已保存复习笔记', 'success', 2000);
     }
   }
@@ -15143,6 +15594,7 @@ applyDefaultWorkspaceIfNeeded();
       }
       renderLearningReviewSession(active.record);
       await loadLearningReviewData(true);
+      loadLearningReviewIndex(true);
       if (!options.silent) {
         showStatus('已保存问答内容', 'success', 2200);
       }
@@ -15201,6 +15653,7 @@ applyDefaultWorkspaceIfNeeded();
         mergeActiveRecord(Object.assign({}, payload, {review: nextState}));
       }
       await loadLearningReviewData(true);
+      loadLearningReviewIndex(true);
       const nextRecord = findNextDueRecord(active.record.id);
       const sessionBadge = document.getElementById('ai-review-session-status');
       if (nextRecord) {
@@ -15248,6 +15701,7 @@ applyDefaultWorkspaceIfNeeded();
       }
       mergeActiveRecord(updated || {favorite: record.favorite});
       await loadLearningReviewData(true);
+      loadLearningReviewIndex(true);
       return true;
     } catch (err) {
       console.error('更新收藏状态失败:', err);
@@ -15274,6 +15728,7 @@ applyDefaultWorkspaceIfNeeded();
       }
       showStatus('学习记录已删除', 'success', 2500);
       loadLearningReviewData(true);
+      loadLearningReviewIndex(true);
       return true;
     } catch (err) {
       console.error('删除学习记录失败:', err);
