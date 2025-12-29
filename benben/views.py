@@ -4073,9 +4073,13 @@ def _collect_project_notes_markdown(project: Optional[dict]) -> tuple[str, list[
         title = _extract_page_label(idx, page)
         clean_title = re.sub(r"[\r\n]+", " ", title).strip()
         default_title = f"第 {idx + 1} 页"
-        heading = default_title if clean_title == default_title or not clean_title else f"{default_title}：{clean_title}"
+        if clean_title == default_title:
+            clean_title = ""
 
-        sections.append(f"## {heading}\n\n{normalized.strip()}")
+        if clean_title:
+            sections.append(f"## {clean_title}\n\n{normalized.strip()}")
+        else:
+            sections.append(normalized.strip())
         included_pages.append(idx + 1)
 
     merged = "\n\n---\n\n".join(sections)
