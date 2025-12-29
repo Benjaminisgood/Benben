@@ -12162,6 +12162,7 @@ function syncMarkdownEditorToPreview(container) {
       latexTemplate.beforePages = beforeVal;
       latexTemplate.footer = footerVal;
       const chosen = selectEl ? selectEl.value : '';
+      let matchedTemplate = null;
       if (chosen) {
         const tmpl = (availableTemplates.latex || []).find(t => t.name === chosen);
         if (
@@ -12171,12 +12172,22 @@ function syncMarkdownEditorToPreview(container) {
           normalizeTemplateText(tmpl.footer) === normalizeTemplateText(footerVal)
         ) {
           selectedTemplateName.latex = chosen;
+          matchedTemplate = tmpl;
         } else {
           selectedTemplateName.latex = '';
           if (selectEl) selectEl.value = '';
         }
       } else {
         selectedTemplateName.latex = '';
+      }
+      if (matchedTemplate) {
+        if (Array.isArray(matchedTemplate.compile)) {
+          latexTemplate.compile = matchedTemplate.compile.slice();
+        } else if (typeof matchedTemplate.compile === 'string') {
+          latexTemplate.compile = matchedTemplate.compile;
+        } else if ('compile' in latexTemplate) {
+          delete latexTemplate.compile;
+        }
       }
       detectCurrentTemplate('latex');
       saveProject();

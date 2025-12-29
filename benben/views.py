@@ -4494,6 +4494,90 @@ def add_page():
     return jsonify({"success": True, "pages": pages})
 
 
+_ALLOWED_LATEX_COMPILE_STEPS = {"xelatex", "pdflatex", "lualatex", "bibtex", "biber"}
+
+
+def _parse_compile_steps(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        steps: list[str] = []
+        for item in value:
+            steps.extend(_parse_compile_steps(item))
+        return steps
+    if isinstance(value, str):
+        cleaned = value.strip()
+    else:
+        cleaned = str(value).strip()
+    if not cleaned:
+        return []
+    if ";" in cleaned:
+        parts = [part.strip() for part in cleaned.split(";")]
+    elif "," in cleaned:
+        parts = [part.strip() for part in cleaned.split(",")]
+    else:
+        parts = cleaned.split()
+    return [part.lower() for part in parts if part]
+
+
+def _resolve_compile_steps(template: object) -> list[str]:
+    steps: list[str] = []
+    if isinstance(template, dict):
+        steps = _parse_compile_steps(template.get("compile"))
+    return steps or ["xelatex"]
+
+
+def _write_bibliography_files(project: dict, build_folder: str, pdf_folder: str) -> tuple[bool, str | None]:
+    bib_entries = _collect_bib_entries_for_export(project)
+    if bib_entries:
+        content = "\n\n".join(bib_entries) + "\n"
+    else:
+        content = "% Empty bibliography\n"
+    for target_dir in (build_folder, pdf_folder):
+        path = os.path.join(target_dir, "refs.bib")
+        try:
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(content)
+        except OSError as exc:
+            return False, f"写入 refs.bib 失败: {exc}"
+    return True, None
+
+
+def _run_latex_compile_steps(
+    steps: list[str],
+    filename: str,
+    build_folder: str,
+    pdf_folder: str,
+    timeout: int = 30,
+) -> tuple[bool, str | None]:
+    base_name = os.path.splitext(filename)[0]
+    for step in steps:
+        if step not in _ALLOWED_LATEX_COMPILE_STEPS:
+            return False, f"不支持的编译步骤: {step}"
+        if step in {"xelatex", "pdflatex", "lualatex"}:
+            cmd = [step, "-output-directory", pdf_folder, filename]
+            cwd = build_folder
+        elif step == "bibtex":
+            cmd = ["bibtex", base_name]
+            cwd = pdf_folder
+        else:  # biber
+            cmd = ["biber", base_name]
+            cwd = pdf_folder
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=cwd,
+            )
+        except Exception as exc:
+            return False, str(exc)
+        if result.returncode != 0:
+            return False, result.stderr or result.stdout or f"{step} 编译失败"
+    return True, None
+
+
 def _compile_single_page_pdf(page_idx: int) -> tuple[int, dict]:
     """编译指定页为 PDF，并返回状态码与信息。"""
     workspace_id, package, locked = _resolve_workspace_context()
@@ -4541,18 +4625,13 @@ def _compile_single_page_pdf(page_idx: int) -> tuple[int, dict]:
                 fh.write(tex)
         except OSError as exc:
             return 500, {"error": f"写入临时 TeX 文件失败: {exc}"}
-        try:
-            result = subprocess.run(
-                ["xelatex", "-output-directory", pdf_folder, filename],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                cwd=build_folder,
-            )
-        except Exception as exc:
-            return 500, {"error": str(exc)}
-        if result.returncode != 0:
-            return 500, {"error": result.stderr or "xelatex 编译失败"}
+        ok, error = _write_bibliography_files(project, build_folder, pdf_folder)
+        if not ok:
+            return 500, {"error": error or "写入 refs.bib 失败"}
+        compile_steps = _resolve_compile_steps(template)
+        ok, error = _run_latex_compile_steps(compile_steps, filename, build_folder, pdf_folder)
+        if not ok:
+            return 500, {"error": error or "编译失败"}
         cache_dir = _workspace_cache_dir(workspace_id) / "pdf"
         cache_dir.mkdir(parents=True, exist_ok=True)
         cache_path = cache_dir / pdf_name
@@ -4565,7 +4644,7 @@ def _compile_single_page_pdf(page_idx: int) -> tuple[int, dict]:
 
 @bp.route("/compile_page", methods=["POST"])
 def compile_page():
-    """将单页 LaTeX 组合模板后用 xelatex 编译为 PDF。"""
+    """将单页 LaTeX 组合模板后按模板编译指令生成 PDF。"""
 
     data = request.json or {}
     page_idx = int(data.get("page", 0))

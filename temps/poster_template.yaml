@@ -1,19 +1,26 @@
 # compile: xelatex
 header: |
-  \documentclass{beamer}
-  \usetheme{Madrid}
+  \documentclass[final]{beamer}
+  \usepackage[size=a0,scale=1.15]{beamerposter}
+  \usetheme{default}
   \usecolortheme{seahorse}
   \usepackage{graphicx}
   \usepackage{hyperref}
   \usepackage{booktabs}
   \usepackage{amsmath, amssymb}
+  \usepackage{siunitx}
+  \usepackage[version=4]{mhchem}
   \usepackage{fontspec}
-  \usepackage{mwe}
   \usepackage{xeCJK}
   \setCJKmainfont{PingFang SC}
   \setsansfont{PingFang SC}
   \setmainfont{PingFang SC}
   \graphicspath{{.}{attachments/}}
+  \setbeamertemplate{navigation symbols}{}
+  \setlength{\columnsep}{1.6cm}
+  \setbeamerfont{block title}{size=\Large,series=\bfseries}
+  \setbeamercolor{block title}{fg=white,bg=blue!70!black}
+  \setbeamercolor{block body}{fg=black,bg=blue!5!white}
   \makeatletter
 
 
@@ -45,12 +52,13 @@ header: |
     \usebackgroundtemplate{}%
   }
 
-  
+
   \makeatother
   \usepackage[backend=bibtex,style=chem-acs,maxnames=6,giveninits=true,articletitle=true]{biblatex}
   \addbibresource{refs.bib}
-  \setbeameroption{show notes}
-
+  \title{Chemistry Poster Title}
+  \author{Author}
+  \institute{Institution}
 beforePages: |-
   \begin{document}
 footer: |-

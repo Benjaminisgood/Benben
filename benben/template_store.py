@@ -1,6 +1,7 @@
 """用于从磁盘加载公用 LaTeX / Markdown 模板的工具函数。"""
 
 import os
+import re
 from functools import lru_cache
 
 import yaml
@@ -36,6 +37,52 @@ def _safe_strip(value: str | None) -> str:
     return (value or "").replace("\r\n", "\n").strip()
 
 
+_COMPILE_DIRECTIVE_RE = re.compile(r"^compile\s*:\s*(.+)$", re.IGNORECASE)
+
+
+def _split_compile_steps(raw: str) -> list[str]:
+    cleaned = (raw or "").strip()
+    if not cleaned:
+        return []
+    if ";" in cleaned:
+        parts = [part.strip() for part in cleaned.split(";")]
+    elif "," in cleaned:
+        parts = [part.strip() for part in cleaned.split(",")]
+    else:
+        parts = cleaned.split()
+    return [part.lower() for part in parts if part]
+
+
+def _normalize_compile_steps(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        steps: list[str] = []
+        for item in value:
+            steps.extend(_normalize_compile_steps(item))
+        return steps
+    if isinstance(value, str):
+        return _split_compile_steps(value)
+    cleaned = str(value).strip()
+    return _split_compile_steps(cleaned)
+
+
+def _extract_compile_steps(raw_text: str) -> list[str]:
+    for line in raw_text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if not stripped.startswith("#"):
+            break
+        comment = stripped.lstrip("#").strip()
+        if not comment:
+            continue
+        match = _COMPILE_DIRECTIVE_RE.match(comment)
+        if match:
+            return _split_compile_steps(match.group(1))
+    return []
+
+
 @lru_cache(maxsize=8)
 def load_template(name: str = DEFAULT_TEMPLATE_FILENAME) -> dict[str, str]:
     """从 YAML 载入模板结构；缺失时回退到默认值。
@@ -48,14 +95,21 @@ def load_template(name: str = DEFAULT_TEMPLATE_FILENAME) -> dict[str, str]:
     try:
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as handle:
-                data = yaml.safe_load(handle) or {}
-                return {
+                raw_text = handle.read()
+                data = yaml.safe_load(raw_text) or {}
+                compile_steps = _extract_compile_steps(raw_text)
+                if not compile_steps and isinstance(data, dict):
+                    compile_steps = _normalize_compile_steps(data.get("compile"))
+                payload = {
                     "header": _safe_strip(str(data.get("header") or FALLBACK_TEMPLATE["header"])),
                     "beforePages": _safe_strip(str(data.get("beforePages") or FALLBACK_TEMPLATE["beforePages"]))
                     or FALLBACK_TEMPLATE["beforePages"],
                     "footer": _safe_strip(str(data.get("footer") or FALLBACK_TEMPLATE["footer"]))
                     or FALLBACK_TEMPLATE["footer"],
                 }
+                if compile_steps:
+                    payload["compile"] = compile_steps
+                return payload
     except Exception as exc:  # pragma: no cover - defensive fallback
         # 出现读取异常时打印提示并退回默认模板
         print(f"加载模板失败 {path}: {exc}")
@@ -154,13 +208,16 @@ def list_templates() -> dict[str, list[dict[str, str]]]:
                 markdown_templates.append(data)
             else:
                 data = load_template(fname)
-                latex_templates.append({
+                entry = {
                     "name": fname,
                     "type": "latex",
                     "header": data.get("header", ""),
                     "beforePages": data.get("beforePages", ""),
                     "footer": data.get("footer", ""),
-                })
+                }
+                if "compile" in data:
+                    entry["compile"] = data.get("compile")
+                latex_templates.append(entry)
 
     return {
         "latex": latex_templates,
