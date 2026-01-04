@@ -1,299 +1,157 @@
 type: markdown
 css: |
-  /* 高对比技术稿：偏等宽风格、紧凑段落，强调标题与链接，不设置背景 */
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
   .md-contrast {
-    font-family: "SFMono-Regular", "Menlo", "JetBrains Mono", "PingFang SC", monospace;
-    font-size: 15.5px;
+    --md-accent: #0ea5e9;
+    --md-accent-strong: #0284c7;
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    font-size: 16px;
     line-height: 1.7;
     color: var(--shell-text, #0f172a);
-    letter-spacing: 0.01em;
+    max-width: 900px;
+    margin: 0 auto;
   }
   .md-contrast h1,
   .md-contrast h2,
   .md-contrast h3 {
-    font-family: "Inter", "Helvetica Neue", "PingFang SC", sans-serif;
-    font-weight: 800;
-    line-height: 1.2;
-    margin: 1.4em 0 0.5em;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.15;
+    margin: 1.6em 0 0.6em;
   }
-  .md-contrast h1 { font-size: 2rem; }
-  .md-contrast h2 { font-size: 1.55rem; }
-  .md-contrast h3 { font-size: 1.25rem; }
-
+  .md-contrast h1 {
+    font-size: 2.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .md-contrast h2 {
+    font-size: 1.7rem;
+    border-left: 4px solid var(--md-accent);
+    padding-left: 0.6rem;
+  }
+  .md-contrast h3 { font-size: 1.3rem; }
   .md-contrast a {
-    color: color-mix(in srgb, var(--accent, #2563eb) 85%, currentColor);
+    color: var(--md-accent);
     text-decoration: none;
-    border-bottom: 1.5px solid color-mix(in srgb, var(--accent-strong, #1d4ed8) 70%, transparent);
-    padding-bottom: 0.05em;
+    background: color-mix(in srgb, var(--md-accent) 12%, transparent);
+    padding: 0 0.2em;
+    border-radius: 0.2em;
   }
   .md-contrast a:hover {
-    color: color-mix(in srgb, var(--accent-strong, #1d4ed8) 92%, currentColor);
+    background: color-mix(in srgb, var(--md-accent-strong) 20%, transparent);
   }
-
-  .md-contrast p,
-  .md-contrast ul,
-  .md-contrast ol {
-    margin: 0 0 1em;
-  }
-  .md-contrast ul,
-  .md-contrast ol {
-    padding-left: 1.15em;
-  }
-
   .md-contrast blockquote {
-    border-left: 3px solid color-mix(in srgb, var(--accent-strong, #1d4ed8) 75%, currentColor);
-    padding: 0.75em 1em;
+    border-left: 4px solid var(--md-accent-strong);
+    padding: 0.9em 1.1em;
     margin: 1.2em 0;
-    font-style: italic;
-    color: color-mix(in srgb, currentColor 86%, transparent);
+    background: color-mix(in srgb, var(--md-accent) 8%, transparent);
   }
-
   .md-contrast code {
+    font-family: "IBM Plex Mono", "Fira Mono", monospace;
+    font-size: 0.95em;
     padding: 0.12em 0.35em;
-    border-radius: 0.28rem;
-    background: color-mix(in srgb, currentColor 12%, transparent);
-    font-size: 0.94em;
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--md-accent) 16%, transparent);
   }
   .md-contrast pre {
     margin: 1.1em 0;
-    padding: 0.95em 1em;
-    border-radius: 0.6rem;
-    border: 1px dashed color-mix(in srgb, var(--surface-border, #cbd5e1) 70%, currentColor 30%);
-    background: color-mix(in srgb, currentColor 5%, transparent);
+    padding: 1em 1.1em;
+    border-radius: 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--md-accent) 24%, transparent);
+    background: rgba(15, 23, 42, 0.04);
     overflow-x: auto;
   }
-  .md-contrast pre code {
-    display: block;
-    padding: 0;
-    background: transparent;
-  }
-
   .md-contrast hr {
     border: none;
-    border-top: 1px dashed color-mix(in srgb, var(--surface-border, #cbd5e1) 70%, currentColor 30%);
-    margin: 1.8em 0;
-  }
-
-  .md-contrast table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1.3em 0;
-    font-size: 0.95em;
-  }
-  .md-contrast th,
-  .md-contrast td {
-    border: 1px solid color-mix(in srgb, var(--surface-border, #cbd5e1) 78%, currentColor 22%);
-    padding: 0.55em 0.7em;
-  }
-  .md-contrast th {
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 700;
-  }
-
-  .md-contrast .markdown-callout {
-    border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 38%, currentColor);
-    border-radius: 0.75rem;
-    padding: 0.9rem 1.05rem;
-    margin: 1.1rem 0;
-  }
-  .md-contrast .markdown-callout-title {
-    font-weight: 700;
-    margin-bottom: 0.35rem;
-    letter-spacing: 0.03em;
+    border-top: 2px solid color-mix(in srgb, var(--md-accent) 30%, transparent);
+    margin: 2em 0;
   }
 wrapperClass: md-contrast
 exportCss: |
-  :root { color-scheme: light dark; }
-  * { box-sizing: border-box; }
   body.markdown-export {
+    background:
+      radial-gradient(circle at 15% 10%, rgba(34, 211, 238, 0.18), transparent 45%),
+      radial-gradient(circle at 85% 0%, rgba(14, 165, 233, 0.12), transparent 50%),
+      linear-gradient(180deg, #05070b 0%, #0b0f14 55%, #0b111a 100%);
+    color: #e5e7eb;
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
     margin: 0;
-    padding: 36px 18px;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    line-height: 1.7;
   }
   body.markdown-export .markdown-export-content {
-    max-width: min(1024px, 100%);
-    margin: 0 auto;
+    max-width: 940px;
+    margin: 40px auto;
+    padding: 48px 52px;
+    background: #0f172a;
+    border: 1px solid #1f2937;
+    border-radius: 18px;
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.45);
+    animation: md-contrast-rise 0.55s ease-out both;
   }
-  body.markdown-export pre { overflow-x: auto; }
-  body.markdown-export img,
-  body.markdown-export video {
-    max-width: 100%;
-    height: auto;
+  body.markdown-export .md-contrast a {
+    color: #22d3ee;
   }
-  /* 轻量 TOC 控件样式（不干扰模板） */
-  .markdown-export-toc-toggle {
+  body.markdown-export pre {
+    background: #111827;
+    border-color: #1f2937;
+  }
+  .md-now {
     position: fixed;
-    right: 16px;
-    bottom: 16px;
-    z-index: 999;
-    padding: 8px 12px;
+    right: 18px;
+    top: 18px;
+    padding: 0.4rem 0.75rem;
     border-radius: 999px;
-    border: 1px solid currentColor;
-    background: color-mix(in srgb, currentColor 6%, transparent);
-    cursor: pointer;
-    font-size: 0.9rem;
+    border: 1px solid rgba(34, 211, 238, 0.45);
+    background: rgba(15, 23, 42, 0.8);
+    color: #22d3ee;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    z-index: 1000;
+    max-width: 240px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .markdown-export-toc {
-    position: fixed;
-    right: 16px;
-    bottom: 64px;
-    max-height: min(60vh, 480px);
-    width: min(320px, 86vw);
-    overflow: auto;
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 1px solid currentColor;
-    background: color-mix(in srgb, currentColor 8%, transparent);
-    box-shadow: 0 16px 36px color-mix(in srgb, currentColor 14%, transparent);
-    display: none;
+  @keyframes md-contrast-rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
   }
-  .markdown-export-toc.open { display: block; }
-  .markdown-export-toc ul { list-style: none; padding-left: 0; margin: 0; }
-  .markdown-export-toc li { margin: 4px 0; }
-  .markdown-export-toc a {
-    color: inherit;
-    text-decoration: none;
-  }
-  .markdown-export-toc a:hover { text-decoration: underline; }
-  /* === 自建展示样式（用于导出） === */
-  .markdown-img-grid { display: grid; gap: 14px; margin: 18px 0; align-items: center; }
-  .markdown-img-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(180px, auto); }
-  .markdown-img-grid.two-vertical { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(220px, 1fr); }
-  .markdown-img-grid.four-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(180px, 1fr); }
-  .markdown-img-grid.rail { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 32vw); overflow-x: auto; gap: 12px; padding: 6px 4px; scroll-snap-type: x mandatory; }
-  .markdown-img-grid img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; box-shadow: 0 12px 30px rgba(15,23,42,0.14); scroll-snap-align: start; }
-  .markdown-img-grid.four-grid img { aspect-ratio: 1 / 1; }
-  .markdown-kpi { display: flex; gap: 18px; flex-wrap: wrap; }
-  .markdown-kpi > * { flex: 1 1 180px; padding: 12px; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-  .markdown-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  .markdown-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .markdown-cover { display:flex; align-items:center; justify-content:center; text-align:center; padding:48px 18px; background:transparent; }
-  .markdown-cover h1 { font-size: 2.4rem; margin: 0 0 8px; }
-  .markdown-divider { text-align:center; padding: 18px 0; }
-  .markdown-divider::before { content: ""; display:block; height:1px; background:rgba(0,0,0,0.08); margin:12px auto; max-width: 60%; }
-  .markdown-banner { padding: 18px; border-radius:8px; background: color-mix(in srgb, var(--bs-primary) 8%, transparent); }
-  .markdown-notes { font-size: 0.9rem; color: #6b7280; font-style: italic; border-left: 3px solid rgba(0,0,0,0.06); padding: 10px 12px; background: rgba(0,0,0,0.02); }
-  .markdown-code-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items:start; }
-  .markdown-qa { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 12px; padding: 12px 14px; margin: 1.1rem 0; background: color-mix(in srgb, currentColor 6%, transparent); box-shadow: 0 10px 26px rgba(15,23,42,0.08); }
-  .markdown-qa .markdown-qa-question,
-  details.markdown-qa .markdown-qa-question { font-weight: 650; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .markdown-qa .markdown-qa-label { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%; background: color-mix(in srgb, currentColor 18%, transparent); font-weight: 700; font-size: 0.85rem; }
-  .markdown-qa .markdown-qa-question-text { display: inline; }
-  .markdown-qa .markdown-qa-answer > :first-child { margin-top: 0; }
-  .markdown-qa .markdown-qa-answer > :last-child { margin-bottom: 0; }
-  details.markdown-qa { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 12px; padding: 10px 12px; margin: 1.1rem 0; background: color-mix(in srgb, currentColor 4%, transparent); box-shadow: 0 10px 26px rgba(15,23,42,0.08); }
-  details.markdown-qa[open] { background: color-mix(in srgb, currentColor 8%, transparent); }
-  details.markdown-qa summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 650; list-style: none; }
-  details.markdown-qa summary::-webkit-details-marker { display: none; }
-  details.markdown-qa .markdown-qa-toggle { margin-left: auto; font-size: 0.9rem; color: color-mix(in srgb, currentColor 70%, transparent); }
-  details.markdown-qa .markdown-qa-answer { margin-top: 10px; }
-  .markdown-media { margin: 1rem 0; border-radius: 12px; background: color-mix(in srgb, currentColor 6%, transparent); padding: 12px; box-shadow: 0 10px 28px rgba(15,23,42,0.08); }
-  .markdown-media audio, .markdown-media video { width: 100%; display: block; border-radius: 10px; outline: none; background: #000; }
-  .markdown-media video { max-height: min(420px, 48vh); object-fit: contain; }
-  .markdown-media .markdown-media-caption { margin-top: 8px; font-size: 0.95rem; color: rgba(0,0,0,0.7); }
-  .markdown-highlight,
-  .markdown-blur {
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
-  mark.markdown-highlight {
-    color: inherit;
-  }
-  .markdown-highlight {
-    background: color-mix(in srgb, #f59e0b 32%, transparent);
-    border-radius: 0.2em;
-    padding: 0.05em 0.2em;
-  }
-  .markdown-blur {
-    filter: blur(6px);
-    opacity: 0.35;
-    transition: filter 0.2s ease, opacity 0.2s ease;
-    cursor: pointer;
-    padding: 0.05em 0.2em;
-    border-radius: 0.2em;
-    background: color-mix(in srgb, currentColor 8%, transparent);
-  }
-  .markdown-blur:hover,
-  .markdown-blur:focus {
-    filter: none;
-    opacity: 1;
-  }
-
-  /* 图片网格样式（导出与打印友好） */
-  .markdown-img-grid {
-      display: grid;
-      gap: 0.6rem;
-      align-items: center;
-      justify-items: center;
-      margin: 1rem auto;
-  }
-  .markdown-img-grid.two-col {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .markdown-img-grid.two-vertical {
-      grid-template-columns: 1fr;
-  }
-  .markdown-img-grid.four-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .markdown-img-grid img {
-      width: 100%;
-      height: auto;
-      border-radius: 8px;
-      box-shadow: 0 12px 36px rgba(15,23,42,0.12);
-      display: block;
+  @media (prefers-reduced-motion: reduce) {
+    body.markdown-export .markdown-export-content {
+      animation: none;
+    }
   }
 customHead: |
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-  <script>
-  window.addEventListener('DOMContentLoaded', function(){
-    if (window.hljs && typeof window.hljs.highlightAll === 'function') {
-      window.hljs.highlightAll();
-    }
-  });
-  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 customBody: |
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
+  (() => {
     const root = document.querySelector('.markdown-export-content');
     if (!root) return;
-    const headings = Array.from(root.querySelectorAll('h1, h2, h3, h4'));
+    const headings = Array.from(root.querySelectorAll('h1, h2, h3'));
     if (!headings.length) return;
-    const slug = text => text.toLowerCase().trim()
-      .replace(/[^\w\u4e00-\u9fa5\- ]+/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      || 'section';
-    headings.forEach((h, idx) => {
-      if (!h.id) {
-        h.id = `${slug(h.textContent || 'section')}-${idx + 1}`;
+
+    const pill = document.createElement('div');
+    pill.className = 'md-now';
+    document.body.appendChild(pill);
+
+    const update = () => {
+      let current = headings[0];
+      for (const heading of headings) {
+        const rect = heading.getBoundingClientRect();
+        if (rect.top <= 140) {
+          current = heading;
+        } else {
+          break;
+        }
       }
-    });
-    const toggle = document.createElement('button');
-    toggle.className = 'markdown-export-toc-toggle';
-    toggle.type = 'button';
-    toggle.textContent = '目录';
-    const panel = document.createElement('div');
-    panel.className = 'markdown-export-toc';
-    const list = document.createElement('ul');
-    headings.forEach(h => {
-      const li = document.createElement('li');
-      li.style.paddingLeft = `${(parseInt(h.tagName.substring(1), 10) - 1) * 12}px`;
-      const a = document.createElement('a');
-      a.href = `#${h.id}`;
-      a.textContent = h.textContent || h.id;
-      li.appendChild(a);
-      list.appendChild(li);
-    });
-    panel.appendChild(list);
-    toggle.addEventListener('click', () => panel.classList.toggle('open'));
-    document.body.append(toggle, panel);
-  });
+      const text = (current.textContent || '').trim();
+      pill.textContent = text || 'Section';
+    };
+
+    update();
+    window.addEventListener('scroll', update, {passive: true});
+  })();
   </script>

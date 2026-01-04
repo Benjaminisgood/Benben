@@ -2635,6 +2635,12 @@
       border-color: color-mix(in srgb, var(--accent-strong) 45%, transparent);
       box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 18%, transparent);
     }
+    #attachments-usage-hint {
+      background: color-mix(in srgb, var(--surface-1) 88%, var(--accent) 12%);
+      border: 1px solid color-mix(in srgb, var(--surface-border) 72%, var(--accent-strong) 28%);
+      color: var(--shell-text);
+      box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 16%, transparent);
+    }
     /* ai-learn-review-fav 是点赞按钮，hover/active 加一点立体感 */
     .ai-learn-review-fav {
       transition: transform 0.12s ease, box-shadow 0.2s ease;
@@ -2978,7 +2984,7 @@
             <div class="modal-body">
               <div class="row g-2 align-items-center mb-3">
                 <div class="col-12 col-lg">
-                  <input id="bib-input" class="form-control" placeholder="输入 DOI、链接链接或完整引用条目">
+                  <input id="bib-input" class="form-control" placeholder="输入描述、链接或任何包含链接的信息">
                 </div>
                 <div class="col-6 col-sm-4 col-lg-2">
                   <select id="bib-scope" class="form-select">
@@ -4672,6 +4678,7 @@ function jumpToPage(targetIdx) {
   let markdownTableModalInstance = null;
 
   function getComponentGroups() {
+    if (Array.isArray(COMPONENT_LIBRARY)) return COMPONENT_LIBRARY;
     return Array.isArray(COMPONENT_LIBRARY.markdown) ? COMPONENT_LIBRARY.markdown : [];
   }
 
@@ -10350,7 +10357,6 @@ function syncMarkdownEditorToPreview(container) {
     renderSlideshowGrid();
     updateScriptPanel();
     applyRecordingModeForPage(slideshowState.pageIdx || currentPageIdx || 0);
-    toggleFullscreenForOverlay(els.overlay);
     const keyHandler = (event) => {
       if (!slideshowState.open) return;
       if (event.key === 'Escape') {
@@ -15640,24 +15646,49 @@ applyDefaultWorkspaceIfNeeded();
       body: JSON.stringify(withWorkspacePayload(withLlmConfig({ref: val})))
     }).then(res=>res.json()).then(data=>{
       if(data.success && (data.entry || data.bib)) {
-        const payload = data.entry ? {...data.entry} : {entry: data.bib};
-        if (labelInput.value.trim()) payload.label = labelInput.value.trim();
-        if (noteInput.value.trim()) payload.note = noteInput.value.trim();
-        if (!payload.link && val.startsWith('http')) payload.link = val;
-        const entry = normalizeBibEntry(payload);
-        if(entry){
-          if(scope === 'page') {
-            const pageEntries = currentPageBib();
-            pageEntries.push(entry);
+        const entries = [];
+        if (Array.isArray(data.entry)) {
+          entries.push(...data.entry);
+        } else if (data.entry) {
+          entries.push(data.entry);
+        } else if (data.bib) {
+          entries.push({entry: data.bib});
+        }
+        const applyOverrides = entries.length === 1;
+        let added = 0;
+        let touchedPage = false;
+        let needsGlobalSave = false;
+        entries.forEach(raw => {
+          const payload = (raw && typeof raw === 'object') ? {...raw} : {entry: raw};
+          if (applyOverrides && labelInput.value.trim()) payload.label = labelInput.value.trim();
+          if (applyOverrides && noteInput.value.trim()) payload.note = noteInput.value.trim();
+          if (!payload.link && applyOverrides && val.startsWith('http')) payload.link = val;
+          const entry = normalizeBibEntry(payload);
+          if(entry){
+            added += 1;
+            if(scope === 'page') {
+              const pageEntries = currentPageBib();
+              pageEntries.push(entry);
+              touchedPage = true;
+            } else {
+              bibData.push(entry);
+              needsGlobalSave = true;
+            }
+          }
+        });
+        if(added){
+          if(touchedPage){
             markPageDirtyForSave(currentPageIdx);
             queuePreviewRefresh();
-          } else {
-            bibData.push(entry);
+          }
+          if(needsGlobalSave){
             saveGlobalBib();
           }
+          renderBibList();
+          clearBibForm();
+        } else {
+          alert('未解析到可用的链接信息');
         }
-        renderBibList();
-        clearBibForm();
       } else {
         alert('AI生成失败：'+(data.error||'未知错误'));
       }

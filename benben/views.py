@@ -1455,7 +1455,11 @@ def _build_rag_contexts(
 def _iter_component_items(library: dict, mode: str):
     """Yield component library items for prompt/validation."""
 
-    groups = library.get(mode, [])
+    groups = []
+    if isinstance(library, dict):
+        groups = library.get(mode, [])
+    elif isinstance(library, list):
+        groups = library
     if not isinstance(groups, list):
         return
     for group in groups:
@@ -1707,7 +1711,10 @@ def ai_bib():
         return api_error(f"解析 LLM 响应失败: {exc}", 500)
 
     entry = _extract_json_object(content)
-    if entry:
+    if isinstance(entry, list):
+        if entry:
+            return api_success({"entry": entry})
+    elif isinstance(entry, dict) and entry:
         return api_success({"entry": entry})
     return api_success({"bib": content.strip()})
 
@@ -2720,8 +2727,8 @@ def _normalize_temp_prompt_template(template: str) -> str:
     return cleaned
 
 
-def _extract_json_object(text: str) -> dict:
-    """尽量从模型输出中解析出 JSON 对象。"""
+def _extract_json_object(text: str):
+    """尽量从模型输出中解析出 JSON 对象或数组。"""
 
     if not text:
         return {}
@@ -2729,20 +2736,21 @@ def _extract_json_object(text: str) -> dict:
     text = text.strip()
     try:
         parsed = json.loads(text)
-        if isinstance(parsed, dict):
+        if isinstance(parsed, (dict, list)):
             return parsed
     except json.JSONDecodeError:
         pass
 
-    match = re.search(r"\{[\s\S]*\}", text)
-    if match:
-        snippet = match.group(0)
-        try:
-            parsed = json.loads(snippet)
-            if isinstance(parsed, dict):
-                return parsed
-        except json.JSONDecodeError:
-            return {}
+    for pattern in (r"\[[\s\S]*\]", r"\{[\s\S]*\}"):
+        match = re.search(pattern, text)
+        if match:
+            snippet = match.group(0)
+            try:
+                parsed = json.loads(snippet)
+                if isinstance(parsed, (dict, list)):
+                    return parsed
+            except json.JSONDecodeError:
+                return {}
     return {}
 
 

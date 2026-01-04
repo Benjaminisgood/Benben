@@ -627,9 +627,9 @@ AI_PROMPTS = {
         ),
     },
     "note": {
-        "system": "你是一个笔记写作专家，返回优化后的笔记（Markdown）。",
+        "system": "你是一个笔记写作专家，返回优化后的笔记。",
         "template": (
-            "你是一个 Markdown 笔记/摘要写作专家。\n"
+            "你是一个笔记/摘要写作专家。\n"
             "生成或优化一份适合阅读和记录的笔记（Markdown 格式），保留要点、关键结论和联系。\n"
             "原始笔记如下：\n{markdown}\n\n"
             "“ # ”后面是 Markdown 的注释，也是我给你的一些指示要求。\n"
@@ -643,18 +643,21 @@ AI_PROMPTS = {
 
 AI_BIB_PROMPT = {
     "system": (
-        "你是一名资深研究助理。"
-        "接收任何网页链接或 DOI，输出一个 JSON 对象，总结该资源的关键信息。"
-        "JSON 字段必须包含 label(50字以内记忆名), note(1-2句核心要点),"
+        "你是一名链接整理助手。"
+        "输入可能是描述、一段文字、多个链接或混合内容。"
+        "请从输入中识别所有 URL 或 DOI（含裸域名、换行或带空格的链接）。"
+        "为每个资源生成一个 JSON 对象，字段必须包含 label(50字以内记忆名), note(1-2句核心要点),"
         " id(推荐的引用键，仅含字母数字或-), link(首选规范化URL),"
         " metadata(对象，包含作者数组authors、年份year、来源venue、doi、type等可用信息)。"
         " 若是学术论文请返回 metadata.doi、metadata.authors(最多5位作者全名)、metadata.year、metadata.venue。"
         " 如能生成引用条目，可放在 bibtex 字段。"
-        " 严格返回单个 JSON 对象，不要额外解释。"
+        " 如果只有一个资源，返回单个 JSON 对象；如果有多个资源，返回 JSON 数组。"
+        " 若未找到明确链接/DOI，也请基于输入生成一个对象，但 link 允许为空。"
+        " 严格只输出 JSON，不要额外解释。"
     ),
     "user": (
-        "请分析以下引用或网页，生成记忆名与重点摘要。"
-        " 如果这是 DOI 论文，请尽可能补充论文的详细信息。\n"
+        "请解析以下输入，提取链接/DOI并生成条目信息。"
+        "如果包含多条链接，请分别生成。\n"
         "输入: {ref}"
     ),
 }
@@ -823,8 +826,7 @@ LEARNING_ASSISTANT_DEFAULT_PROMPTS = [
     },
 ]
 
-COMPONENT_LIBRARY = {
-    "markdown": [
+COMPONENT_LIBRARY = [
         {
             "group": "现成的模板",
             "items": [
@@ -1077,7 +1079,7 @@ COMPONENT_LIBRARY = {
                     "code": "1. 第一要点\n1. 第二要点\n1. 第三要点",
                 },
                 {
-                    "name": "简单表格（markdown 表格）",
+                    "name": "简单表格",
                     "code": "| 项目 | 指标 | 说明 |\n| ---- | ---- | ---- |\n| A    | 95   | 描述A |\n| B    | 88   | 描述B |",
                 },
             ],
@@ -1177,8 +1179,7 @@ COMPONENT_LIBRARY = {
                 },
             ],
         },
-    ],
-}
+]
 
 _ui_skin = (os.environ.get("BENBEN_UI_SKIN") or "default").strip().lower()
 if _ui_skin not in {"default", "pastel", "paper", "ocean", "forest", "sunset", "slate"}:
