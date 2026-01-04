@@ -2307,7 +2307,9 @@ def _resolve_markdown_template(project: Optional[dict]) -> dict:
         template["customBody"] = default_body
 
     raw_template = project.get("markdownTemplate") if isinstance(project, dict) else None
+    raw_has_export = False
     if isinstance(raw_template, dict):
+        raw_has_export = any(key in raw_template for key in ("exportCss", "customHead", "customBody"))
         css_value = raw_template.get("css")
         if isinstance(css_value, str):
             template["css"] = css_value
@@ -2328,7 +2330,50 @@ def _resolve_markdown_template(project: Optional[dict]) -> dict:
         elif not body_value:
             template.pop("customBody", None)
 
+        if not raw_has_export:
+            matched = _find_matching_markdown_template(template)
+            if matched:
+                matched_export = matched.get("exportCss")
+                if isinstance(matched_export, str):
+                    template["exportCss"] = matched_export
+                matched_head = matched.get("customHead")
+                if isinstance(matched_head, str) and matched_head.strip():
+                    template["customHead"] = matched_head
+                matched_body = matched.get("customBody")
+                if isinstance(matched_body, str) and matched_body.strip():
+                    template["customBody"] = matched_body
+            else:
+                template["exportCss"] = ""
+                template.pop("customHead", None)
+                template.pop("customBody", None)
+
     return template
+
+
+def _normalize_css_text(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).replace("\r\n", "\n").strip()
+
+
+def _find_matching_markdown_template(template: dict) -> Optional[dict]:
+    """Match a template by css + wrapper class against library templates."""
+
+    css = _normalize_css_text(template.get("css"))
+    wrapper = str(template.get("wrapperClass") or "").strip()
+    try:
+        library = list_templates().get("markdown", [])
+    except Exception:
+        return None
+    for candidate in library:
+        if not isinstance(candidate, dict):
+            continue
+        if _normalize_css_text(candidate.get("css")) != css:
+            continue
+        if str(candidate.get("wrapperClass") or "").strip() != wrapper:
+            continue
+        return candidate
+    return None
 
 
 def _normalize_link_target(value: object) -> str:
