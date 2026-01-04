@@ -498,6 +498,16 @@
       flex-direction: column;
       min-width: 0;
     }
+    body[data-pane-layout="editor-only"] .preview-pane {
+      display: none;
+    }
+    body[data-pane-layout="preview-only"] .editor-pane {
+      display: none;
+    }
+    body[data-pane-layout="editor-only"] .markdown-sync-toggle-wrapper,
+    body[data-pane-layout="preview-only"] .markdown-sync-toggle-wrapper {
+      display: none;
+    }
     /* markdown-sync-toggle-wrapper 通过绝对定位 + translate 让按钮居中响应用户操作 */
     .markdown-sync-toggle-wrapper {
       position: absolute;
@@ -513,8 +523,7 @@
       height: 0;
     }
     /* markdown-sync-toggle 控制按钮外观/悬停, color 表示文字, padding 让触控区域更大 */
-    .markdown-sync-toggle,
-    .latex-sync-toggle {
+    .markdown-sync-toggle {
       border: none;
       background: transparent;
       color: var(--accent, #6366f1);
@@ -530,36 +539,28 @@
       transition: color 0.2s ease, opacity 0.2s ease, text-shadow 0.3s ease, transform 0.2s ease;
     }
     .markdown-sync-toggle:hover,
-    .markdown-sync-toggle:focus,
-    .latex-sync-toggle:hover,
-    .latex-sync-toggle:focus {
+    .markdown-sync-toggle:focus {
       opacity: 0.85;
       color: var(--accent-strong, #4f46e5);
       transform: scale(1.05);
     }
-    .markdown-sync-toggle:focus-visible,
-    .latex-sync-toggle:focus-visible {
+    .markdown-sync-toggle:focus-visible {
       outline: none;
       box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
     }
-    .markdown-sync-toggle.active,
-    .latex-sync-toggle.active {
+    .markdown-sync-toggle.active {
       color: var(--accent-strong, #2563eb);
       opacity: 0.95;
       text-shadow: 0 0 6px rgba(37, 99, 235, 0.4);
     }
-    body.theme-dark .markdown-sync-toggle,
-    body.theme-dark .latex-sync-toggle {
+    body.theme-dark .markdown-sync-toggle {
       color: #93c5fd;
     }
     body.theme-dark .markdown-sync-toggle:hover,
-    body.theme-dark .markdown-sync-toggle:focus,
-    body.theme-dark .latex-sync-toggle:hover,
-    body.theme-dark .latex-sync-toggle:focus {
+    body.theme-dark .markdown-sync-toggle:focus {
       color: #bfdbfe;
     }
-    body.theme-dark .markdown-sync-toggle.active,
-    body.theme-dark .latex-sync-toggle.active {
+    body.theme-dark .markdown-sync-toggle.active {
       color: #38bdf8;
       text-shadow: 0 0 8px rgba(56, 189, 248, 0.48);
     }
@@ -1003,9 +1004,8 @@
       border-color: color-mix(in srgb, var(--accent-strong) 48%, var(--surface-border));
       box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 20%, transparent);
     }
-    /* 下面这个组合选择器作用于编辑器/讲稿/预览容器，统一设置边框、背景和滚动行为 */
+    /* 下面这个组合选择器作用于编辑器/预览容器，统一设置边框、背景和滚动行为 */
     #editor-container,
-    #pdf-container,
     /* #markdown-preview 继续强制竖直排列内部内容，方便预览里的多个区域 */
     #markdown-preview {
       flex: 1 1 auto;
@@ -1139,8 +1139,8 @@
       background: var(--preview-bg);
       border-color: var(--preview-border);
     }
-    /* #tex-form / #pages-list 通过 flex 让内部内容响应式填满高度 */
-    #tex-form {
+    /* #markdown-form / #pages-list 通过 flex 让内部内容响应式填满高度 */
+    #markdown-form {
       flex: 1 1 auto;
       min-height: 0;
       display: flex;
@@ -1192,8 +1192,7 @@
       resize: none;
     }
     /* .markdown-sync-glow 通过 box-shadow 实现同步提醒的发光效果 */
-    .markdown-sync-glow,
-    .latex-sync-glow {
+    .markdown-sync-glow {
       border-color: color-mix(in srgb, var(--accent, #2563eb) 70%, transparent) !important;
       box-shadow:
         0 0 16px color-mix(in srgb, var(--accent, #2563eb) 26%, transparent),
@@ -1607,14 +1606,6 @@
     .CodeMirror-scroll {
       height: 100% !important;
       min-height: 0;
-    }
-    #pdf-container {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      background: var(--preview-bg);
-      border-color: var(--preview-border);
-      color: var(--shell-text);
     }
     #markdown-preview {
       padding: 0;
@@ -2048,16 +2039,6 @@
     .copy-trigger-btn:focus {
       opacity: 1;
     }
-    /* PDF 浏览区域宽度铺满 */
-    #pdf-pages {
-      width: 100%;
-    }
-    /* pdf-page-canvas 确保画布自适应宽度和自动高度 */
-    .pdf-page-canvas {
-      max-width: 100%;
-      height: auto;
-      background: #fff;
-    }
     /* navbar-nav 控制菜单项的排列和间距 */
     .navbar-nav {
       flex-wrap: wrap;
@@ -2316,27 +2297,6 @@
     /* 右上角简要说明 */
     .relation-legend {
       color: var(--preview-muted);
-    }
-    /* LaTeX 目录列表样式 */
-    .relation-toc-list .list-group-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--surface-border);
-      background: color-mix(in srgb, var(--surface-1) 95%, var(--accent) 5%);
-      transition: transform 0.12s ease, box-shadow 0.12s ease;
-    }
-    .relation-toc-list .list-group-item:hover,
-    .relation-toc-list .list-group-item:focus-visible {
-      transform: translateY(-1px);
-      box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 16%, transparent);
-      outline: none;
-    }
-    .relation-toc-list .page-label {
-      color: var(--preview-muted);
-      font-size: 0.95rem;
     }
     /* workspace-modal 的 dialog 确保在大屏时有空隙，并用 flex 让内容撑满 */
     .workspace-modal .modal-dialog {
@@ -2903,10 +2863,9 @@
         <li class="nav-item d-flex align-items-center">
           <button class="btn btn-outline-dark me-2 js-nav-btn" id="slideshow-open-btn" title="全屏展示当前模式内容">全屏展示</button>
         </li>
-        <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="mode-switch-btn" title="切换LaTeX/Markdown">模式</button></li>
         <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="add-page" title="添加新页">加页</button></li>
         <li class="nav-item"><button class="btn btn-outline-warning me-2 js-nav-btn" id="insert-component" title="插入常用组件">插入</button></li>
-        <li class="nav-item"><button class="btn btn-outline-info me-2 js-nav-btn" id="edit-template" title="编辑LaTeX样式模板">样式</button></li>
+        <li class="nav-item"><button class="btn btn-outline-info me-2 js-nav-btn" id="edit-template" title="编辑 Markdown 样式模板">样式</button></li>
         <li><hr class="dropdown-divider m-1"></li>
 
         <li class="nav-item"><button class="btn btn-outline-success me-2 js-nav-btn" id="export-btn" title="导出">导出</button></li>
@@ -2919,9 +2878,8 @@
         </li>
 
         <li><hr class="dropdown-divider m-1"></li>
-        <li class="nav-item"><button class="btn btn-outline-danger me-2 js-nav-btn" id="ai-optimize" title="Latex优化">tex优化</button></li>
-        <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="ai-note-optimize" title="Markdown优化">md优化</button></li>
-        <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="ai-script-optimize" title="Speech script优化">script优化</button></li>
+        <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="ai-note-optimize" title="Markdown 优化">笔记优化</button></li>
+        <li class="nav-item"><button class="btn btn-outline-secondary me-2 js-nav-btn" id="ai-script-optimize" title="讲稿优化">讲稿优化</button></li>
 
         <li><hr class="dropdown-divider m-1"></li>
         <li class="nav-item"><button class="btn btn-outline-success me-2 js-nav-btn" id="ai-learn-helper" title="AI 学习">AI学习</button></li>
@@ -2993,6 +2951,15 @@
             </select>
           </div>
         </div>
+        <div class="mt-3">
+          <label class="form-label fw-semibold" for="ui-pane-layout-select">编辑/预览布局</label>
+          <select id="ui-pane-layout-select" class="form-select">
+            <option value="default">默认方式（左编辑右预览）</option>
+            <option value="editor-only">仅编辑区</option>
+            <option value="preview-only">仅预览区</option>
+          </select>
+          <div class="form-text">仅编辑/仅预览会隐藏另一侧面板。</div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" id="ui-config-reset">恢复默认</button>
@@ -3012,7 +2979,7 @@
             <div class="modal-body">
               <div class="row g-2 align-items-center mb-3">
                 <div class="col-12 col-lg">
-                  <input id="bib-input" class="form-control" placeholder="输入DOI、文献链接或完整bibtex">
+                  <input id="bib-input" class="form-control" placeholder="输入 DOI、文献链接或完整引用条目">
                 </div>
                 <div class="col-6 col-sm-4 col-lg-2">
                   <select id="bib-scope" class="form-select">
@@ -3228,7 +3195,7 @@
             <div class="modal-header">
               <div>
                 <h5 class="modal-title" id="relationCatalogModalLabel">关系目录</h5>
-                <div class="text-muted small" id="relation-mode-hint">Markdown 展示关系图，LaTeX 展示跨页目录。</div>
+                <div class="text-muted small" id="relation-mode-hint">Markdown 关系图展示页面间的跳转关系。</div>
               </div>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -3243,16 +3210,9 @@
                   <svg id="relation-graph-canvas" class="relation-graph-canvas" role="img" aria-label="页面关系图"></svg>
                 </div>
               </div>
-              <div id="relation-latex-panel" class="d-none">
-                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                  <span class="relation-mode-pill">LaTeX 目录</span>
-                  <span class="text-muted small">点击标题即可跳转到对应页面</span>
-                </div>
-                <div id="relation-latex-list" class="list-group relation-toc-list"></div>
-              </div>
             </div>
             <div class="modal-footer">
-              <div class="text-muted small me-auto" id="relation-catalog-footnote">根据当前模式展示关系信息</div>
+              <div class="text-muted small me-auto" id="relation-catalog-footnote">基于 Markdown 内部跳转生成关系图</div>
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
             </div>
           </div>
@@ -3317,7 +3277,7 @@
                   <label for="ai-learn-context" class="form-label">上下文（可选）</label>
                   <textarea id="ai-learn-context" class="form-control" rows="8" placeholder="添加额外背景、页面内容或你的学习目标，以便获得更精确的回答。"></textarea>
                   <div class="d-flex justify-content-between align-items-center mt-2">
-                    <small class="text-muted">上下文会一并发送给 AI，可包含当前页 LaTeX、笔记、讲稿等信息。</small>
+                    <small class="text-muted">上下文会一并发送给 AI，可包含当前页 Markdown 与讲稿等信息。</small>
                     <button class="btn btn-sm btn-outline-secondary" type="button" id="ai-learn-fetch-context">获取上下文</button>
                   </div>
                 </div>
@@ -3928,7 +3888,7 @@
   <div id="editor-preview-wrapper">
     <div class="editor-pane">
       
-      <form id="tex-form" class="flex-grow-1 d-flex flex-column">
+      <form id="markdown-form" class="flex-grow-1 d-flex flex-column">
         <div id="editor-container">
           <div id="pages-list"></div>
         </div>
@@ -3986,17 +3946,9 @@
                 <select id="template-select" class="form-select mb-2">
                   <option value="">自定义（当前模板）</option>
                 </select>
-                <div class="form-text" id="template-helper-text">选择后仍可在下方继续调整。</div>
+                <div class="form-text" id="template-helper-text">选择后仍可继续调整 Markdown 样式。</div>
               </div>
-              <div id="template-latex-fields">
-                <label class="form-label">文档头部（第一页前）</label>
-                <textarea id="template-header" class="form-control mb-2" rows="4"></textarea>
-                <label class="form-label">文档主体（每页前）</label>
-                <textarea id="template-before-pages" class="form-control mb-2" rows="2"></textarea>
-                <label class="form-label">文档结尾（最后一页后）</label>
-                <textarea id="template-footer" class="form-control" rows="2"></textarea>
-              </div>
-              <div id="template-markdown-fields" class="d-none">
+              <div id="template-markdown-fields">
                 <label class="form-label">Markdown 全局 CSS</label>
                 <textarea id="template-markdown-css" class="form-control mb-2" rows="10" placeholder="为预览页面定义全局样式"></textarea>
                 <div class="form-text">CSS 会实时应用于右侧预览，同时随项目一同保存。</div>
@@ -4024,23 +3976,9 @@
         </span>
         <span class="visually-hidden">同步预览</span>
       </button>
-      <button type="button" id="latex-sync-toggle" class="markdown-sync-toggle latex-sync-toggle" aria-label="切换 LaTeX 编辑器与预览的同步滚动" aria-pressed="false" style="display:none;">
-        <span aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 20 20" role="presentation" focusable="false">
-            <path d="M6.2 10a2.3 2.3 0 0 1 0-3.25l2.1-2.1a2.3 2.3 0 0 1 3.25 0c.9.9.9 2.35 0 3.25l-.9.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M13.8 10a2.3 2.3 0 0 1 0 3.25l-2.1 2.1a2.3 2.3 0 0 1-3.25 0c-.9-.9-.9-2.35 0-3.25l.9-.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            <line x1="8" y1="10" x2="12" y2="10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          </svg>
-        </span>
-        <span class="visually-hidden">同步预览</span>
-      </button>
     </div>
 
     <div class="preview-pane">
-      
-      <div id="pdf-container" class="d-none">
-        <div id="pdf-pages" class="w-100 d-flex flex-column align-items-center gap-3"></div>
-      </div>
       <div id="markdown-preview">
         <div id="markdown-preview-content" class="markdown-preview-content"></div>
       </div>
@@ -4093,11 +4031,7 @@
         </div>
         <div class="modal-body">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="exportOption" id="exportPagePdfOption" value="page_pdf" checked>
-            <label class="form-check-label" for="exportPagePdfOption">导出 当前页 PDF</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="exportOption" id="exportPageNotesOption" value="page_notes">
+            <input class="form-check-input" type="radio" name="exportOption" id="exportPageNotesOption" value="page_notes" checked>
             <label class="form-check-label" for="exportPageNotesOption">导出 当前页 Markdown</label>
           </div>
           <div class="form-check">
@@ -4111,10 +4045,6 @@
           <div class="form-check">
             <input class="form-check-input" type="radio" name="exportOption" id="exportNotesHtmlOption" value="notes_html">
             <label class="form-check-label" for="exportNotesHtmlOption">导出 全部页 HTML</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="exportOption" id="exportTexOption" value="tex">
-            <label class="form-check-label" for="exportTexOption">导出 全部页 TeX</label>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="radio" name="exportOption" id="exportLearnOption" value="learn">
@@ -4190,7 +4120,6 @@
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/stex/stex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/markdown/markdown.min.js"></script>
 <script src="{{ url_for('static', filename='vendor/marked.min.js') }}"></script>
 <script>
@@ -4204,20 +4133,6 @@
     hljs.configure({ignoreUnescapedHTML: true});
   }
 </script>
-<script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\(', '\\)']],
-      displayMath: [['$$', '$$'], ['\\[', '\\]']],
-      processEscapes: true,
-      packages: {'[+]': ['ams', 'amscd', 'mathtools', 'physics', 'textmacros', 'noerrors', 'noundefined']}
-    },
-    loader: {load: ['[tex]/amscd', '[tex]/mathtools', '[tex]/physics', '[tex]/textmacros', '[tex]/noerrors', '[tex]/noundefined']},
-    svg: { fontCache: 'global' }
-  };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
   marked.setOptions({
@@ -4749,21 +4664,17 @@ function jumpToPage(targetIdx) {
   let markdownImageModalInstance = null;
   let markdownTableModalInstance = null;
 
-  function getComponentGroups(mode) {
-    if (mode === 'markdown') {
-      return Array.isArray(COMPONENT_LIBRARY.markdown) ? COMPONENT_LIBRARY.markdown : [];
-    }
-    return Array.isArray(COMPONENT_LIBRARY.latex) ? COMPONENT_LIBRARY.latex : [];
+  function getComponentGroups() {
+    return Array.isArray(COMPONENT_LIBRARY.markdown) ? COMPONENT_LIBRARY.markdown : [];
   }
 
   document.getElementById('insert-component').onclick = function() {
     const list = document.getElementById('component-list');
     list.innerHTML = '';
-    const mode = currentEditMode === 'markdown' ? 'markdown' : 'latex';
-    const groups = getComponentGroups(mode);
+    const groups = getComponentGroups();
     const modalLabel = document.getElementById('componentModalLabel');
     if (modalLabel) {
-      modalLabel.textContent = mode === 'markdown' ? '插入 Markdown 片段' : '插入 LaTeX 组件';
+      modalLabel.textContent = '插入 Markdown 片段';
     }
     if (!groups.length) {
       list.innerHTML = '<div class="text-center text-muted py-3">暂无可用组件</div>';
@@ -4801,9 +4712,7 @@ function jumpToPage(targetIdx) {
             if (!snippet.endsWith('\n')) {
               extra += '\n';
             }
-            if (mode === 'markdown') {
-              extra += '\n';
-            }
+            extra += '\n';
             doc.replaceRange(snippet + extra, cursor);
           }
           const modalInstance = bootstrap.Modal.getInstance(document.getElementById('componentModal'));
@@ -4854,24 +4763,13 @@ function jumpToPage(targetIdx) {
     return {hasRecording: false};
   }
   let globalResources = [];
-  let latexTemplate = {
-    header: '\\documentclass{beamer}\n\\usepackage[utf8]{inputenc}\n\\usetheme{Madrid}',
-    beforePages: '\\begin{document}',
-    footer: '\\end{document}'
-  };
   let markdownTemplate = {
     css: '',
     wrapperClass: ''
   };
   const markdownSlideCache = new Map();
   const markdownPageDirty = new Set();
-  const latexPageDirty = new Set();
-  const latexFreshVersions = new Map();
-  const latexCompilePromises = new Map();
-  const latexDocCache = new Map();
-  const latexSlideCounts = new Map();
   const MAX_MARKDOWN_CACHE = 8;
-  const MAX_LATEX_DOC_CACHE = 6;
 
   function trimCache(map, limit, pinnedKeys = []) {
     if (!map || typeof map.size !== 'number') return;
@@ -4889,11 +4787,6 @@ function jumpToPage(targetIdx) {
     markdownSlideCache.set(idx, value);
     trimCache(markdownSlideCache, MAX_MARKDOWN_CACHE, [currentPageIdx]);
   }
-
-  function rememberLatexDoc(idx, value) {
-    latexDocCache.set(idx, value);
-    trimCache(latexDocCache, MAX_LATEX_DOC_CACHE, [currentPageIdx]);
-  }
   let recordingMode = 'idle'; // 'record' | 'idle' | 'play'
   let mediaRecorder = null;
   let recorderChunks = [];
@@ -4904,6 +4797,7 @@ function jumpToPage(targetIdx) {
   let aiReadAudio = null;
   let aiReadLoading = false;
   let scriptSaveTimer = null;
+  let previewRefreshTimer = null;
   let slideshowState = {
     open: false,
     mode: null,
@@ -4940,23 +4834,6 @@ function jumpToPage(targetIdx) {
     lastScrollLeader: '',
     previewLeaderTimer: null
   };
-  const LATEX_SCROLL_THRESHOLD = 3;
-  const latexScrollSyncState = {
-    enabled: false,
-    button: null,
-    previewContainer: null,
-    previewHandler: null,
-    editorScroller: null,
-    editorScrollHandler: null,
-    editorCMHandler: null,
-    boundEditor: null,
-    isSyncingFromEditor: false,
-    isSyncingFromPreview: false,
-    rafPreview: 0,
-    rafEditor: 0,
-    pendingEditor: null,
-    lastScrollLeader: ''
-  };
   let currentEditMode = 'markdown';
   let currentProject = '';
   const INITIAL_URL_STATE = (() => {
@@ -4978,12 +4855,9 @@ function jumpToPage(targetIdx) {
   }
   let initialDeepLinkTarget = INITIAL_URL_STATE.deepLink;
   let initialDeepLinkApplied = false;
-  let compileTimer = null;
-  let isCompiling = false;
-  let compilePending = false;
-  let availableTemplates = { latex: [], markdown: [] };
+  let availableTemplates = { markdown: [] };
   let templatesLoaded = false;
-  let selectedTemplateName = { latex: '', markdown: '' };
+  let selectedTemplateName = { markdown: '' };
   const PAGE_SAVE_DEBOUNCE_MS = 2000;
   const PROJECT_SAVE_DEBOUNCE_MS = 2000;
   let saveProjectTimer = null;
@@ -5019,7 +4893,6 @@ function jumpToPage(targetIdx) {
   const attachmentUrlIndex = new Map();
   let attachmentIndexPromise = null;
   let attachmentIndexWorkspaceId = '';
-  let latexPasteLocalNoticeShown = false;
   const SCRIPT_ROOT = {{ request.script_root|tojson }} || '';
   function buildApiUrl(path){
     if(!path) return SCRIPT_ROOT || '';
@@ -5099,9 +4972,6 @@ function jumpToPage(targetIdx) {
       }
     });
   }
-  onWorkspaceChange(() => {
-    latexPasteLocalNoticeShown = false;
-  });
   let pendingDefaultWorkspace = window.BENBEN_DEFAULT_WORKSPACE || null;
   let defaultWorkspaceApplied = false;
   let registeredWorkspaces = [];
@@ -5436,7 +5306,6 @@ function jumpToPage(targetIdx) {
     }
     if(document.visibilityState === 'hidden'){
       markdownSlideCache.clear();
-      latexDocCache.clear();
     }
   });
 
@@ -6586,7 +6455,6 @@ function jumpToPage(targetIdx) {
       pageSaveTimer = null;
     }
     markdownSlideCache.clear();
-    latexDocCache.clear();
     if(workspace && workspace.workspace_id){
       primeAttachmentUrlIndex({force: true, reRender: currentEditMode === 'markdown'});
     }
@@ -7714,19 +7582,9 @@ function jumpToPage(targetIdx) {
       return;
     }
 
-    const desiredMode = match.field === 'notes' ? 'markdown' : 'latex';
-    const needSwitch = currentEditMode !== desiredMode;
-    if (needSwitch) {
-      setEditMode(desiredMode);
-      setTimeout(() => {
-        refreshPreview();
-        highlightEditorMatch(match, query);
-      }, 100);
-    } else {
-      renderSingleEditor();
-      refreshPreview();
-      setTimeout(() => highlightEditorMatch(match, query), 80);
-    }
+    renderSingleEditor();
+    refreshPreview();
+    setTimeout(() => highlightEditorMatch(match, query), 80);
   }
 
   function performProjectSearch(rawQuery) {
@@ -7931,17 +7789,6 @@ function jumpToPage(targetIdx) {
     fetchRemoteWorkspaceList();
   }
 
-  function updateModeToggleUI() {
-    const switchBtn = document.getElementById('mode-switch-btn');
-    if (!switchBtn) return;
-    const isMarkdown = currentEditMode === 'markdown';
-    switchBtn.textContent = isMarkdown ? 'Markdown 模式' : 'LaTeX 模式';
-    switchBtn.setAttribute('aria-pressed', isMarkdown ? 'true' : 'false');
-    switchBtn.title = isMarkdown ? '当前为 Markdown 编辑，点击切换至 LaTeX' : '当前为 LaTeX 编辑，点击切换至 Markdown';
-    switchBtn.classList.toggle('btn-primary', isMarkdown);
-    switchBtn.classList.toggle('btn-outline-primary', !isMarkdown);
-  }
-
   function showStatus(message, type = 'info', timeout = 4000) {
     const renderToArea = (area) => {
       if (!area) return;
@@ -7972,32 +7819,6 @@ function jumpToPage(targetIdx) {
     return fallbackName;
   }
 
-  async function exportTex() {
-    try {
-      const res = await fetch(appendWorkspaceQuery('/export_tex'));
-      if (!res.ok) {
-        const parsed = await parseJsonSafe(res);
-        const message = (parsed.json && parsed.json.error) ? parsed.json.error : (parsed.text || `HTTP ${res.status}`);
-        showStatus('导出 TeX 失败：' + message, 'danger', 6000);
-        return;
-      }
-      const filename = getDownloadNameFromResponse(res, 'tex_bundle.zip');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      showStatus('TeX 及资源打包完成', 'success', 2500);
-    } catch (err) {
-      console.error('导出 TeX 失败', err);
-      showStatus('导出 TeX 失败：' + (err?.message || '未知错误'), 'danger', 6000);
-    }
-  }
-
   function updateProjectButtonLabel() {
     const btn = document.getElementById('project-dropdown');
     if (!btn) return;
@@ -8012,41 +7833,19 @@ function jumpToPage(targetIdx) {
     renderProjectActionsSection(document.getElementById('project-menu'));
   }
 
-  function normalizeTemplateText(text) {
-    return (text || '').replace(/\r\n/g, '\n').trim();
-  }
-
   function normalizeCssText(text) {
     return (text || '').replace(/\r\n/g, '\n').trim();
   }
 
-  function detectCurrentTemplate(mode) {
+  function detectCurrentTemplate() {
     if (!templatesLoaded) return;
-    if (mode === 'markdown') {
-      const css = normalizeCssText(markdownTemplate.css);
-      const wrapper = (markdownTemplate.wrapperClass || '').trim();
-      const match = (availableTemplates.markdown || []).find(t =>
-        normalizeCssText(t.css) === css &&
-        (t.wrapperClass || '') === wrapper
-      );
-      selectedTemplateName.markdown = match ? match.name : '';
-      return;
-    }
-
-    const header = normalizeTemplateText(latexTemplate.header);
-    const before = normalizeTemplateText(latexTemplate.beforePages);
-    const footer = normalizeTemplateText(latexTemplate.footer);
-    const match = (availableTemplates.latex || []).find(t =>
-      normalizeTemplateText(t.header) === header &&
-      normalizeTemplateText(t.beforePages) === before &&
-      normalizeTemplateText(t.footer) === footer
+    const css = normalizeCssText(markdownTemplate.css);
+    const wrapper = (markdownTemplate.wrapperClass || '').trim();
+    const match = (availableTemplates.markdown || []).find(t =>
+      normalizeCssText(t.css) === css &&
+      (t.wrapperClass || '') === wrapper
     );
-    selectedTemplateName.latex = match ? match.name : '';
-  }
-
-  function detectAllTemplates() {
-    detectCurrentTemplate('latex');
-    detectCurrentTemplate('markdown');
+    selectedTemplateName.markdown = match ? match.name : '';
   }
 
   function ensureTemplatesLoaded() {
@@ -8057,19 +7856,17 @@ function jumpToPage(targetIdx) {
         const templates = data.templates;
         if (templates && typeof templates === 'object') {
           availableTemplates = {
-            latex: Array.isArray(templates.latex) ? templates.latex : [],
             markdown: Array.isArray(templates.markdown) ? templates.markdown : [],
           };
         } else {
           // 兼容旧结构
           const fallbackList = Array.isArray(templates) ? templates : [];
           availableTemplates = {
-            latex: fallbackList,
-            markdown: [],
+            markdown: fallbackList,
           };
         }
         templatesLoaded = true;
-        detectAllTemplates();
+        detectCurrentTemplate();
         return availableTemplates;
       })
       .catch(err => {
@@ -8078,11 +7875,11 @@ function jumpToPage(targetIdx) {
       });
   }
 
-  function populateTemplateSelect(mode) {
+  function populateTemplateSelect() {
     const select = document.getElementById('template-select');
     if (!select) return;
-    const groups = mode === 'markdown' ? (availableTemplates.markdown || []) : (availableTemplates.latex || []);
-    const currentValue = selectedTemplateName[mode] || '';
+    const groups = availableTemplates.markdown || [];
+    const currentValue = selectedTemplateName.markdown || '';
     select.innerHTML = '';
     const customOption = document.createElement('option');
     customOption.value = '';
@@ -8097,20 +7894,13 @@ function jumpToPage(targetIdx) {
     select.value = currentValue;
   }
 
-  function applyTemplateByName(name, mode) {
-    const list = mode === 'markdown' ? (availableTemplates.markdown || []) : (availableTemplates.latex || []);
+  function applyTemplateByName(name) {
+    const list = availableTemplates.markdown || [];
     const tmpl = list.find(t => t.name === name);
     if (!tmpl) return;
-    if (mode === 'markdown') {
-      document.getElementById('template-markdown-css').value = tmpl.css || '';
-      document.getElementById('template-markdown-wrapper').value = tmpl.wrapperClass || '';
-      selectedTemplateName.markdown = name;
-    } else {
-      document.getElementById('template-header').value = tmpl.header || '';
-      document.getElementById('template-before-pages').value = tmpl.beforePages || '';
-      document.getElementById('template-footer').value = tmpl.footer || '';
-      selectedTemplateName.latex = name;
-    }
+    document.getElementById('template-markdown-css').value = tmpl.css || '';
+    document.getElementById('template-markdown-wrapper').value = tmpl.wrapperClass || '';
+    selectedTemplateName.markdown = name;
   }
 
   function applyMarkdownStyles() {
@@ -8512,6 +8302,7 @@ function jumpToPage(targetIdx) {
   const envColor = (envTheme.color_mode || 'light').toLowerCase();
   const envTier = (envTheme.fontSize || envTheme.tier || envTheme.navDensity || '').toLowerCase();
   const envPaneRatio = (envTheme.pane_ratio || envTheme.paneRatio || '').toLowerCase();
+  const envPaneLayout = (envTheme.pane_layout || envTheme.paneLayout || '').toLowerCase();
   const envNavbar = envTheme.navbar_buttons || {};
   const defaultColorMode = ['light', 'dark', 'system'].includes(envColor) ? envColor : 'light';
   const UI_PRESET_META = {
@@ -8546,10 +8337,16 @@ function jumpToPage(targetIdx) {
     'preview-wide': { editor: 6, script: 4 },
     equal: { editor: 5, script: 5 },
   };
+  const UI_PANE_LAYOUTS = {
+    default: 'default',
+    'editor-only': 'editor-only',
+    'preview-only': 'preview-only',
+  };
   const DEFAULT_UI_CONFIG = {
     preset: UI_PRESET_META[envSkin] ? envSkin : 'default',
     colorMode: defaultColorMode,
     paneRatio: UI_PANE_RATIOS[envPaneRatio] ? envPaneRatio : 'balanced',
+    paneLayout: UI_PANE_LAYOUTS[envPaneLayout] ? envPaneLayout : 'default',
     fontSize: ['compact', 'standard', 'relaxed'].includes(envTier) ? envTier : 'standard',
   };
   let systemColorWatcher = null;
@@ -8626,6 +8423,8 @@ function jumpToPage(targetIdx) {
     document.documentElement.style.setProperty('--editor-preview-weight', ratio.editor);
     document.documentElement.style.setProperty('--script-pane-weight', ratio.script);
     document.body.setAttribute('data-pane-ratio', ratioKey);
+    const layoutKey = UI_PANE_LAYOUTS[merged.paneLayout] ? merged.paneLayout : 'default';
+    document.body.setAttribute('data-pane-layout', layoutKey);
     const scale = UI_FONT_SCALES[merged.fontSize] || UI_FONT_SCALES.standard;
     const baseSize = Math.round(16 * scale * 100) / 100;
     document.documentElement.style.setProperty('--app-font-size', `${baseSize}px`);
@@ -8640,6 +8439,8 @@ function jumpToPage(targetIdx) {
     window.BENBEN_UI_THEME.color_mode = resolvedColorMode;
     window.BENBEN_UI_THEME.pane_ratio = ratioKey;
     window.BENBEN_UI_THEME.paneRatio = ratioKey;
+    window.BENBEN_UI_THEME.pane_layout = layoutKey;
+    window.BENBEN_UI_THEME.paneLayout = layoutKey;
     const envNavbarColor = (envNavbar.color || '').toString().trim();
     const navbarColor = ['auto', 'skin', 'default', ''].includes(envNavbarColor.toLowerCase())
       ? (UI_SKIN_PRIMARY[skin] || 'primary')
@@ -8655,9 +8456,12 @@ function jumpToPage(targetIdx) {
       preset: envNavbar.preset || 'modern',
     };
     if (persist) {
-      persistUiConfig({...merged, paneRatio: ratioKey});
+      persistUiConfig({...merged, paneRatio: ratioKey, paneLayout: layoutKey});
     }
     applyNavbarTheme();
+    if (typeof updateMarkdownSyncVisualState === 'function') {
+      updateMarkdownSyncVisualState();
+    }
     if (!silent) {
       showStatus('已应用外观设置', 'success', 2000);
     }
@@ -8669,16 +8473,18 @@ function jumpToPage(targetIdx) {
     const themeSelect = document.getElementById('ui-theme-select');
     const colorModeSelect = document.getElementById('ui-color-mode-select');
     const ratioSelect = document.getElementById('ui-pane-ratio-select');
+    const layoutSelect = document.getElementById('ui-pane-layout-select');
     const fontSelect = document.getElementById('ui-font-size-select');
     const applyBtn = document.getElementById('ui-config-apply');
     const resetBtn = document.getElementById('ui-config-reset');
 
-    if (!modalEl || !themeSelect || !colorModeSelect || !ratioSelect || !fontSelect) return;
+    if (!modalEl || !themeSelect || !colorModeSelect || !ratioSelect || !layoutSelect || !fontSelect) return;
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     const syncForm = cfg => {
       themeSelect.value = cfg.preset || 'default';
       colorModeSelect.value = cfg.colorMode || 'light';
       ratioSelect.value = cfg.paneRatio || 'balanced';
+      layoutSelect.value = cfg.paneLayout || 'default';
       fontSelect.value = cfg.fontSize || 'standard';
     };
     const hydrateAndApply = cfg => {
@@ -8701,6 +8507,7 @@ function jumpToPage(targetIdx) {
           preset: themeSelect.value || 'default',
           colorMode: colorModeSelect.value || 'light',
           paneRatio: ratioSelect.value || 'balanced',
+          paneLayout: layoutSelect.value || 'default',
           fontSize: fontSelect.value || 'standard',
         };
         hydrateAndApply(next);
@@ -9262,209 +9069,6 @@ function syncMarkdownEditorToPreview(container) {
     updateMarkdownSyncVisualState();
   }
 
-  function syncLatexPreviewToEditor(editor) {
-    if (!latexScrollSyncState.enabled) return;
-    if (currentEditMode !== 'latex') return;
-    const cm = editor || latexScrollSyncState.boundEditor || singleEditor;
-    if (!cm) return;
-    const preview = latexScrollSyncState.previewContainer || document.getElementById('pdf-container');
-    if (!preview) return;
-    const scroller = latexScrollSyncState.editorScroller || resolveEditorScrollElement(cm);
-    if (!scroller) return;
-    const previewScrollable = Math.max(preview.scrollHeight - preview.clientHeight, 0);
-    if (previewScrollable <= 0) return;
-    const docScrollable = Math.max(scroller.scrollHeight - scroller.clientHeight, 0);
-    const ratio = docScrollable ? scroller.scrollTop / docScrollable : 0;
-    const targetTop = ratio * previewScrollable;
-    if (!Number.isFinite(targetTop)) return;
-    if (Math.abs(preview.scrollTop - targetTop) <= LATEX_SCROLL_THRESHOLD) return;
-    latexScrollSyncState.isSyncingFromEditor = true;
-    preview.scrollTop = targetTop;
-    latexScrollSyncState.lastScrollLeader = 'editor';
-    window.requestAnimationFrame(() => {
-      latexScrollSyncState.isSyncingFromEditor = false;
-    });
-  }
-
-  function scheduleLatexPreviewSync(editor) {
-    if (!latexScrollSyncState.enabled) return;
-    if (currentEditMode !== 'latex') return;
-    latexScrollSyncState.pendingEditor = editor || singleEditor || latexScrollSyncState.boundEditor;
-    if (latexScrollSyncState.rafPreview) return;
-    latexScrollSyncState.rafPreview = window.requestAnimationFrame(() => {
-      latexScrollSyncState.rafPreview = 0;
-      syncLatexPreviewToEditor(latexScrollSyncState.pendingEditor);
-      latexScrollSyncState.pendingEditor = null;
-    });
-  }
-
-  function syncLatexEditorToPreview(container) {
-    if (!latexScrollSyncState.enabled) return;
-    if (currentEditMode !== 'latex') return;
-    const preview = container || latexScrollSyncState.previewContainer || document.getElementById('pdf-container');
-    const editor = latexScrollSyncState.boundEditor || singleEditor;
-    if (!preview || !editor) return;
-    const scroller = latexScrollSyncState.editorScroller || resolveEditorScrollElement(editor);
-    if (!scroller) return;
-    const docScrollable = Math.max(scroller.scrollHeight - scroller.clientHeight, 0);
-    const previewScrollable = Math.max(preview.scrollHeight - preview.clientHeight, 0);
-    if (docScrollable <= 0) return;
-    const ratio = previewScrollable ? preview.scrollTop / previewScrollable : 0;
-    const targetTop = ratio * docScrollable;
-    if (!Number.isFinite(targetTop)) return;
-    if (Math.abs(scroller.scrollTop - targetTop) <= LATEX_SCROLL_THRESHOLD) return;
-    latexScrollSyncState.isSyncingFromPreview = true;
-    scroller.scrollTop = targetTop;
-    if (typeof editor.scrollTo === 'function') {
-      editor.scrollTo(null, targetTop);
-    }
-    latexScrollSyncState.lastScrollLeader = 'preview';
-    window.requestAnimationFrame(() => {
-      latexScrollSyncState.isSyncingFromPreview = false;
-    });
-  }
-
-  function scheduleLatexEditorSync() {
-    if (!latexScrollSyncState.enabled) return;
-    if (currentEditMode !== 'latex') return;
-    if (latexScrollSyncState.rafEditor) return;
-    latexScrollSyncState.rafEditor = window.requestAnimationFrame(() => {
-      latexScrollSyncState.rafEditor = 0;
-      syncLatexEditorToPreview(latexScrollSyncState.previewContainer);
-    });
-  }
-
-  function bindLatexEditorScrollSync(editor) {
-    if (latexScrollSyncState.editorScroller && latexScrollSyncState.editorScrollHandler) {
-      latexScrollSyncState.editorScroller.removeEventListener('scroll', latexScrollSyncState.editorScrollHandler);
-    }
-    if (latexScrollSyncState.boundEditor && typeof latexScrollSyncState.boundEditor.off === 'function' && latexScrollSyncState.editorCMHandler) {
-      latexScrollSyncState.boundEditor.off('scroll', latexScrollSyncState.editorCMHandler);
-    }
-    latexScrollSyncState.editorScroller = null;
-    latexScrollSyncState.editorScrollHandler = null;
-    latexScrollSyncState.editorCMHandler = null;
-    latexScrollSyncState.boundEditor = null;
-
-    if (!editor) return;
-    const scroller = resolveEditorScrollElement(editor);
-    if (!scroller) return;
-    const handler = () => {
-      if (!latexScrollSyncState.enabled) return;
-      if (currentEditMode !== 'latex') return;
-      if (latexScrollSyncState.isSyncingFromPreview) return;
-      latexScrollSyncState.lastScrollLeader = 'editor';
-      scheduleLatexPreviewSync(editor);
-    };
-    scroller.addEventListener('scroll', handler, {passive: true});
-    if (typeof editor.on === 'function') {
-      editor.on('scroll', handler);
-    }
-    latexScrollSyncState.editorScroller = scroller;
-    latexScrollSyncState.editorScrollHandler = handler;
-    latexScrollSyncState.editorCMHandler = handler;
-    latexScrollSyncState.boundEditor = editor;
-
-    if (latexScrollSyncState.enabled && currentEditMode === 'latex') {
-      scheduleLatexPreviewSync(editor);
-    }
-  }
-
-  function bindLatexPreviewScrollSync(container) {
-    if (latexScrollSyncState.previewContainer && latexScrollSyncState.previewHandler) {
-      latexScrollSyncState.previewContainer.removeEventListener('scroll', latexScrollSyncState.previewHandler);
-    }
-    latexScrollSyncState.previewContainer = null;
-    latexScrollSyncState.previewHandler = null;
-    if (!container) return;
-    const handler = () => {
-      if (!latexScrollSyncState.enabled) return;
-      if (currentEditMode !== 'latex') return;
-      if (latexScrollSyncState.isSyncingFromEditor) return;
-      latexScrollSyncState.lastScrollLeader = 'preview';
-      scheduleLatexEditorSync();
-    };
-    container.addEventListener('scroll', handler, {passive: true});
-    latexScrollSyncState.previewContainer = container;
-    latexScrollSyncState.previewHandler = handler;
-  }
-
-  function shouldShowLatexSyncToggle() {
-    if (typeof window === 'undefined') return false;
-    if (currentEditMode !== 'latex') return false;
-    const previewPane = document.querySelector('.preview-pane');
-    if (!previewPane) return false;
-    const style = window.getComputedStyle(previewPane);
-    if (style.display === 'none' || style.visibility === 'hidden') return false;
-    const rect = previewPane.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return false;
-    const pdfContainer = document.getElementById('pdf-container');
-    if (!pdfContainer || pdfContainer.classList.contains('d-none')) return false;
-    const pdfRect = pdfContainer.getBoundingClientRect();
-    if (pdfRect.width <= 0 || pdfRect.height <= 0) return false;
-    return true;
-  }
-
-  function updateLatexSyncVisualState() {
-    const showToggle = shouldShowLatexSyncToggle();
-    const button = latexScrollSyncState.button || document.getElementById('latex-sync-toggle');
-    if (button) {
-      latexScrollSyncState.button = button;
-      const isEnabled = !!latexScrollSyncState.enabled;
-      button.classList.toggle('active', isEnabled);
-      button.setAttribute('aria-pressed', isEnabled ? 'true' : 'false');
-      const label = isEnabled ? '已启用 LaTeX 同步滚动，点击可关闭' : '点击启用 LaTeX 与预览同步滚动';
-      button.setAttribute('title', label);
-      button.setAttribute('aria-label', label);
-      button.style.display = showToggle ? '' : 'none';
-      button.disabled = !showToggle;
-    }
-    const shouldGlow = !!latexScrollSyncState.enabled && currentEditMode === 'latex' && showToggle;
-    const editorContainer = document.getElementById('editor-container');
-    const pdfContainer = document.getElementById('pdf-container');
-    [editorContainer, pdfContainer].forEach(el => {
-      if (!el) return;
-      el.classList.toggle('latex-sync-glow', shouldGlow);
-    });
-  }
-
-  function setLatexScrollSyncEnabled(enabled) {
-    const normalized = !!enabled;
-    if (latexScrollSyncState.enabled === normalized) {
-      updateLatexSyncVisualState();
-      if (normalized && currentEditMode === 'latex' && singleEditor) {
-        scheduleLatexPreviewSync(singleEditor);
-      }
-      return;
-    }
-    latexScrollSyncState.enabled = normalized;
-    updateLatexSyncVisualState();
-    if (normalized && currentEditMode === 'latex' && singleEditor) {
-      scheduleLatexPreviewSync(singleEditor);
-    } else {
-      latexScrollSyncState.lastScrollLeader = '';
-    }
-  }
-
-  function toggleLatexScrollSync() {
-    setLatexScrollSyncEnabled(!latexScrollSyncState.enabled);
-  }
-
-  function initLatexScrollSyncToggle() {
-    const button = document.getElementById('latex-sync-toggle');
-    if (!button || button.dataset.syncToggleBound === '1') {
-      updateLatexSyncVisualState();
-      return;
-    }
-    latexScrollSyncState.button = button;
-    button.dataset.syncToggleBound = '1';
-    button.addEventListener('click', event => {
-      event.preventDefault();
-      toggleLatexScrollSync();
-    });
-    updateLatexSyncVisualState();
-  }
-
   function resolveAttachmentHref(rawHref) {
     if (!rawHref || typeof rawHref !== 'string') return null;
     let href = rawHref.trim();
@@ -9631,21 +9235,6 @@ function syncMarkdownEditorToPreview(container) {
     enhanceCodeCopy(preview);
     loadLearningReviewIndex(false);
     refreshMarkdownReviewHighlights();
-    if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-      try {
-        if (typeof window.MathJax.typesetClear === 'function') {
-          window.MathJax.typesetClear([preview]);
-        }
-      } catch (err) {
-        console.warn('清理 MathJax 队列失败', err);
-      }
-      window.MathJax.typesetPromise([preview])
-        .then(() => {
-          enhanceMathCopy(preview);
-          refreshMarkdownReviewHighlights();
-        })
-        .catch(err => console.warn('MathJax 渲染失败', err));
-    }
     if (markdownScrollSyncState.enabled && currentEditMode === 'markdown' && singleEditor) {
       scheduleMarkdownPreviewSync(singleEditor);
     }
@@ -9951,20 +9540,15 @@ function syncMarkdownEditorToPreview(container) {
       }
     };
 
-    if (idx === currentPageIdx && currentEditMode === 'markdown') {
+    if (idx === currentPageIdx) {
       performHighlight();
       return true;
     }
 
-    const needsModeSwitch = currentEditMode !== 'markdown';
     currentPageIdx = idx;
     updatePageNumLabel();
-    if (needsModeSwitch) {
-      setEditMode('markdown');
-    } else {
-      renderSingleEditor();
-    }
-    const delay = needsModeSwitch ? 280 : 160;
+    renderSingleEditor();
+    const delay = 160;
     setTimeout(() => {
       if (currentPageIdx !== idx) return;
       performHighlight();
@@ -10176,24 +9760,12 @@ function syncMarkdownEditorToPreview(container) {
   function invalidateAllSlides() {
     markdownSlideCache.clear();
     markdownPageDirty.clear();
-    latexPageDirty.clear();
-    latexFreshVersions.clear();
-    latexCompilePromises.clear();
-    latexDocCache.clear();
   }
 
   function markMarkdownPageDirty(idx) {
     if (typeof idx !== 'number') return;
     markdownSlideCache.delete(idx);
     markdownPageDirty.add(idx);
-  }
-
-  function markLatexPageDirty(idx) {
-    if (typeof idx !== 'number') return;
-    latexPageDirty.add(idx);
-    latexDocCache.delete(idx);
-    latexFreshVersions.delete(idx);
-    latexSlideCounts.delete(idx);
   }
 
   function buildMarkdownSlicesForPage(pageIdx) {
@@ -10286,9 +9858,7 @@ function syncMarkdownEditorToPreview(container) {
     const els = getSlideshowElements();
     const totalPages = Array.isArray(pagesData) ? pagesData.length : 0;
     const pageIdx = Math.min(Math.max(slideshowState.pageIdx || 0, 0), Math.max(0, totalPages - 1));
-    const inferredSlideCount = slideshowState.mode === 'latex'
-      ? (latexSlideCounts.get(pageIdx) || slideshowState.slideCount || 1)
-      : (slideshowState.slideCount || 1);
+    const inferredSlideCount = slideshowState.slideCount || 1;
     const slideCount = Math.max(1, inferredSlideCount);
     const slideIdx = Math.min(Math.max(slideshowState.slideIdx || 0, 0), slideCount - 1);
     slideshowState.pageIdx = pageIdx;
@@ -10301,7 +9871,7 @@ function syncMarkdownEditorToPreview(container) {
       els.slideStatus.textContent = `段 ${slideIdx + 1} / ${slideCount}`;
     }
     if (els.modeLabel) {
-      els.modeLabel.textContent = slideshowState.mode === 'latex' ? 'LaTeX 幻灯' : 'Markdown 幻灯';
+      els.modeLabel.textContent = 'Markdown 幻灯';
     }
     updateRecordingButtonUI();
   }
@@ -10346,7 +9916,7 @@ function syncMarkdownEditorToPreview(container) {
     contentEl.addEventListener('input', () => {
       const pageIdx = slideshowState.pageIdx || currentPageIdx || 0;
       if (!pagesData[pageIdx]) {
-        pagesData[pageIdx] = {content: '', notes: '', script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
+        pagesData[pageIdx] = {notes: '', script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
       }
       const val = contentEl.value || '';
       pagesData[pageIdx].script = val;
@@ -10491,7 +10061,7 @@ function syncMarkdownEditorToPreview(container) {
               throw new Error(data.error || '上传录播失败');
             });
           }
-          const page = pagesData[targetPage] || (pagesData[targetPage] = {content: '', notes: '', script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}});
+          const page = pagesData[targetPage] || (pagesData[targetPage] = {notes: '', script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}});
           page.recording = {hasRecording: true, mime: blob.type || 'audio/webm', updatedAt: Date.now()};
           markPageDirtyForSave(targetPage);
         }).catch(err => {
@@ -10567,41 +10137,6 @@ function syncMarkdownEditorToPreview(container) {
     setRecordingMode(next);
   }
 
-  let slideshowPdfRequestId = 0;
-
-  async function ensurePdfFresh(pageIdx) {
-    if (!Number.isInteger(pageIdx) || pageIdx < 0 || pageIdx >= pagesData.length) return null;
-    if (!latexPageDirty.has(pageIdx) && latexFreshVersions.has(pageIdx)) {
-      const ts = latexFreshVersions.get(pageIdx);
-      return appendWorkspaceQuery(`/page_pdf/${pageIdx + 1}?t=${ts}`);
-    }
-    if (latexCompilePromises.has(pageIdx)) {
-      return latexCompilePromises.get(pageIdx);
-    }
-    const promise = new Promise(resolve => {
-      const payload = withWorkspacePayload({page: pageIdx});
-      fetch(buildApiUrl('/compile_page'), {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      }).then(res => res.json().then(data => ({ok: res.ok, data})))
-        .then(({ok, data}) => {
-          if (ok && data && data.success) {
-            const version = Date.now();
-            latexPageDirty.delete(pageIdx);
-            latexFreshVersions.set(pageIdx, version);
-            resolve(appendWorkspaceQuery(`/page_pdf/${pageIdx + 1}?t=${version}`));
-          } else {
-            resolve(appendWorkspaceQuery(`/page_pdf/${pageIdx + 1}?t=${Date.now()}`));
-          }
-        })
-        .catch(() => resolve(appendWorkspaceQuery(`/page_pdf/${pageIdx + 1}?t=${Date.now()}`)))
-        .finally(() => latexCompilePromises.delete(pageIdx));
-    });
-    latexCompilePromises.set(pageIdx, promise);
-    return promise;
-  }
-
   function highlightHeadingInContainer(container, headingId) {
     if (!container || !headingId) return;
     const selector = `[id="${cssEscapeIdent(headingId)}"]`;
@@ -10648,11 +10183,6 @@ function syncMarkdownEditorToPreview(container) {
     loadLearningReviewIndex(false);
     applyReviewHighlights(bodyEl);
     bindReviewHighlightInteractions(bodyEl);
-    if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-      window.MathJax.typesetPromise([bodyEl])
-        .then(() => applyReviewHighlights(bodyEl))
-        .catch(err => console.warn('幻灯 MathJax 渲染失败', err));
-    }
     if (!bodyEl.dataset.slideshowLinksBound) {
       bodyEl.addEventListener('click', handleSlideshowLinkClick);
       bodyEl.dataset.slideshowLinksBound = '1';
@@ -10673,69 +10203,6 @@ function syncMarkdownEditorToPreview(container) {
     if (headingToHighlight) {
       highlightHeadingInContainer(bodyEl, headingToHighlight);
     }
-  }
-
-  function renderLatexSlide(pageIdx, slideIdx, bodyEl, headerEl) {
-    if (!bodyEl) return;
-    const requestId = ++slideshowPdfRequestId;
-    bodyEl.innerHTML = '<div class="text-muted small">加载中...</div>';
-    let pdfUrl = '';
-    ensurePdfFresh(pageIdx)
-      .then(url => {
-        if (!url || requestId !== slideshowPdfRequestId) return null;
-        if (!window.pdfjsLib || typeof window.pdfjsLib.getDocument !== 'function') {
-          bodyEl.innerHTML = '<div class="text-muted small">pdf.js 未加载</div>';
-          return null;
-        }
-        pdfUrl = url;
-        const cached = latexDocCache.get(pageIdx);
-        if (cached && cached.url === url && cached.doc) {
-          return cached.doc;
-        }
-        const docPromise = pdfjsLib.getDocument(url).promise;
-        rememberLatexDoc(pageIdx, {url, doc: docPromise});
-        return docPromise;
-      })
-      .then(pdf => {
-        if (!pdf || requestId !== slideshowPdfRequestId) return;
-        const total = pdf.numPages || 1;
-        latexPageDirty.delete(pageIdx);
-        latexSlideCounts.set(pageIdx, total);
-        rememberLatexDoc(pageIdx, {url: pdfUrl || null, doc: pdf});
-        slideshowState.slideCount = Math.max(1, total);
-        slideshowState.slideIdx = Math.min(Math.max(slideIdx, 0), total - 1);
-        updateSlideshowChrome();
-        if (headerEl) {
-          const titleEl = headerEl.querySelector('.slideshow-card-title');
-          if (titleEl) {
-            const label = slideshowState.slideCount > 1 ? ` · 段 ${slideshowState.slideIdx + 1}/${slideshowState.slideCount}` : '';
-            titleEl.textContent = `第 ${pageIdx + 1} 页${label}`;
-          }
-        }
-        const targetPage = Math.min(Math.max(slideshowState.slideIdx, 0), total - 1) + 1;
-        return pdf.getPage(targetPage).then(page => {
-          if (!page || requestId !== slideshowPdfRequestId) return;
-          const viewport = page.getViewport({scale: 1});
-          const targetWidth = Math.max(bodyEl.clientWidth - 12, 320);
-          const scale = Math.min(2.4, Math.max(0.8, targetWidth / viewport.width));
-          const scaled = page.getViewport({scale});
-          const canvas = document.createElement('canvas');
-          canvas.width = scaled.width;
-          canvas.height = scaled.height;
-          canvas.className = 'pdf-page-canvas';
-          const ctx = canvas.getContext('2d');
-          bodyEl.innerHTML = '';
-          bodyEl.appendChild(canvas);
-          if (ctx) {
-            return page.render({canvasContext: ctx, viewport: scaled}).promise;
-          }
-        });
-      })
-      .catch(err => {
-        if (requestId !== slideshowPdfRequestId) return;
-        console.warn('幻灯 PDF 渲染失败', err);
-        bodyEl.innerHTML = '<div class="text-muted small">PDF 渲染失败</div>';
-      });
   }
 
   function renderSlideshowGrid() {
@@ -10771,7 +10238,7 @@ function syncMarkdownEditorToPreview(container) {
     title.textContent = `第 ${slideshowState.pageIdx + 1} 页${slideLabel}`;
     const typePill = document.createElement('span');
     typePill.className = 'slideshow-status-pill';
-    typePill.textContent = slideshowState.mode === 'latex' ? 'LaTeX' : 'Markdown';
+    typePill.textContent = 'Markdown';
     header.appendChild(title);
     header.appendChild(typePill);
     const body = document.createElement('div');
@@ -10781,20 +10248,13 @@ function syncMarkdownEditorToPreview(container) {
     els.stage.innerHTML = '';
     els.stage.appendChild(card);
 
-    if (slideshowState.mode === 'markdown') {
-      const slices = buildMarkdownSlicesForPage(slideshowState.pageIdx);
-      const slideCount = Math.max(1, slices.length || 1);
-      slideshowState.slideCount = slideCount;
-      slideshowState.slideIdx = Math.min(Math.max(slideshowState.slideIdx || 0, 0), slideCount - 1);
-      const slice = slices[slideshowState.slideIdx] || null;
-      const highlight = pendingHeading && slice && slice.headings && slice.headings.some(h => (h.slug || '').toLowerCase() === pendingHeading) ? pendingHeading : '';
-      renderMarkdownSlide(slice, body, highlight);
-    } else {
-      const knownCount = latexSlideCounts.get(slideshowState.pageIdx) || slideshowState.slideCount || 1;
-      slideshowState.slideCount = Math.max(1, knownCount);
-      slideshowState.slideIdx = Math.min(Math.max(slideshowState.slideIdx || 0, 0), slideshowState.slideCount - 1);
-      renderLatexSlide(slideshowState.pageIdx, slideshowState.slideIdx, body, header);
-    }
+    const slices = buildMarkdownSlicesForPage(slideshowState.pageIdx);
+    const slideCount = Math.max(1, slices.length || 1);
+    slideshowState.slideCount = slideCount;
+    slideshowState.slideIdx = Math.min(Math.max(slideshowState.slideIdx || 0, 0), slideCount - 1);
+    const slice = slices[slideshowState.slideIdx] || null;
+    const highlight = pendingHeading && slice && slice.headings && slice.headings.some(h => (h.slug || '').toLowerCase() === pendingHeading) ? pendingHeading : '';
+    renderMarkdownSlide(slice, body, highlight);
     slideshowState.pendingHeading = '';
     updateSlideshowChrome();
     updateScriptPanel();
@@ -10803,45 +10263,6 @@ function syncMarkdownEditorToPreview(container) {
 
   function jumpToSlideshowTarget(target) {
     if (!slideshowState.open || !target) return false;
-    const {mode} = slideshowState;
-    if (mode === 'markdown') {
-      let targetPage = resolveMarkdownTargetPageIndex(target);
-      if ((targetPage === null || targetPage === undefined) && target.headingId) {
-        targetPage = currentPageIdx;
-      }
-      if (targetPage === null || targetPage < 0 || targetPage >= pagesData.length) {
-        showStatus('未找到目标页面', 'warning', 2400);
-        return false;
-      }
-      const headingId = target.headingId || '';
-      const targetSlice = headingId ? findMarkdownSliceIndexForHeading(targetPage, headingId) : 0;
-      if (headingId && targetSlice === -1) {
-        showStatus('未找到目标段落', 'warning', 2400);
-        return false;
-      }
-      const prevPage = slideshowState.pageIdx;
-      const pageChanged = targetPage !== prevPage;
-      const stopPromise = pageChanged ? stopActiveRecording(true) : Promise.resolve();
-      if (pageChanged) {
-        stopPlayback();
-        stopAiRead();
-      }
-      slideshowState.pageIdx = targetPage;
-      slideshowState.slideIdx = Math.max(0, targetSlice);
-      slideshowState.pendingHeading = headingId;
-      currentPageIdx = targetPage;
-      updatePageNumLabel();
-      renderSlideshowGrid();
-      stopPromise.then(() => {
-        if (pageChanged && recordingMode === 'record') {
-          startRecordingForPage(targetPage);
-        } else if (pageChanged && recordingMode === 'play') {
-          playRecordingForPage(targetPage);
-        }
-      });
-      updateScriptPanel();
-      return true;
-    }
     let targetPage = resolveMarkdownTargetPageIndex(target);
     if ((targetPage === null || targetPage === undefined) && target.headingId) {
       targetPage = currentPageIdx;
@@ -10850,18 +10271,29 @@ function syncMarkdownEditorToPreview(container) {
       showStatus('未找到目标页面', 'warning', 2400);
       return false;
     }
-    const stopPromise = stopActiveRecording(true);
-    stopPlayback();
-    stopAiRead();
+    const headingId = target.headingId || '';
+    const targetSlice = headingId ? findMarkdownSliceIndexForHeading(targetPage, headingId) : 0;
+    if (headingId && targetSlice === -1) {
+      showStatus('未找到目标段落', 'warning', 2400);
+      return false;
+    }
+    const prevPage = slideshowState.pageIdx;
+    const pageChanged = targetPage !== prevPage;
+    const stopPromise = pageChanged ? stopActiveRecording(true) : Promise.resolve();
+    if (pageChanged) {
+      stopPlayback();
+      stopAiRead();
+    }
+    slideshowState.pageIdx = targetPage;
+    slideshowState.slideIdx = Math.max(0, targetSlice);
+    slideshowState.pendingHeading = headingId;
     currentPageIdx = targetPage;
     updatePageNumLabel();
-    slideshowState.pageIdx = targetPage;
-    slideshowState.slideIdx = 0;
     renderSlideshowGrid();
     stopPromise.then(() => {
-      if (recordingMode === 'record') {
+      if (pageChanged && recordingMode === 'record') {
         startRecordingForPage(targetPage);
-      } else if (recordingMode === 'play') {
+      } else if (pageChanged && recordingMode === 'play') {
         playRecordingForPage(targetPage);
       }
     });
@@ -10895,16 +10327,12 @@ function syncMarkdownEditorToPreview(container) {
   function openSlideshowOverlay() {
     const els = getSlideshowElements();
     if (!els.overlay) return;
-    slideshowState.mode = currentEditMode === 'latex' ? 'latex' : 'markdown';
-    if (slideshowState.mode === 'markdown') {
-      applyMarkdownStyles();
-    }
+    slideshowState.mode = 'markdown';
+    applyMarkdownStyles();
     slideshowState.originPage = currentPageIdx;
     slideshowState.pageIdx = currentPageIdx;
     slideshowState.slideIdx = 0;
-    slideshowState.slideCount = slideshowState.mode === 'markdown'
-      ? Math.max(1, buildMarkdownSlicesForPage(currentPageIdx).length || 1)
-      : (latexSlideCounts.get(currentPageIdx) || 1);
+    slideshowState.slideCount = Math.max(1, buildMarkdownSlicesForPage(currentPageIdx).length || 1);
     slideshowState.pendingHeading = '';
     slideshowState.open = true;
     els.overlay.classList.remove('d-none');
@@ -10952,7 +10380,6 @@ function syncMarkdownEditorToPreview(container) {
     document.body.classList.remove('slideshow-open');
     slideshowState.open = false;
     slideshowState.pendingHeading = '';
-    slideshowPdfRequestId += 1;
     stopActiveRecording(true);
     stopPlayback();
     stopAiRead();
@@ -10976,9 +10403,7 @@ function syncMarkdownEditorToPreview(container) {
     stopAiRead();
     slideshowState.pageIdx = nextPage;
     slideshowState.slideIdx = 0;
-    slideshowState.slideCount = slideshowState.mode === 'markdown'
-      ? Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1)
-      : (latexSlideCounts.get(nextPage) || 1);
+    slideshowState.slideCount = Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1);
     renderSlideshowGrid();
     updateScriptPanel();
     if (recordingMode === 'record') {
@@ -10998,9 +10423,7 @@ function syncMarkdownEditorToPreview(container) {
     stopAiRead();
     slideshowState.pageIdx = nextPage;
     slideshowState.slideIdx = 0;
-    slideshowState.slideCount = slideshowState.mode === 'markdown'
-      ? Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1)
-      : (latexSlideCounts.get(nextPage) || 1);
+    slideshowState.slideCount = Math.max(1, buildMarkdownSlicesForPage(nextPage).length || 1);
     renderSlideshowGrid();
     updateScriptPanel();
     if (recordingMode === 'record') {
@@ -11236,7 +10659,6 @@ function syncMarkdownEditorToPreview(container) {
     });
 
     node.on('click', (_, d) => {
-      setEditMode('markdown');
       jumpToPage(d.pageIndex);
       const modalEl = document.getElementById('relationCatalogModal');
       if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
@@ -11246,100 +10668,14 @@ function syncMarkdownEditorToPreview(container) {
     });
   }
 
-  function cleanLatexHeadingText(raw) {
-    if (!raw) return '';
-    let text = raw.replace(/%.*$/gm, '');
-    text = text.replace(/\\label\{[^}]*\}/g, '');
-    text = text.replace(/\\[a-zA-Z@]+[*]?(\[[^\]]*])?/g, '');
-    text = text.replace(/[{}]/g, ' ');
-    text = text.replace(/\s+/g, ' ');
-    return text.trim();
-  }
-
-  function extractLatexPrimaryHeading(tex) {
-    if (!tex || !tex.trim()) return '';
-    const patterns = [
-      /\\begin\{frame\}(?:\[[^\]]*])?\{([^}]*)\}/i,
-      /\\frametitle[*]?\s*\{([^}]*)\}/i,
-      /\\section[*]?\s*\{([^}]*)\}/i,
-      /\\subsection[*]?\s*\{([^}]*)\}/i,
-      /\\title[*]?\s*\{([^}]*)\}/i,
-    ];
-    for (const pattern of patterns) {
-      const match = tex.match(pattern);
-      if (match && match[1]) {
-        const cleaned = cleanLatexHeadingText(match[1]);
-        if (cleaned) return cleaned;
-      }
-    }
-    const firstLine = tex.split(/\r?\n/).find(line => line && line.trim());
-    return cleanLatexHeadingText(firstLine || '');
-  }
-
-  function renderLatexRelationCatalog() {
-    const list = document.getElementById('relation-latex-list');
-    if (!list) return;
-    list.innerHTML = '';
-    if (!Array.isArray(pagesData) || !pagesData.length) {
-      list.innerHTML = '<div class="text-center text-muted py-3">当前工作区暂无页面</div>';
-      return;
-    }
-    let hasItem = false;
-    pagesData.forEach((page, idx) => {
-      const latexHeading = extractLatexPrimaryHeading(page?.content || '');
-      const markdownFallback = extractMarkdownPrimaryHeading(page?.notes || '');
-      const title = latexHeading || markdownFallback || `第 ${idx + 1} 页`;
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = 'list-group-item list-group-item-action';
-      item.innerHTML = `
-        <div class="fw-semibold text-truncate">${escapeHtml(title)}</div>
-        <div class="page-label">第 ${idx + 1} 页</div>
-      `;
-      item.addEventListener('click', () => {
-        setEditMode('latex');
-        jumpToPage(idx);
-        if (relationCatalogModalInstance) {
-          relationCatalogModalInstance.hide();
-        } else {
-          const modalEl = document.getElementById('relationCatalogModal');
-          if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            const modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) modal.hide();
-          }
-        }
-      });
-      list.appendChild(item);
-      hasItem = true;
-    });
-    if (!hasItem) {
-      list.innerHTML = '<div class="text-center text-muted py-3">暂无可用目录</div>';
-    }
-  }
-
   function refreshRelationCatalogView() {
-    const isMarkdown = currentEditMode === 'markdown';
     const markdownPanel = document.getElementById('relation-markdown-panel');
-    const latexPanel = document.getElementById('relation-latex-panel');
     const hint = document.getElementById('relation-mode-hint');
     const footnote = document.getElementById('relation-catalog-footnote');
-    if (markdownPanel) markdownPanel.classList.toggle('d-none', !isMarkdown);
-    if (latexPanel) latexPanel.classList.toggle('d-none', isMarkdown);
-    if (hint) {
-      hint.textContent = isMarkdown
-        ? 'Markdown 展示关系图，LaTeX 展示跨页目录。'
-        : '已切换到 LaTeX 模式，展示跨页目录。';
-    }
-    if (footnote) {
-      footnote.textContent = isMarkdown
-        ? '基于 Markdown 内部跳转生成关系图'
-        : '基于 LaTeX 页标题生成目录';
-    }
-    if (isMarkdown) {
-      renderMarkdownRelationGraph();
-    } else {
-      renderLatexRelationCatalog();
-    }
+    if (markdownPanel) markdownPanel.classList.remove('d-none');
+    if (hint) hint.textContent = 'Markdown 关系图展示页面间的跳转关系。';
+    if (footnote) footnote.textContent = '基于 Markdown 内部跳转生成关系图';
+    renderMarkdownRelationGraph();
   }
 
   function relationCatalogIsOpen() {
@@ -11435,111 +10771,34 @@ function syncMarkdownEditorToPreview(container) {
     });
   }
 
-  function enhanceMathCopy(preview) {
-    if (!preview || !window.MathJax || !MathJax.startup || !MathJax.startup.document) return;
-    const items = MathJax.startup.document.math || [];
-    items.forEach(item => {
-      const root = item && item.typesetRoot;
-      if (!root || !preview.contains(root)) return;
-      if (!item.display) return; // 仅对块级公式启用复制按钮
-      let tex = (item.math || item.originalText || '').trim();
-      if (!tex) return;
-      if (!/^((\$\$)|(\\\[)|(\\begin))/i.test(tex)) {
-        tex = `$$${tex}$$`;
-      }
-      if (root.closest('.copy-trigger-wrapper')) return;
-      attachCopyButton(root, tex, '公式');
-    });
-  }
-
   function syncPaneHeights() {
     if (singleEditor) {
       setTimeout(() => singleEditor.refresh(), 0);
     }
   }
 
-  function queueCompile(delay = 600) {
-    if (currentEditMode !== 'latex') {
-      if (compileTimer) {
-        clearTimeout(compileTimer);
-        compileTimer = null;
-      }
-      return;
+  function queuePreviewRefresh(delay = 180) {
+    if (previewRefreshTimer) {
+      clearTimeout(previewRefreshTimer);
     }
-    latexPageDirty.add(currentPageIdx);
-    if (compileTimer) clearTimeout(compileTimer);
-    compileTimer = setTimeout(runCompile, delay);
-  }
-
-  function runCompile() {
-    if (isCompiling) {
-      compilePending = true;
-      return;
-    }
-    if (!ensureWorkspaceReady({silent: true})) {
-      return;
-    }
-    isCompiling = true;
-    compilePending = false;
-    const payload = withWorkspacePayload({page: currentPageIdx});
-    fetch(buildApiUrl('/compile_page'), {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    }).then(res => res.json()).then(data => {
-      if (data.success) {
-        loadCurrentPagePDF();
-      } else {
-        showStatus('编译失败：' + (data.error || '未知错误'), 'danger', 6000);
-      }
-    }).catch(err => {
-      showStatus('编译失败：' + (err?.message || '网络错误'), 'danger', 6000);
-    }).finally(() => {
-      isCompiling = false;
-      if (compilePending) {
-        compilePending = false;
-        runCompile();
-      }
-    });
+    previewRefreshTimer = setTimeout(() => {
+      previewRefreshTimer = null;
+      refreshPreview();
+    }, delay);
   }
 
   function refreshPreview() {
-    const pdfContainer = document.getElementById('pdf-container');
-    const markdownContainer = document.getElementById('markdown-preview');
-    if (currentEditMode === 'latex') {
-      pdfContainer?.classList.remove('d-none');
-      markdownContainer?.classList.add('d-none');
-      bindLatexPreviewScrollSync(pdfContainer);
-      loadCurrentPagePDF();
-    } else {
-      pdfContainer?.classList.add('d-none');
-      markdownContainer?.classList.remove('d-none');
-      bindLatexPreviewScrollSync(null);
-      renderMarkdownPreview();
-    }
-    updateModeToggleUI();
+    renderMarkdownPreview();
     syncPaneHeights();
     updateMarkdownSyncVisualState();
-    updateLatexSyncVisualState();
   }
 
-  function setEditMode(mode) {
-    if (currentEditMode === mode) return;
-    currentEditMode = mode;
-    renderSingleEditor();
-    updateMarkdownSyncVisualState();
-    refreshRelationCatalogIfOpen();
-  }
-
-  updateModeToggleUI();
   window.addEventListener('resize', () => {
     syncPaneHeights();
     updateMarkdownSyncVisualState();
-    updateLatexSyncVisualState();
   });
   requestAnimationFrame(syncPaneHeights);
   initMarkdownScrollSyncToggle();
-  initLatexScrollSyncToggle();
   
   function renderTabsModal() {
     const tabs = document.getElementById('page-tabs');
@@ -11655,16 +10914,7 @@ function syncMarkdownEditorToPreview(container) {
       throw new Error('请选择工作区后再上传图片');
     }
     withWorkspacePayload(fd);
-    const storage = getAttachmentStorageTarget();
-    let storageChoice = storage;
-    const latexMode = currentEditMode === 'latex';
-    if (latexMode && storage !== 'local') {
-      storageChoice = storage === 'oss' ? 'both' : 'local';
-      if (!latexPasteLocalNoticeShown && workspaceIsCloud()) {
-        latexPasteLocalNoticeShown = true;
-        showStatus('LaTeX 模式下已同时保存本地副本，确保编译可用', 'info', 2600);
-      }
-    }
+    const storageChoice = getAttachmentStorageTarget();
     if(storageChoice){
       fd.append('storage', storageChoice);
     }
@@ -11691,19 +10941,6 @@ function syncMarkdownEditorToPreview(container) {
     const fallbackAttachment = attachments.find(item => item && typeof item === 'object') || {};
     const filename = payload.filename || payload.name || fallbackAttachment.filename || fallbackAttachment.name || 'pasted-image';
     const marker = payload.assetId || fallbackAttachment.assetId || filename;
-    const mode = (typeof currentEditMode === 'string' && currentEditMode === 'markdown') ? 'markdown' : 'latex';
-    if (mode === 'latex') {
-      const localUrl = payload.localUrl || fallbackAttachment.localUrl || '';
-      const preferredUrl = payload.ossUrl || payload.url || fallbackAttachment.ossUrl || fallbackAttachment.preferredUrl || fallbackAttachment.url || localUrl;
-      const latexSource = localUrl || preferredUrl;
-      if (!latexSource) {
-        return {snippet: '', filename, warning: '图片已上传，但缺少本地路径，无法在 LaTeX 中引用。'};
-      }
-      const latexPath = urlToLatexPath(latexSource);
-      const snippet = `\\begin{center}\n  \\includegraphics[width=0.7\\textwidth]{${latexPath}}\n\\end{center}\n`;
-      const warning = localUrl ? '' : '图片缺少本地副本，LaTeX 编译可能无法找到文件。';
-      return {snippet, filename, warning};
-    }
     if (payload.markdown && typeof payload.markdown === 'string') {
       return {snippet: payload.markdown.endsWith('\n') ? payload.markdown : `${payload.markdown}\n`, filename};
     }
@@ -11820,18 +11057,18 @@ function syncMarkdownEditorToPreview(container) {
     wrapper.innerHTML = `<textarea id="page-single" class="form-control"></textarea>`;
     list.appendChild(wrapper);
     if (!pagesData[currentPageIdx]) {
-      pagesData[currentPageIdx] = {content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
+      pagesData[currentPageIdx] = {notes: '', script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}, contentLoaded: true};
     }
     const targetIdx = currentPageIdx;
     const page = pagesData[targetIdx];
     singleEditor = CodeMirror.fromTextArea(wrapper.querySelector('textarea'), {
-      mode: currentEditMode === 'markdown' ? 'markdown' : 'stex',
+      mode: 'markdown',
       lineNumbers: true,
       theme: 'default',
       viewportMargin: Infinity,
       lineWrapping: true
     });
-    const initialValue = currentEditMode === 'markdown' ? (page.notes || '') : (page.content || '');
+    const initialValue = page.notes || '';
     singleEditor.setValue(initialValue);
     singleEditor.setSize('100%', '100%');
     singleEditor.setOption('readOnly', false);
@@ -11840,49 +11077,35 @@ function syncMarkdownEditorToPreview(container) {
     if (!page.contentLoaded) {
       ensurePageLoaded(targetIdx).then(loaded => {
         if (!loaded || targetIdx !== currentPageIdx || !singleEditor) return;
-        const freshVal = currentEditMode === 'markdown' ? (loaded.notes || '') : (loaded.content || '');
+        const freshVal = loaded.notes || '';
         if (singleEditor.getValue() !== freshVal) {
           singleEditor.setValue(freshVal);
         }
-        if (currentEditMode === 'markdown') {
-          renderMarkdownPreview();
-        }
+        renderMarkdownPreview();
       });
     }
     singleEditor.on('paste', handleEditorPaste);
     singleEditor.on('change', function() {
       const value = singleEditor.getValue();
-      if (currentEditMode === 'markdown') {
-        pagesData[currentPageIdx].notes = value;
-        markMarkdownPageDirty(currentPageIdx);
-        renderMarkdownPreview();
-        if (slideshowState.open && slideshowState.mode === 'markdown') {
-          slideshowState.slideCount = Math.max(1, buildMarkdownSlicesForPage(currentPageIdx).length || 1);
-          slideshowState.slideIdx = Math.min(slideshowState.slideIdx || 0, slideshowState.slideCount - 1);
-          renderSlideshowGrid();
-        }
-      } else {
-        pagesData[currentPageIdx].content = value;
-        markLatexPageDirty(currentPageIdx);
-        if (slideshowState.open && slideshowState.mode === 'latex') {
-          slideshowState.slideIdx = 0;
-          slideshowState.slideCount = latexSlideCounts.get(currentPageIdx) || 1;
-          renderSlideshowGrid();
-        }
+      pagesData[currentPageIdx].notes = value;
+      markMarkdownPageDirty(currentPageIdx);
+      renderMarkdownPreview();
+      if (slideshowState.open) {
+        slideshowState.slideCount = Math.max(1, buildMarkdownSlicesForPage(currentPageIdx).length || 1);
+        slideshowState.slideIdx = Math.min(slideshowState.slideIdx || 0, slideshowState.slideCount - 1);
+        renderSlideshowGrid();
       }
       if (slideshowState.open && showScriptPanel) updateScriptPanel();
       markPageDirtyForSave(currentPageIdx);
-      queueCompile();
+      queuePreviewRefresh();
     });
     bindMarkdownEditorScrollSync(singleEditor);
-    bindLatexEditorScrollSync(singleEditor);
     const scriptInput = document.getElementById('page-script');
     scriptInput.value = page.script || '';
-    updateModeToggleUI();
     refreshPreview();
     // refresh resources list for this page
     setTimeout(()=>{ if(window.refreshResourceLists) refreshResourceLists(); }, 50);
-    queueCompile();
+    queuePreviewRefresh();
   }
   
   const pageStatusBtn = document.getElementById('page-status');
@@ -11966,17 +11189,20 @@ function syncMarkdownEditorToPreview(container) {
     }).then(res => res.json()).then(data => {
       pagesData = (data.pages || []).map((p) => {
         if (typeof p !== 'object' || p === null) {
-          return {content: String(p || ''), script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}};
+          return {notes: String(p || ''), script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}, contentLoaded: true};
         }
         const pageObj = {...p};
-        pageObj.content = pageObj.content || '';
-        pageObj.script = pageObj.script || '';
         pageObj.notes = pageObj.notes || '';
+        pageObj.script = pageObj.script || '';
+        if ('content' in pageObj) {
+          delete pageObj.content;
+        }
         pageObj.bib = normalizeBibList(pageObj.bib);
         pageObj.resources = Array.isArray(pageObj.resources) ? pageObj.resources : [];
         const pidSource = (typeof pageObj.pageId === 'string' && pageObj.pageId) || (typeof pageObj.id === 'string' && pageObj.id);
         pageObj.pageId = pidSource && pidSource.trim() ? pidSource.trim() : generatePageId();
         pageObj.recording = normalizeRecordingMeta(pageObj.recording);
+        pageObj.contentLoaded = true;
         delete pageObj.id;
         return pageObj;
       });
@@ -12078,127 +11304,69 @@ function syncMarkdownEditorToPreview(container) {
 
   const modeSwitchBtn = document.getElementById('mode-switch-btn');
   if (modeSwitchBtn) {
-    modeSwitchBtn.addEventListener('click', () => {
-      const nextMode = currentEditMode === 'latex' ? 'markdown' : 'latex';
-      setEditMode(nextMode);
-    });
+    modeSwitchBtn.remove();
   }
-  updateModeToggleUI();
   const initialColorMode = document.body.classList.contains('theme-dark')
     ? 'dark'
     : (document.body.getAttribute('data-bs-theme') || (window.BENBEN_UI_THEME && window.BENBEN_UI_THEME.color_mode) || 'light');
   applyColorMode(initialColorMode);
   
   document.getElementById('edit-template').onclick = function() {
-    const mode = currentEditMode === 'markdown' ? 'markdown' : 'latex';
-    const latexFields = document.getElementById('template-latex-fields');
     const markdownFields = document.getElementById('template-markdown-fields');
     const helper = document.getElementById('template-helper-text');
 
-    if (mode === 'markdown') {
-      latexFields?.classList.add('d-none');
-      markdownFields?.classList.remove('d-none');
-      if (helper) helper.textContent = 'CSS 将实时作用于 Markdown 预览区域。';
-      document.getElementById('template-markdown-css').value = markdownTemplate.css || '';
-      document.getElementById('template-markdown-wrapper').value = markdownTemplate.wrapperClass || '';
-    } else {
-      markdownFields?.classList.add('d-none');
-      latexFields?.classList.remove('d-none');
-      if (helper) helper.textContent = '选择后仍可在下方继续调整。';
-      document.getElementById('template-header').value = latexTemplate.header || '';
-      document.getElementById('template-before-pages').value = latexTemplate.beforePages || '';
-      document.getElementById('template-footer').value = latexTemplate.footer || '';
-    }
+    markdownFields?.classList.remove('d-none');
+    if (helper) helper.textContent = 'CSS 将实时作用于 Markdown 预览区域。';
+    document.getElementById('template-markdown-css').value = markdownTemplate.css || '';
+    document.getElementById('template-markdown-wrapper').value = markdownTemplate.wrapperClass || '';
 
     ensureTemplatesLoaded().finally(() => {
-      detectCurrentTemplate(mode);
-      populateTemplateSelect(mode);
+      detectCurrentTemplate();
+      populateTemplateSelect();
     });
     var modal = new bootstrap.Modal(document.getElementById('templateModal'));
     modal.show();
   };
   document.getElementById('save-template').onclick = function() {
-    const mode = currentEditMode === 'markdown' ? 'markdown' : 'latex';
     const selectEl = document.getElementById('template-select');
-
-    if (mode === 'markdown') {
-      const cssVal = document.getElementById('template-markdown-css').value;
-      const wrapperVal = document.getElementById('template-markdown-wrapper').value.trim();
-      markdownTemplate.css = cssVal;
-      markdownTemplate.wrapperClass = wrapperVal;
-      if (typeof markdownTemplate.customHead === 'string' && !markdownTemplate.customHead.trim()) {
-        delete markdownTemplate.customHead;
-      }
-      const chosen = selectEl ? selectEl.value : '';
-      let matchedTemplate = null;
-      if (chosen) {
-        const tmpl = (availableTemplates.markdown || []).find(t => t.name === chosen);
-        if (
-          tmpl &&
-          normalizeCssText(tmpl.css) === normalizeCssText(cssVal) &&
-          (tmpl.wrapperClass || '') === wrapperVal
-        ) {
-          selectedTemplateName.markdown = chosen;
-          matchedTemplate = tmpl;
-        } else {
-          selectedTemplateName.markdown = '';
-          if (selectEl) selectEl.value = '';
-        }
+    const cssVal = document.getElementById('template-markdown-css').value;
+    const wrapperVal = document.getElementById('template-markdown-wrapper').value.trim();
+    markdownTemplate.css = cssVal;
+    markdownTemplate.wrapperClass = wrapperVal;
+    if (typeof markdownTemplate.customHead === 'string' && !markdownTemplate.customHead.trim()) {
+      delete markdownTemplate.customHead;
+    }
+    const chosen = selectEl ? selectEl.value : '';
+    let matchedTemplate = null;
+    if (chosen) {
+      const tmpl = (availableTemplates.markdown || []).find(t => t.name === chosen);
+      if (
+        tmpl &&
+        normalizeCssText(tmpl.css) === normalizeCssText(cssVal) &&
+        (tmpl.wrapperClass || '') === wrapperVal
+      ) {
+        selectedTemplateName.markdown = chosen;
+        matchedTemplate = tmpl;
       } else {
         selectedTemplateName.markdown = '';
+        if (selectEl) selectEl.value = '';
       }
-      if (matchedTemplate && matchedTemplate.customHead) {
-        markdownTemplate.customHead = matchedTemplate.customHead;
-      }
-      detectCurrentTemplate('markdown');
-      saveProject();
-      applyMarkdownStyles();
-      renderMarkdownPreview();
     } else {
-      const headerVal = document.getElementById('template-header').value;
-      const beforeVal = document.getElementById('template-before-pages').value;
-      const footerVal = document.getElementById('template-footer').value;
-      latexTemplate.header = headerVal;
-      latexTemplate.beforePages = beforeVal;
-      latexTemplate.footer = footerVal;
-      const chosen = selectEl ? selectEl.value : '';
-      let matchedTemplate = null;
-      if (chosen) {
-        const tmpl = (availableTemplates.latex || []).find(t => t.name === chosen);
-        if (
-          tmpl &&
-          normalizeTemplateText(tmpl.header) === normalizeTemplateText(headerVal) &&
-          normalizeTemplateText(tmpl.beforePages) === normalizeTemplateText(beforeVal) &&
-          normalizeTemplateText(tmpl.footer) === normalizeTemplateText(footerVal)
-        ) {
-          selectedTemplateName.latex = chosen;
-          matchedTemplate = tmpl;
-        } else {
-          selectedTemplateName.latex = '';
-          if (selectEl) selectEl.value = '';
-        }
-      } else {
-        selectedTemplateName.latex = '';
-      }
-      if (matchedTemplate) {
-        if (Array.isArray(matchedTemplate.compile)) {
-          latexTemplate.compile = matchedTemplate.compile.slice();
-        } else if (typeof matchedTemplate.compile === 'string') {
-          latexTemplate.compile = matchedTemplate.compile;
-        } else if ('compile' in latexTemplate) {
-          delete latexTemplate.compile;
-        }
-      }
-      detectCurrentTemplate('latex');
-      saveProject();
-      queueCompile();
+      selectedTemplateName.markdown = '';
     }
+    if (matchedTemplate && matchedTemplate.customHead) {
+      markdownTemplate.customHead = matchedTemplate.customHead;
+    }
+    detectCurrentTemplate();
+    saveProject();
+    applyMarkdownStyles();
+    renderMarkdownPreview();
     var modal = bootstrap.Modal.getInstance(document.getElementById('templateModal'));
     modal.hide();
   };
 
   
-  document.getElementById('tex-form').onsubmit = function(e) {
+  document.getElementById('markdown-form').onsubmit = function(e) {
     e.preventDefault();
     saveProject();
   };
@@ -12209,7 +11377,6 @@ function syncMarkdownEditorToPreview(container) {
     if (!page || typeof idx !== 'number') return null;
     return {
       pageId: page.pageId || page.id,
-      content: page.content || '',
       notes: page.notes || '',
       script: page.script || '',
       resources: Array.isArray(page.resources) ? page.resources : [],
@@ -12222,7 +11389,6 @@ function syncMarkdownEditorToPreview(container) {
     if (!payload || typeof idx !== 'number') return;
     const target = pagesData[idx] || {};
     target.pageId = payload.pageId || payload.id || target.pageId || generatePageId();
-    target.content = payload.content || '';
     target.notes = payload.notes || '';
     target.script = payload.script || '';
     target.resources = Array.isArray(payload.resources) ? payload.resources.slice() : [];
@@ -12302,14 +11468,11 @@ function syncMarkdownEditorToPreview(container) {
   const templateSelectEl = document.getElementById('template-select');
   if (templateSelectEl) templateSelectEl.addEventListener('change', function(){
     const name = this.value;
-    const mode = currentEditMode === 'markdown' ? 'markdown' : 'latex';
     if (name) {
-      applyTemplateByName(name, mode);
+      applyTemplateByName(name);
     } else {
-      selectedTemplateName[mode] = '';
-      if (mode === 'markdown') {
-        applyMarkdownStyles();
-      }
+      selectedTemplateName.markdown = '';
+      applyMarkdownStyles();
     }
   });
 
@@ -12318,19 +11481,6 @@ function syncMarkdownEditorToPreview(container) {
     var modalEl = document.getElementById('exportModal');
     var modal = bootstrap.Modal.getInstance(modalEl);
     modal.hide();
-    if(opt === 'page_pdf') {
-      const pageNumber = currentPageIdx + 1;
-      const requestUrl = appendWorkspaceQuery(`/export_page_pdf?page=${pageNumber}`);
-      fetch(requestUrl).then(res => {
-        if(res.ok) return res.blob();
-        return res.json().then(data=>{throw new Error(data.error||'导出失败')});
-      }).then(blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = `slide_page_${pageNumber}.pdf`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-        showStatus(`第 ${pageNumber} 页 PDF 已导出`, 'success', 2500);
-      }).catch(e=>alert('导出失败：'+e.message));
-      return;
-    }
     if(opt === 'page_notes') {
       const pageNumber = currentPageIdx + 1;
       const requestUrl = appendWorkspaceQuery(`/export_page_notes?page=${pageNumber}`);
@@ -12409,7 +11559,6 @@ function syncMarkdownEditorToPreview(container) {
       }).catch(e=>alert('导出失败：'+e.message));
       return;
     }
-    if(opt === 'tex') return exportTex();
     if(opt === 'project_bundle_data') {
       const bundleUrl = appendWorkspaceQuery('/export_project_bundle');
       fetch(bundleUrl).then(res => {
@@ -12464,7 +11613,6 @@ function syncMarkdownEditorToPreview(container) {
     }
     const includePages = !!options.includePages || pagesStructureDirty;
     const payload = {
-      template: {...latexTemplate},
       markdownTemplate: {...markdownTemplate},
       resources: globalResources,
       llm: getLlmPayload(),
@@ -12627,11 +11775,6 @@ function syncMarkdownEditorToPreview(container) {
           llmSettings = normalizeLlmSettings({});
         }
         refreshLlmUi();
-        latexTemplate = typeof data.template === 'string' ? {
-          header: data.template,
-          beforePages: '\\begin{document}',
-          footer: '\\end{document}'
-        } : (data.template || latexTemplate);
         const mdTemplate = data.markdownTemplate;
         if (typeof mdTemplate === 'string') {
           markdownTemplate = { css: mdTemplate, wrapperClass: '' };
@@ -12651,23 +11794,25 @@ function syncMarkdownEditorToPreview(container) {
 
         pagesData = (data.pages || []).map((p, index) => {
           if (typeof p !== 'object' || p === null) {
-            return {content: String(p || ''), script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}, contentLoaded: false};
+            return {notes: String(p || ''), script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}, contentLoaded: false};
           }
           const pageObj = {...p};
-          pageObj.content = pageObj.content || '';
-          pageObj.script = pageObj.script || '';
           pageObj.notes = pageObj.notes || '';
+          pageObj.script = pageObj.script || '';
+          if ('content' in pageObj) {
+            delete pageObj.content;
+          }
           pageObj.bib = normalizeBibList(pageObj.bib);
           pageObj.resources = Array.isArray(pageObj.resources) ? pageObj.resources : [];
           const pidSource = (typeof pageObj.pageId === 'string' && pageObj.pageId) || (typeof pageObj.id === 'string' && pageObj.id);
           pageObj.pageId = pidSource && pidSource.trim() ? pidSource.trim() : generatePageId();
           pageObj.recording = normalizeRecordingMeta(pageObj.recording);
-          pageObj.contentLoaded = !!(p && (typeof p.content === 'string' || typeof p.notes === 'string' || typeof p.script === 'string'));
+          pageObj.contentLoaded = !!(p && (typeof p.notes === 'string' || typeof p.script === 'string'));
           delete pageObj.id;
           return pageObj;
         });
         invalidateAllSlides();
-        if(pagesData.length === 0) pagesData = [{content: '', script: '', notes: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}, contentLoaded: true}];
+        if(pagesData.length === 0) pagesData = [{notes: '', script: '', bib: [], resources: [], pageId: generatePageId(), recording: {hasRecording: false}, contentLoaded: true}];
         globalResources = Array.isArray(data.resources) ? data.resources.slice() : [];
         bibData = normalizeBibList(data.bib || []);
         currentPageIdx = Math.min(currentPageIdx, pagesData.length - 1);
@@ -12675,7 +11820,7 @@ function syncMarkdownEditorToPreview(container) {
         updateProjectButtonLabel();
         renderSingleEditor();
         updatePageNumLabel();
-        ensureTemplatesLoaded().then(() => detectAllTemplates()).catch(() => {});
+        ensureTemplatesLoaded().then(() => detectCurrentTemplate()).catch(() => {});
         applyMarkdownStyles();
         const liveProject = typeof currentProject === 'string' ? currentProject : '';
         if (liveProject === targetProject) {
@@ -12711,107 +11856,13 @@ function syncMarkdownEditorToPreview(container) {
     if(e.target.id === 'page-script') {
       pagesData[currentPageIdx].script = e.target.value;
       markPageDirtyForSave(currentPageIdx);
-      queueCompile();
+      queuePreviewRefresh();
     }
   });
 
 
 
   
-  const pdfPagesContainer = document.getElementById('pdf-pages');
-  let currentPdfRequestId = 0;
-
-  function resetPdfViewer() {
-    if (pdfPagesContainer) {
-      pdfPagesContainer.innerHTML = '';
-    }
-  }
-
-  function renderMessage(message, requestId) {
-    if (!pdfPagesContainer || requestId !== currentPdfRequestId) return;
-    resetPdfViewer();
-    const holder = document.createElement('div');
-    holder.className = 'text-muted small';
-    holder.style.padding = '2rem';
-    holder.textContent = message;
-    pdfPagesContainer.appendChild(holder);
-  }
-
-  async function renderPdfDocument(pdf, requestId) {
-    if (!pdfPagesContainer || requestId !== currentPdfRequestId) return;
-    resetPdfViewer();
-    const total = pdf.numPages;
-    if (!total) {
-      renderMessage('PDF 没有页面', requestId);
-      return;
-    }
-    for (let i = 1; i <= total; i += 1) {
-      if (requestId !== currentPdfRequestId) {
-        return;
-      }
-      try {
-        const page = await pdf.getPage(i);
-        if (requestId !== currentPdfRequestId) {
-          return;
-        }
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = document.createElement('canvas');
-        canvas.className = 'pdf-page-canvas shadow-sm';
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        pdfPagesContainer.appendChild(canvas);
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          await page.render({ canvasContext: ctx, viewport }).promise;
-        }
-      } catch (err) {
-        console.error(`渲染 PDF 第 ${i} 页失败:`, err);
-        renderMessage('PDF 渲染失败', requestId);
-        return;
-      }
-    }
-    if (requestId === currentPdfRequestId) {
-      scheduleLatexPreviewSync(singleEditor);
-    }
-  }
-
-  function loadCurrentPagePDF(retry = 0) {
-    if (!pdfPagesContainer) return;
-    const requestId = ++currentPdfRequestId;
-    renderMessage('加载中...', requestId);
-    const project = currentProject || '';
-    const baseUrl = `/page_pdf/${currentPageIdx + 1}?project=${encodeURIComponent(project)}&t=${Date.now()}`;
-    const pdfUrl = appendWorkspaceQuery(baseUrl);
-    fetch(pdfUrl, { method: 'HEAD' }).then(res => {
-      if (requestId !== currentPdfRequestId) {
-        return;
-      }
-      if (res.ok) {
-        pdfjsLib.getDocument(pdfUrl).promise
-          .then(pdf => renderPdfDocument(pdf, requestId))
-          .catch(err => {
-            console.error('加载 PDF 失败:', err);
-            renderMessage('PDF 加载失败', requestId);
-          });
-      } else {
-        if (retry < 3) {
-          setTimeout(() => loadCurrentPagePDF(retry + 1), 800);
-        } else {
-          renderMessage('本页未编译', requestId);
-        }
-      }
-    }).catch(err => {
-      console.error('请求 PDF 失败:', err);
-      if (retry < 3) {
-        setTimeout(() => loadCurrentPagePDF(retry + 1), 800);
-      } else if (requestId === currentPdfRequestId) {
-        renderMessage('无法加载预览', requestId);
-      }
-    });
-    document.getElementById('page-num').textContent = currentPageIdx + 1;
-    document.getElementById('page-count').textContent = pagesData.length;
-  }
-
 // --- multi-project client helpers ---
 (function(){
   function getSelectedProject() {
@@ -13154,60 +12205,17 @@ applyDefaultWorkspaceIfNeeded();
 })();
 
   
-  document.getElementById('ai-optimize').onclick = function() {
-    const content = pagesData[currentPageIdx]?.content || '';
-    const note = pagesData[currentPageIdx]?.notes || '';
-    this.disabled = true;
-    this.textContent = '优化中...';
-    fetch('/ai_optimize', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(withWorkspacePayload(withLlmConfig({latex: content, markdown: note, type: 'latex'})))
-    }).then(res => res.json()).then(data => {
-      if(data.success && data.result) {
-        document.getElementById('ai-result').value = data.result;
-        var modal = new bootstrap.Modal(document.getElementById('aiModal'));
-        modal.show();
-      } else {
-        alert('AI优化失败：' + (data.error || '未知错误'));
-      }
-    }).catch(()=>alert('AI请求失败')).finally(()=>{
-      this.disabled = false;
-      this.textContent = 'tex优化';
-    });
-  };
-  document.getElementById('apply-ai-result').onclick = function() {
-    const val = document.getElementById('ai-result').value;
-    if(val) {
-      pagesData[currentPageIdx].content = val;
-      markLatexPageDirty(currentPageIdx);
-      if (slideshowState.open && slideshowState.mode === 'latex') {
-        latexSlideCounts.delete(currentPageIdx);
-        slideshowState.slideIdx = 0;
-        slideshowState.slideCount = 1;
-        renderSlideshowGrid();
-      }
-      if (slideshowState.open && showScriptPanel) updateScriptPanel();
-      renderSingleEditor();
-      markPageDirtyForSave(currentPageIdx);
-      queueCompile();
-    }
-    var modal = bootstrap.Modal.getInstance(document.getElementById('aiModal'));
-    modal.hide();
-  };
-
   // AI script optimization (讲稿)
   const aiScriptBtn = document.getElementById('ai-script-optimize');
   if(aiScriptBtn) aiScriptBtn.addEventListener('click', function(){
     const content = pagesData[currentPageIdx]?.script || '';
-    const page_tex = pagesData[currentPageIdx]?.content || '';
     const note = pagesData[currentPageIdx]?.notes || '';
     this.disabled = true;
     this.textContent = '优化中...';
     fetch('/ai_optimize', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(withWorkspacePayload(withLlmConfig({script: content, latex: page_tex, markdown: note, type: 'script'})))
+      body: JSON.stringify(withWorkspacePayload(withLlmConfig({script: content, markdown: note, type: 'script'})))
     }).then(res => res.json()).then(data => {
       if(data.success && data.result) {
         document.getElementById('ai-script-result').value = data.result;
@@ -13218,7 +12226,7 @@ applyDefaultWorkspaceIfNeeded();
       }
     }).catch(()=>alert('AI请求失败')).finally(()=>{
       this.disabled = false;
-      this.textContent = 'script优化';
+      this.textContent = '讲稿优化';
     });
   });
 
@@ -13228,7 +12236,7 @@ applyDefaultWorkspaceIfNeeded();
       pagesData[currentPageIdx].script = val;
       document.getElementById('page-script').value = val;
       markPageDirtyForSave(currentPageIdx);
-      queueCompile();
+      queuePreviewRefresh();
     }
     var modal = bootstrap.Modal.getInstance(document.getElementById('aiScriptModal'));
     modal.hide();
@@ -13236,13 +12244,12 @@ applyDefaultWorkspaceIfNeeded();
   
   document.getElementById('ai-note-optimize').onclick = function() {
     const note = pagesData[currentPageIdx]?.notes || '';
-    const page_tex = pagesData[currentPageIdx]?.content || '';
     this.disabled = true;
     this.textContent = '优化中...';
     fetch('/ai_optimize', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(withWorkspacePayload(withLlmConfig({markdown: note, latex: page_tex, type: 'note'})))
+      body: JSON.stringify(withWorkspacePayload(withLlmConfig({markdown: note, type: 'note'})))
     }).then(res => res.json()).then(data => {
       if(data.success && data.result) {
         document.getElementById('ai-note-result').value = data.result;
@@ -13253,7 +12260,7 @@ applyDefaultWorkspaceIfNeeded();
       }
     }).catch(()=>alert('AI请求失败')).finally(()=>{
       this.disabled = false;
-      this.textContent = 'md优化';
+      this.textContent = '笔记优化';
     });
   };
   document.getElementById('apply-ai-note-result').onclick = function() {
@@ -13261,18 +12268,18 @@ applyDefaultWorkspaceIfNeeded();
     if(val) {
       pagesData[currentPageIdx].notes = val;
       markMarkdownPageDirty(currentPageIdx);
-      if(currentEditMode === 'markdown' && singleEditor) {
+      if(singleEditor) {
         singleEditor.setValue(val);
       }
       renderMarkdownPreview();
-      if (slideshowState.open && slideshowState.mode === 'markdown') {
+      if (slideshowState.open) {
         slideshowState.slideCount = Math.max(1, buildMarkdownSlicesForPage(currentPageIdx).length || 1);
         slideshowState.slideIdx = Math.min(slideshowState.slideIdx || 0, slideshowState.slideCount - 1);
         renderSlideshowGrid();
       }
       if (slideshowState.open && showScriptPanel) updateScriptPanel();
       markPageDirtyForSave(currentPageIdx);
-      queueCompile();
+      queuePreviewRefresh();
     }
     var modal = bootstrap.Modal.getInstance(document.getElementById('aiNoteModal'));
     modal.hide();
@@ -13542,11 +12549,7 @@ applyDefaultWorkspaceIfNeeded();
         return {type: 'script', label: '讲稿', value: page.script || ''};
       }
       if (meta.target === 'editor') {
-        const mode = meta.mode === 'markdown' ? 'markdown' : 'latex';
-        if (mode === 'markdown') {
-          return {type: 'markdown', label: 'Markdown', value: page.notes || ''};
-        }
-        return {type: 'latex', label: 'LaTeX', value: page.content || ''};
+        return {type: 'markdown', label: 'Markdown', value: page.notes || ''};
       }
     }
 
@@ -13554,11 +12557,7 @@ applyDefaultWorkspaceIfNeeded();
       return {type: 'script', label: '讲稿', value: page.script || ''};
     }
 
-    if (currentEditMode === 'markdown') {
-      return {type: 'markdown', label: 'Markdown', value: page.notes || ''};
-    }
-
-    return {type: 'latex', label: 'LaTeX', value: page.content || ''};
+    return {type: 'markdown', label: 'Markdown', value: page.notes || ''};
   }
 
   function buildLearningContext() {
@@ -14461,12 +13460,6 @@ applyDefaultWorkspaceIfNeeded();
       showStatus('当前项目已变更，请切换至生成该结果的项目后再试。', 'warning', 3200);
       return;
     }
-    const targetMode = typeof meta.mode === 'string' ? meta.mode : '';
-    if (target === 'editor' && targetMode && targetMode !== currentEditMode) {
-      const modeLabel = targetMode === 'markdown' ? 'Markdown' : 'LaTeX';
-      showStatus(`请先切换到 ${modeLabel} 编辑模式后再执行一键替换。`, 'warning', 3200);
-      return;
-    }
     const pageId = typeof meta.pageId === 'string' ? meta.pageId : '';
     const pageIdx = typeof meta.pageIdx === 'number' ? meta.pageIdx : null;
     const currentPage = pagesData[currentPageIdx] || {};
@@ -14502,7 +13495,7 @@ applyDefaultWorkspaceIfNeeded();
         scriptEl.focus();
       }
       markPageDirtyForSave(currentPageIdx);
-      queueCompile();
+      queuePreviewRefresh();
       showStatus('已将学习结果写入讲稿', 'success', 2600);
       return;
     }
@@ -14855,9 +13848,7 @@ applyDefaultWorkspaceIfNeeded();
     '.markdown-blur',
     '.markdown-highlight',
     '.markdown-review-hit',
-    '.markdown-review-tooltip',
-    'mjx-container',
-    '.MathJax'
+    '.markdown-review-tooltip'
   ].join(',');
 
   let activeReviewTooltip = null;
@@ -16258,16 +15249,10 @@ applyDefaultWorkspaceIfNeeded();
     const doc = singleEditor.getDoc();
     const cursor = doc.getCursor();
     const label = entry.label || entry.id;
-    const format = mode || (currentEditMode === 'markdown' ? 'markdown' : 'latex');
+    const format = mode || 'markdown';
     if (format === 'markdown') {
       let snippet = entry.link ? `[${label}](${entry.link})` : `[${label}]`;
       if (entry.note) snippet += ` (${entry.note})`;
-      doc.replaceRange(snippet + ' ', cursor);
-    } else {
-      let snippet = entry.link ? `\\href{${entry.link}}{${label}}` : `\\cite{${entry.id}}`;
-      if (entry.note && entry.link) {
-        snippet += `\\footnote{${entry.note}}`;
-      }
       doc.replaceRange(snippet + ' ', cursor);
     }
   }
@@ -16334,7 +15319,7 @@ applyDefaultWorkspaceIfNeeded();
     }
     if (entry.entry) {
       const raw = escapeHtml(entry.entry);
-      infoChunks.push(`<div class="mb-0"><div class="text-muted small">原始 BibTeX</div><pre class="mb-0 small bg-white border rounded p-2">${raw}</pre></div>`);
+      infoChunks.push(`<div class="mb-0"><div class="text-muted small">原始引用条目</div><pre class="mb-0 small bg-white border rounded p-2">${raw}</pre></div>`);
     }
     if (!infoChunks.length) {
       infoChunks.push('<div class="text-muted">暂无文献信息</div>');
@@ -16499,7 +15484,7 @@ applyDefaultWorkspaceIfNeeded();
                 if (idx > -1) {
                   pageEntries.splice(idx, 1);
                   markPageDirtyForSave(currentPageIdx);
-                  queueCompile();
+                  queuePreviewRefresh();
                 }
               } else {
               const idx = findBibIndex(bibData, entry.id);
@@ -16570,7 +15555,7 @@ applyDefaultWorkspaceIfNeeded();
       }
       if (bibEditState.scope === 'page') {
         markPageDirtyForSave(currentPageIdx);
-        queueCompile();
+        queuePreviewRefresh();
       } else {
         saveGlobalBib();
       }
@@ -16604,7 +15589,7 @@ applyDefaultWorkspaceIfNeeded();
             const pageEntries = currentPageBib();
             pageEntries.push(entry);
             markPageDirtyForSave(currentPageIdx);
-            queueCompile();
+            queuePreviewRefresh();
           } else {
             bibData.push(entry);
             saveGlobalBib();
@@ -16653,7 +15638,7 @@ applyDefaultWorkspaceIfNeeded();
         const pageEntries = currentPageBib();
         pageEntries.push(entry);
         markPageDirtyForSave(currentPageIdx);
-        queueCompile();
+        queuePreviewRefresh();
       } else {
         bibData.push(entry);
         saveGlobalBib();
@@ -16690,14 +15675,6 @@ applyDefaultWorkspaceIfNeeded();
       }
     }
     return { text: String(input || '') };
-  }
-
-  function urlToLatexPath(url){
-    if(!url) return '';
-    const withoutQuery = url.split('?')[0];
-    const normalized = withoutQuery.replace(/\\/g, '/');
-    const parts = normalized.split('/').filter(Boolean);
-    return parts.length ? parts[parts.length - 1] : normalized;
   }
 
   async function refreshResourceLists() {
@@ -16977,7 +15954,7 @@ applyDefaultWorkspaceIfNeeded();
                 }
                 await loadResourcesModal();
                 await refreshResourceLists();
-                queueCompile();
+                queuePreviewRefresh();
               }
             } else {
               const message = parsed.json && parsed.json.error ? parsed.json.error : (parsed.text || ('HTTP ' + res.status));
@@ -17174,7 +16151,7 @@ applyDefaultWorkspaceIfNeeded();
         resetResourceUploadInputs();
         await loadResourcesModal();
         await refreshResourceLists();
-        queueCompile();
+        queuePreviewRefresh();
       } else {
         const message = parsed.json && parsed.json.error ? parsed.json.error : (parsed.text || (`HTTP ${res.status}`));
         alert('上传失败：' + message);
@@ -17443,33 +16420,19 @@ applyDefaultWorkspaceIfNeeded();
         variant: 'primary',
           onClick: () => {
             if(!singleEditor) return;
-            const mode = typeof currentEditMode === 'string' && currentEditMode === 'markdown' ? 'markdown' : 'latex';
             const doc = singleEditor.getDoc();
             const cursor = doc.getCursor();
             let snippet = '';
-            if(mode === 'latex'){
-              if(isImage){
-                if(!f.localUrl){
-                  alert('该图片本地链接暂不可用，请稍后重试。');
-                  return;
-                }
-                const path = urlToLatexPath(f.localUrl);
-                snippet = `\\begin{center}\n  \\includegraphics[width=0.7\\textwidth]{${path}}\n\\end{center}\n`;
-              } else {
-                snippet = `\\textbf{附件：}${displayName}\\par\n`;
+            if(isImage){
+              const logicalPath = f.ossUrl || preferredUrl || f.localUrl || relativeAttachmentPath;
+              if(!logicalPath){
+                alert('当前附件没有可用的访问链接');
+                return;
               }
+              snippet = `![${marker}](${logicalPath})\n`;
             } else {
-              if(isImage){
-                const logicalPath = f.ossUrl || preferredUrl || f.localUrl || relativeAttachmentPath;
-                if(!logicalPath){
-                  alert('当前附件没有可用的访问链接');
-                  return;
-                }
-                snippet = `![${marker}](${logicalPath})\n`;
-              } else {
-                const logicalPath = f.ossUrl || preferredUrl || f.localUrl || '';
-                snippet = logicalPath ? `[${marker}](${logicalPath})\n` : `**附件：**${displayName}\n`;
-              }
+              const logicalPath = f.ossUrl || preferredUrl || f.localUrl || '';
+              snippet = logicalPath ? `[${marker}](${logicalPath})\n` : `**附件：**${displayName}\n`;
             }
             doc.replaceRange(snippet, cursor);
           },
@@ -17816,7 +16779,7 @@ applyDefaultWorkspaceIfNeeded();
           resourceRenameBasePath = '';
           await loadResourcesModal();
           await refreshResourceLists();
-          queueCompile();
+          queuePreviewRefresh();
         } else {
           const message = (parsed.json && parsed.json.error) ? parsed.json.error : (parsed.text || ('HTTP ' + res.status));
           alert('重命名失败：' + message);

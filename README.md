@@ -1,28 +1,27 @@
 # Benben
 
-Benben 是一个围绕 LaTeX Beamer 演示创作构建的全栈平台：后端基于 Flask，前端使用单页 `editor.html` 整合 CodeMirror、PDF.js、Markdown 渲染与 Bootstrap 交互，同时对接主流 LLM、TTS 能力。除了传统的幻灯片编写，它也适合写讲稿、学术笔记甚至博客。
+Benben 是一个 **Markdown 驱动** 的演示/笔记工作台：后端基于 Flask，前端使用单页 `editor.html` 整合 CodeMirror、Markdown 渲染与 Bootstrap 交互，并接入主流 LLM、TTS 能力。适合做分享稿、课程笔记、读书摘要与项目备忘。
 
-最新版本已将所有“项目”存储迁移为 **`.benben` SQLite 容器工作区**。一个 `.benben` 文件就是完整的项目（页面、模板、附件、资源、学习记录等都封装进去），可以像 VS Code 打开文件夹一样随时切换，并支持本地与远程（OSS）双工作区。
+最新版本已将所有“项目”存储迁移为 **`.benben` SQLite 容器工作区**。一个 `.benben` 文件就是完整项目（页面、模板、附件、资源、学习记录等都封装进去），支持本地与远程（OSS）双工作区。
 
-> 如果系统看到 `demo.benben` 旁边多了 `demo.benben-wal`/`demo.benben-shm`，那是 SQLite WAL 模式的正常产物，连接关闭或进行 checkpoint 后就会被自动清理。
+> 若你看到 `demo.benben-wal` / `demo.benben-shm`，这是 SQLite WAL 模式的正常产物，连接关闭或执行 checkpoint 后会自动清理。
 
 ---
 
 ## 核心特性
 
-- **双模式编辑器**：共享一个界面即可在 LaTeX 和 Markdown 之间切换，并实时查看对应的 PDF/HTML 预览。
-- **滚动同步**：通过“主导者”机制记录是谁在滚动，另一侧再按阈值跟随，抖动感很低。
+- **Markdown 单一编辑模式**：一份正文 + 实时预览，支持表格、任务清单、代码高亮与自定义 Markdown 组件。
+- **滚动同步**：编辑器与预览区同步滚动，减少定位成本。
+- **讲稿与 TTS**：每页独立讲稿，支持导出当前页或全局 MP3。
 - **AI 工作流**：
-  - 页面级别的 LaTeX/Markdown/Script 优化按钮；
-  - “AI 学习”支持后台运行，LLM 完成后结果会自动以弹窗方式出现，可立即收藏、分类或一键写入当前页面；
-  - “AI 复习”面板可以按分类 / 收藏 / 关键词检索所有历史学习记录，收藏的内容会长期保留。
-  - **AI 助理（可选 RAG）**：导航栏 “AI助理” 支持直接对话；勾选“使用 RAG”后会检索当前已解锁工作区的 Markdown 笔记（仅索引 `.benben` 内的 Markdown，不上传附件/LaTeX），命中片段会随回答返回。
-- **语音与音频缓存**：支持使用 OpenAI TTS 生成整套讲稿或某页脚本的 MP3，并自动缓存到 `.benben` 容器中。
-- **模板体系**：内置 `temps/` 目录的 LaTeX/Markdown 模板库，可在界面上套用并增补自定义段落。
-- **访问加密**：每个 `.benben` 工作区都可以设置访问密码，密码会以 `projectSecurity` 形式保存在容器的 `meta` 表中；密码留空即视为未加密，任何人都可直接打开。
-- **附件与资源管理**：在单个 `.benben` 内保存二进制文件，计划中的逻辑会避免在多个页面引用时被误删。
-- **工作区入口**：导航栏左侧的下拉菜单包含“打开本地工作区 / 打开远程工作区”按钮。本地模式直接在磁盘上读写 `.benben` 文件；远程模式会列出 OSS 上的 `.benben` 包，可在线选择、创建并自动同步。
-- **附件种子**：在仓库 `temps/attachments_seed/` 放置校徽、背景图、封面 PDF 等公用素材，新建 `.benben` 时会自动写入 SQLite `attachments` 表，无需每个项目重复上传。模板中的 `\img{...}` 与背景/封面指令会直接使用这些附件文件名。
+  - 笔记优化、讲稿优化；
+  - “AI 学习”支持后台运行与结果归档；
+  - “AI 复习”可按分类/收藏/关键词检索历史记录。
+- **AI 助理（可选 RAG）**：可检索当前工作区 Markdown 笔记生成上下文，不上传附件。
+- **模板体系**：内置 Markdown CSS 模板库，支持自定义样式与预览容器 class。
+- **工作区安全**：每个 `.benben` 可设置访问密码。
+- **附件与资源管理**：附件、资源可按页面/项目管理，支持引用统计与清理。
+- **关系图谱**：基于 Markdown 内部跳转生成页面关系图。
 
 ---
 
@@ -36,17 +35,16 @@ Benben/
 │  ├─ workspace.py       # 运行时工作区注册/切换
 │  ├─ views.py           # Flask 蓝图（API + 模板渲染）
 │  ├─ templates/
-│  │   └─ editor.html   # 唯一的前端页面，内含所有 JS/CSS
+│  │   └─ editor.html    # 唯一的前端页面，内含所有 JS/CSS
 │  └─ ...
-├─ temps/                # 默认模板（YAML）
+├─ temps/                # Markdown 模板（YAML）
 ├─ README.md
 └─ pyproject.toml
 ```
 
 ### 额外资源 & 清理脚本
-- `node_modules/` & `package(-lock).json`：前端调试依赖，只有运行 `npm install` 后才会出现。如不需要，可执行 `scripts/clean_workspace.py --include-node` 一键移除。
-- `.pytest_cache/`、`__pycache__/`、`build/`、`benben.egg-info/` 等目录仅由测试/打包流程生成，Benben 在启动时会自动清掉这些临时目录（设置 `BENBEN_DISABLE_AUTO_CLEAN=1` 可关闭此行为），也可以执行 `scripts/clean_workspace.py` 手动清理。
-- `scripts/clean_workspace.py`：统一的工作区清理工具，默认移除 Python 缓存与构建产物；加上 `--include-node` 参数可连同 `node_modules` 一并删除。
+- `node_modules/` & `package(-lock).json`：前端调试依赖，运行 `npm install` 后生成。如不需要，可用 `scripts/clean_workspace.py --include-node` 移除。
+- `.pytest_cache/`、`__pycache__/`、`build/`、`benben.egg-info/` 等目录仅由测试/打包流程生成，Benben 启动时会自动清理（设置 `BENBEN_DISABLE_AUTO_CLEAN=1` 可关闭），也可手动执行 `scripts/clean_workspace.py`。
 
 ---
 
@@ -59,7 +57,7 @@ Benben/
    python -m venv venv
    source venv/bin/activate        # Windows: venv\Scripts\activate
    pip install --upgrade pip
-   pip install .                   # 按 pyproject 安装依赖
+   pip install .
    ```
 
 3. **配置环境变量**：在仓库根目录放置 `.env`（Flask 启动时自动加载），示例：
@@ -84,7 +82,7 @@ Benben/
 flask --app benben run    # http://localhost:5000
 ```
 
-生产环境可直接：
+生产环境：
 
 ```bash
 gunicorn -w 4 -b 0.0.0.0:5555 benben:app
@@ -94,49 +92,50 @@ gunicorn -w 4 -b 0.0.0.0:5555 benben:app
 
 ## 工作区使用指南
 
-1. **打开下拉菜单**：导航栏左上角的按钮显示当前工作区名。点击后可见：
-   - `📁 打开本地工作区`：直接列出应用项目根目录（与本 README 同级）下的所有 `.benben` 文件，点选即可加载。
-   - `☁️ 打开远程工作区`：使用 OSS 同步弹窗选择云端 `.benben`。
+1. **打开工作区菜单**：导航栏左上角显示当前工作区名。
+   - `📁 打开本地工作区`：列出项目根目录下的 `.benben` 文件。
+   - `☁️ 打开远程工作区`：列出 OSS 上的 `.benben` 包。
 
 2. **本地工作区**：
-   - Benben 会自动扫描项目根目录的 `.benben` 文件，刷新后立即更新列表。
-   - 使用“新建本地工作区”表单输入文件名（自动追加 `.benben`），即可在根目录创建并立即打开；也可手动复制 `.benben` 文件后点击“刷新列表”。
+   - 自动扫描项目根目录的 `.benben` 文件；
+   - 新建时会自动追加 `.benben` 后缀。
 
-3. **远程工作区（基于 OSS）**：
-   - 需要在 `.env` 中配置 OSS 相关变量。
-   - “打开远程工作区”会复用原有的 OSS 同步面板（计划升级为真正的在线工作区选择器）。
+3. **远程工作区（OSS）**：
+   - 需在 `.env` 配置 OSS 相关变量；
+   - 支持创建、打开与同步。
 
-4. **WAL 文件提示**：当 `.benben` 打开时，SQLite 可能创建 `xxx.benben-wal` 与 `xxx.benben-shm`。这是写前日志机制的一部分，禁用 WAL 将牺牲性能与一致性，因此推荐保留。
+4. **WAL 文件提示**：`xxx.benben-wal` 与 `xxx.benben-shm` 为正常写前日志文件，推荐保留。
 
 ---
 
 ## `.benben` 架构简述
 
-- 底层是一个 SQLite 数据库，关键表：
-  - `meta`：仅保存 `.benben` 的基础项目信息、时间戳与标志位。
-  - `pages`：维护页顺序及更新时间；正文内容拆分到其他表。
-  - `page_latex` / `page_markdown` / `page_notes`：分别存储单页的 LaTeX 正稿、Markdown 笔记与讲稿/演讲笔记。
-  - `page_resources` / `page_references`：记录每页引用的资源文件、文献条目（以序号保持顺序）。
-  - `project_resources` / `project_references`：项目级资源与引用清单，便于全局导出。
-  - `attachments` / `resource_files`：真正的二进制附件与静态资源数据表，区分作用域。
-  - `learning_prompts` / `learning_records`：学习助手的提示词与记录，记录行内可设置学习方法（`method`）、分类（`category`）与收藏标记（`favorite`），后端会自动清理 30 天未收藏的历史记录。
-  - 其他业务表：`templates`（默认/自定义模板）、`settings` 等。
-- `benben/package.py` 封装了所有读写逻辑（加载/保存项目、附件、模板等），前端 API 只需操作 `/workspaces/<id>/project`。
-- 支持 WAL 以获得更好的并发写入与崩溃恢复。
+- SQLite 数据库关键表：
+  - `meta`：项目基础信息与时间戳；
+  - `pages`：页顺序与更新时间；
+  - `page_markdown`：Markdown 正文；
+  - `page_notes`：讲稿（脚本）；
+  - `page_recordings`：录播/音频信息；
+  - `page_resources` / `page_references`：页面级资源与引用；
+  - `project_resources` / `project_references`：项目级资源与引用；
+  - `attachments` / `resource_files`：附件与静态资源；
+  - `templates`：模板；
+  - `learning_prompts` / `learning_records`：学习助手提示词与记录；
+  - `settings`：全局设置。
+- `benben/package.py` 封装所有读写逻辑，前端只需调用 `/workspaces/<id>/project`。
 
-### 附件与图片（统一走 attachments）
-- 媒体只需存放在 SQLite `attachments` 表；渲染/导出时会展开到临时 `attachments/` 目录。
-- 模板统一图片语法：`\\img[width=...]{file.png}`，不写路径。Beamer 背景仅支持单页手动插入：`\\begin{BenbenBgFrame}{bg_red_1.png} ... \\end{BenbenBgFrame}`。
+### 附件与图片
+- 附件统一存储于 SQLite `attachments` 表；
+- 渲染/导出时会展开到临时目录，避免重复上传。
 
 ---
 
-## `.env` 关键项汇总
+## AI 助理 & RAG
 
-| 变量 | 说明 |
-| ---- | ---- |
-| `OPENAI_API_KEY` | Chat/TTS 等 AI 功能所需 |
-| `ALIYUN_OSS_*` | 远程工作区 & OSS 同步 |
-| `BENBEN_*` | UI 主题、导航样式等 |
+- **范围与缓存**：仅索引当前已解锁 `.benben` 的 Markdown 笔记，索引与向量存放本机临时目录。
+- **默认向量化**：使用当前 LLM 提供方的 embedding 接口（默认 OpenAI `text-embedding-3-large`）。
+- **自定义**：可通过环境变量覆写 `LLM_BASE_URL`、`LLM_EMBEDDING_PATH`、`LLM_EMBEDDING_MODEL`、`LLM_PROVIDER`、`LLM_CHAT_PATH`、`LLM_MODEL` 等。
+- **前端开关**：导航栏 “AI助理” -> 勾/不勾 “使用 RAG”。
 
 ---
 
@@ -147,24 +146,14 @@ gunicorn -w 4 -b 0.0.0.0:5555 benben:app
 | `pip install .` | 安装依赖 |
 | `flask --app benben run` | 开发模式启动 |
 | `gunicorn benben:app` | 生产部署示例 |
-| `python -m compileall benben` | 快速语法检查 |
-
----
-
-### AI 助理 & RAG
-
-- 范围与缓存：仅索引当前已解锁 `.benben` 的 Markdown 笔记，索引与向量存放在本机临时目录，不会上传。
-- 默认向量化：使用当前 LLM 提供方的 embedding 接口（默认 OpenAI `text-embedding-3-large`，路径 `/embeddings`）。不会在本机跑模型，除非你把 base_url 指向自己的服务。
-- 自定义：可通过环境变量覆写 `LLM_BASE_URL`、`LLM_EMBEDDING_PATH`（默认 `/embeddings`）、`LLM_EMBEDDING_MODEL`、`LLM_PROVIDER`、`LLM_CHAT_PATH`、`LLM_MODEL` 等；前端请求也会带上 provider/model。
-- 前端开关：导航栏 “AI助理” -> 勾/不勾 “使用 RAG” 切换是否检索笔记；未命中上下文自动回退为普通对话。
-- 配额提醒：所选 provider 的 API Key 需有可用额度，否则会返回 `insufficient_quota`。
+| `python -m compileall benben` | 语法检查 |
 
 ---
 
 ## 贡献指南
 
 1. Fork & 新建分支。
-2. 提交前运行最基本的 `python -m compileall benben` 确保语法无误。
-3. 附加说明（如影响现有 `.benben` 文件）请写在 PR 描述。
+2. 提交前运行 `python -m compileall benben`。
+3. 如需变更 `.benben` 数据结构，请在 PR 描述说明。
 
-如果你想讨论新的工作区特性、AI 工作流，直接在 Issue 区留言即可。谢谢！ ***
+欢迎提交 Issue 或 PR 讨论新特性与 AI 工作流。

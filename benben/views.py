@@ -9,7 +9,6 @@ import mimetypes
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 import threading
 import time
@@ -31,7 +30,6 @@ from mdit_py_plugins.tasklists import tasklists_plugin
 from contextlib import contextmanager
 from werkzeug.utils import secure_filename
 
-from .latex import normalize_latex_content, prepare_latex_assets, _find_resource_file
 from .oss_client import (
     delete_file as oss_delete_file,
     upload_bytes as oss_upload_bytes,
@@ -51,8 +49,7 @@ from .config import (
     OPENAI_TTS_SPEED,
     OPENAI_TTS_VOICE,
 )
-from .template_store import get_default_header, get_default_template, list_templates
-from .template_store import get_default_markdown_template
+from .template_store import get_default_markdown_template, list_templates
 from .responses import api_error, api_success
 from .llm import (
     build_chat_headers,
@@ -93,36 +90,12 @@ from .rag import RagUnavailableError, ensure_markdown_index, search_markdown
 
 bp = Blueprint("benben", __name__)
 
-try:  # pragma: no cover - optional dependency
-    from pdf2image import convert_from_path  # type: ignore
-except Exception:  # pragma: no cover - graceful degradation
-    convert_from_path = None
-
 PACKAGE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_ROOT.parent
 
 
 _DOI_PATTERN = re.compile(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", flags=re.IGNORECASE)
 
-_LATEX_INCLUDE_RE = re.compile(r"\\includegraphics(?:\[[^]]*])?\{([^}]+)\}")
-_LATEX_IMG_RE = re.compile(r"\\img(?:\[[^]]*])?\{([^}]+)\}")
-_LATEX_BG_FRAME_RE = re.compile(r"\\begin\{BenbenBgFrame\}\s*(?:\[[^]]*])?\s*\{([^}]+)\}")
-_LATEX_BG_CMD_RE = re.compile(r"\\BenbenUseBackground\s*\{([^}]+)\}")
-_LATEX_HREF_RE = re.compile(r"\\href\{([^}]+)\}")
-_LATEX_URL_RE = re.compile(r"\\url\{([^}]+)\}")
-_LATEX_COMMAND_RE = re.compile(r"\\([A-Za-z@]+)")
-_LATEX_ENV_BEGIN_RE = re.compile(r"\\begin\{([^}]+)\}")
-_LATEX_ENV_END_RE = re.compile(r"\\end\{([^}]+)\}")
-_LATEX_MATH_PATTERNS = (
-    r"\\begin\{equation\*?\}.*?\\end\{equation\*?\}",
-    r"\\begin\{align\*?\}.*?\\end\{align\*?\}",
-    r"\\begin\{gather\*?\}.*?\\end\{gather\*?\}",
-    r"\\begin\{multline\*?\}.*?\\end\{multline\*?\}",
-    r"\\\[.*?\\\]",
-    r"\\\((.*?)\\\)",
-    r"\$\$.*?\$\$",
-    r"(?<!\\)\$.*?(?<!\\)\$",
-)
 _MARKDOWN_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 _HTML_SRC_RE = re.compile(r'\bsrc=["\']([^"\']+)["\']', re.IGNORECASE)
 _HTML_HREF_RE = re.compile(r'\bhref=["\']([^"\']+)["\']', re.IGNORECASE)
@@ -522,19 +495,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.append(toggle, panel);
 });
 </script>
-"""
-
-_DEFAULT_MATHJAX_EXPORT_SNIPPET = """<script>
-window.MathJax = {
-  tex: {
-    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
-    displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
-    processEscapes: true
-  },
-  svg: { fontCache: 'global' }
-};
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
 """
 
 _DEFAULT_HIGHLIGHT_EXPORT_SNIPPET = """<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
@@ -1166,11 +1126,9 @@ def _workspace_runtime_dirs(package: BenbenPackage):
     attachments_dir = base_dir / "attachments"
     resources_dir = base_dir / "resources"
     build_dir = base_dir / "build"
-    pdf_dir = build_dir / "pdf"
     audio_dir = build_dir / "audio"
     attachments_dir.mkdir(parents=True, exist_ok=True)
     resources_dir.mkdir(parents=True, exist_ok=True)
-    pdf_dir.mkdir(parents=True, exist_ok=True)
     audio_dir.mkdir(parents=True, exist_ok=True)
 
     attachment_map: dict[str, str] = {}
@@ -1194,7 +1152,6 @@ def _workspace_runtime_dirs(package: BenbenPackage):
             "attachments": str(attachments_dir),
             "resources": str(resources_dir),
             "build": str(build_dir),
-            "pdf": str(pdf_dir),
             "audio": str(audio_dir),
             "attachment_map": attachment_map,
         }
@@ -1696,41 +1653,6 @@ def _build_rag_contexts(
     return contexts, rebuilt
 
 
-def _get_project_template_header(project: Optional[dict]) -> str:
-    """获取当前项目模板 header（若缺失则返回默认值）。"""
-
-    header = get_default_header()
-    if not isinstance(project, dict):
-        return header
-    template = project.get("template")
-    if isinstance(template, dict):
-        candidate = template.get("header")
-        if isinstance(candidate, str) and candidate.strip():
-            return candidate
-    elif isinstance(template, str) and template.strip():
-        return template
-    return header
-
-
-def _describe_template_constraints(project: Optional[dict]) -> tuple[str, str, list[str], list[str]]:
-    """分析模板中允许的宏包与自定义命令。"""
-
-    header_tex = _get_project_template_header(project) or ""
-    package_matches = re.findall(r"\\usepackage(?:\[[^]]*])?\{([^}]*)\}", header_tex)
-    allowed_packages: list[str] = []
-    for match in package_matches:
-        for pkg in match.split(","):
-            cleaned = pkg.strip()
-            if cleaned and cleaned not in allowed_packages:
-                allowed_packages.append(cleaned)
-    if "beamer" not in allowed_packages:
-        allowed_packages.insert(0, "beamer")
-    allowed_text = ", ".join(allowed_packages) if allowed_packages else "无可用宏包"
-    macros = re.findall(r"\\newcommand\{(\\[^}]+)\}", header_tex)
-    macros_text = ", ".join(macros) if macros else "无自定义命令"
-    return allowed_text, macros_text, allowed_packages, macros
-
-
 def _iter_component_items(library: dict, mode: str):
     """Yield component library items for prompt/validation."""
 
@@ -1773,76 +1695,6 @@ def _format_component_library_for_prompt(mode: str) -> str:
 def _component_library_prompt_text(mode: str) -> str:
     text = _format_component_library_for_prompt(mode)
     return text if text else "无"
-
-
-def _collect_latex_component_allowlist() -> tuple[set[str], set[str]]:
-    """Extract allowed commands/environments from LaTeX component snippets."""
-
-    commands: set[str] = set()
-    envs: set[str] = set()
-    for _group, _name, code in _iter_component_items(COMPONENT_LIBRARY, "latex"):
-        if not code:
-            continue
-        commands.update(cmd.lstrip("\\") for cmd in re.findall(r"\\[A-Za-z@]+", code))
-        envs.update(re.findall(r"\\begin\{([^}]+)\}", code))
-        envs.update(re.findall(r"\\end\{([^}]+)\}", code))
-    return commands, {env.strip() for env in envs if env}
-
-
-def _strip_latex_math(content: str) -> str:
-    """Remove math blocks to avoid false positives in command validation."""
-
-    if not content:
-        return ""
-    stripped = content
-    for pattern in _LATEX_MATH_PATTERNS:
-        stripped = re.sub(pattern, "", stripped, flags=re.DOTALL)
-    return stripped
-
-
-def _validate_latex_component_usage(
-    content: str,
-    allowed_commands: set[str],
-    allowed_envs: set[str],
-    custom_macros: set[str],
-) -> tuple[list[str], list[str]]:
-    """Return lists of disallowed commands/environments in LaTeX content."""
-
-    if not content or not content.strip():
-        return ["<empty>"], []
-
-    envs = set(_LATEX_ENV_BEGIN_RE.findall(content))
-    envs.update(_LATEX_ENV_END_RE.findall(content))
-    illegal_envs = sorted(
-        env for env in envs
-        if env
-        and env not in allowed_envs
-        and not (env.endswith("*") and env[:-1] in allowed_envs)
-    )
-
-    stripped = _strip_latex_math(content)
-    commands = set(_LATEX_COMMAND_RE.findall(stripped))
-    commands.discard("begin")
-    commands.discard("end")
-    allowed = set(allowed_commands)
-    allowed.update(custom_macros)
-    illegal_commands = sorted(cmd for cmd in commands if cmd not in allowed)
-    return illegal_commands, illegal_envs
-
-
-def _truncate_items(items: list[str], limit: int = 12) -> str:
-    if len(items) <= limit:
-        return ", ".join(items)
-    return ", ".join(items[:limit]) + f"...(+{len(items) - limit})"
-
-
-def _format_component_violations(commands: list[str], envs: list[str]) -> str:
-    parts: list[str] = []
-    if commands:
-        parts.append(f"非法命令: {_truncate_items(commands)}")
-    if envs:
-        parts.append(f"非法环境: {_truncate_items(envs)}")
-    return "；".join(parts) if parts else "未提供违规项"
 
 
 @bp.route("/llm/test", methods=["POST"])
@@ -1946,16 +1798,15 @@ def llm_connectivity_test():
 
 @bp.route("/ai_optimize", methods=["POST"])
 def ai_optimize():
-    """调用 LLM 优化 LaTeX 页面、Markdown 笔记或讲稿。"""
+    """调用 LLM 优化 Markdown 笔记或讲稿。"""
 
     data = request.get_json(silent=True) or {}
     _, _, project, error = _require_workspace_project_response()
     if error:
         return error
 
-    opt_type = str(data.get("type") or "latex").strip().lower()
-    latex_text = str(data.get("latex") or data.get("content") or "")
-    markdown_text = str(data.get("markdown") or "")
+    opt_type = str(data.get("type") or "note").strip().lower()
+    markdown_text = str(data.get("markdown") or data.get("content") or "")
     script_text = str(data.get("script") or "")
 
     llm_config, headers = _resolve_llm_for_request(data, project=project, usage="chat")
@@ -1966,35 +1817,19 @@ def ai_optimize():
         return api_error("未配置可用的聊天模型", 500)
 
     if opt_type not in AI_PROMPTS:
-        opt_type = "latex"
+        opt_type = "note"
 
-    allowed_text = ""
-    macros_text = ""
     component_library_text = ""
-    template_macros: list[str] = []
     if opt_type == "script":
         prompt_template = AI_PROMPTS["script"]["template"]
         system_text = AI_PROMPTS["script"]["system"]
-        user_prompt = prompt_template.format(latex=latex_text, markdown=markdown_text, script=script_text)
-    elif opt_type == "note":
+        user_prompt = prompt_template.format(markdown=markdown_text, script=script_text)
+    else:
         prompt_template = AI_PROMPTS["note"]["template"]
         system_text = AI_PROMPTS["note"]["system"]
         component_library_text = _component_library_prompt_text("markdown")
         user_prompt = prompt_template.format(
-            latex=latex_text,
             markdown=markdown_text,
-            component_library=component_library_text,
-        )
-    else:
-        allowed_text, macros_text, _allowed_packages, template_macros = _describe_template_constraints(project)
-        prompt_template = AI_PROMPTS["latex"]["template"]
-        system_text = AI_PROMPTS["latex"]["system"]
-        component_library_text = _component_library_prompt_text("latex")
-        user_prompt = prompt_template.format(
-            latex=latex_text,
-            markdown=markdown_text,
-            allowed_packages=allowed_text,
-            custom_macros=macros_text,
             component_library=component_library_text,
         )
 
@@ -2022,69 +1857,6 @@ def ai_optimize():
         result = resp.json()["choices"][0]["message"]["content"]
     except (KeyError, IndexError, ValueError, TypeError) as exc:  # pragma: no cover
         return api_error(f"解析 LLM 响应失败: {exc}", 500)
-
-    if opt_type == "latex":
-        allowed_commands, allowed_envs = _collect_latex_component_allowlist()
-        macro_names = {macro.lstrip("\\") for macro in template_macros}
-        illegal_commands, illegal_envs = _validate_latex_component_usage(
-            result,
-            allowed_commands,
-            allowed_envs,
-            macro_names,
-        )
-        if illegal_commands or illegal_envs:
-            violations = _format_component_violations(illegal_commands, illegal_envs)
-            repair_prompt = (
-                "你刚才生成的 LaTeX 草稿违反了模板/组件库限制，需要修复。\n"
-                f"{violations}\n\n"
-                "请在不新增宏包或命令的前提下，用组件库允许的语法重写草稿，保持内容含义。\n"
-                f"允许宏包: {allowed_text}\n"
-                f"允许自定义命令: {macros_text}\n"
-                "组件库清单如下：\n"
-                f"{component_library_text}\n\n"
-                "需要修复的草稿如下：\n"
-                f"{result}\n\n"
-                "原始 LaTeX 内容如下（供参考）：\n"
-                f"{latex_text}\n\n"
-                "当前页笔记如下（供参考）：\n"
-                f"{markdown_text}\n\n"
-                "只返回修复后的 LaTeX 代码，不要解释。\n"
-            )
-            try:
-                repair_resp = requests.post(
-                    llm_config["endpoint"],
-                    headers=headers,
-                    json={
-                        "model": model_name,
-                        "messages": [
-                            {"role": "system", "content": system_text},
-                            {"role": "user", "content": repair_prompt},
-                        ],
-                        "temperature": 0.2,
-                    },
-                    timeout=_resolve_llm_timeout(llm_config, 60),
-                )
-            except Exception as exc:  # pragma: no cover - network errors
-                return api_error(str(exc), 500)
-
-            if repair_resp.status_code != 200:
-                return api_error(f"{_llm_provider_label(llm_config)} API错误: {repair_resp.text}", 500)
-
-            try:
-                repaired = repair_resp.json()["choices"][0]["message"]["content"]
-            except (KeyError, IndexError, ValueError, TypeError) as exc:  # pragma: no cover
-                return api_error(f"解析 LLM 修复响应失败: {exc}", 500)
-
-            illegal_commands, illegal_envs = _validate_latex_component_usage(
-                repaired,
-                allowed_commands,
-                allowed_envs,
-                macro_names,
-            )
-            if illegal_commands or illegal_envs:
-                violations = _format_component_violations(illegal_commands, illegal_envs)
-                return api_error(f"AI输出不符合组件库限制: {violations}", 400)
-            result = repaired
 
     return api_success({"result": result})
 
@@ -2502,8 +2274,6 @@ def _build_markdown_export_html(
 
     css = str(template.get("css") or "")
     custom_head = str(template.get("customHead") or "")
-    include_mathjax = "mathjax" not in custom_head.lower()
-    mathjax_head = _DEFAULT_MATHJAX_EXPORT_SNIPPET if include_mathjax else ""
     include_highlight = "highlight" not in custom_head.lower() and "hljs" not in custom_head.lower()
     highlight_head = _DEFAULT_HIGHLIGHT_EXPORT_SNIPPET if include_highlight else ""
 
@@ -2528,7 +2298,6 @@ def _build_markdown_export_html(
   <style>
 {css}
   </style>
-  {mathjax_head if mathjax_head else ""}
   {highlight_head if highlight_head else ""}
   {custom_head}
 </head>
@@ -2668,7 +2437,7 @@ def _build_markdown_bundle(
 
 
 def _collect_bib_entries_for_export(project: dict) -> list[str]:
-    """Extract BibTeX entries from project-level与页面引用。"""
+    """Extract citation entries from project-level与页面引用。"""
 
     entries: list[str] = []
 
@@ -2702,54 +2471,6 @@ def _collect_bib_entries_for_export(project: dict) -> list[str]:
         deduped.append(entry)
     return deduped
 
-
-def _copy_asset_tree(src_dir: str, dest_dir: Path) -> None:
-    """Copy all files under src_dir into dest_dir, preserving relative paths."""
-
-    if not src_dir or not os.path.exists(src_dir):
-        return
-    for root, _, files in os.walk(src_dir):
-        for fname in files:
-            src_path = Path(root) / fname
-            try:
-                rel = Path(os.path.relpath(src_path, src_dir))
-            except Exception:
-                rel = Path(fname)
-            dest_path = dest_dir / rel
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                shutil.copy2(src_path, dest_path)
-            except Exception:
-                continue
-
-
-def _build_full_latex_document(project: dict, attachments_folder: str, resources_folder: str) -> tuple[str, list[str]]:
-    """Assemble the full LaTeX document and return text plus chunks for asset scanning."""
-
-    default_template = get_default_template()
-    default_header = default_template.get("header", get_default_header())
-    default_before = default_template.get("beforePages", "\\begin{document}")
-    default_footer = default_template.get("footer", "\\end{document}")
-
-    template = project.get("template") if isinstance(project, dict) else {}
-    if isinstance(template, dict):
-        header = normalize_latex_content(template.get("header", default_header), attachments_folder, resources_folder)
-        before = normalize_latex_content(template.get("beforePages", default_before), attachments_folder, resources_folder)
-        footer = normalize_latex_content(template.get("footer", default_footer), attachments_folder, resources_folder)
-    else:
-        header = normalize_latex_content(str(template) if template else default_header, attachments_folder, resources_folder)
-        before = normalize_latex_content(default_before, attachments_folder, resources_folder)
-        footer = normalize_latex_content(default_footer, attachments_folder, resources_folder)
-
-    pages = project.get("pages", []) if isinstance(project, dict) else []
-    page_chunks: list[str] = []
-    for page in pages if isinstance(pages, list) else []:
-        raw = page["content"] if isinstance(page, dict) else str(page)
-        page_chunks.append(normalize_latex_content(raw or "", attachments_folder, resources_folder))
-
-    joined_pages = "\n\n".join(chunk for chunk in page_chunks if chunk)
-    document = f"{header}\n{before}\n\n{joined_pages}\n\n{footer}\n"
-    return document, [header, before, *page_chunks, footer]
 
 
 def _resolve_markdown_template(project: Optional[dict]) -> dict:
@@ -2865,16 +2586,6 @@ def _collect_attachment_references(project: dict) -> dict[str, list[str]]:
         content = str(text)
         if not content:
             return
-        for pattern in (
-            _LATEX_INCLUDE_RE,
-            _LATEX_IMG_RE,
-            _LATEX_BG_FRAME_RE,
-            _LATEX_BG_CMD_RE,
-            _LATEX_HREF_RE,
-            _LATEX_URL_RE,
-        ):
-            for match in pattern.finditer(content):
-                _register(match.group(1), context)
         for match in _MARKDOWN_LINK_RE.finditer(content):
             _register(match.group(1), context)
         for match in _HTML_SRC_RE.finditer(content):
@@ -2887,7 +2598,6 @@ def _collect_attachment_references(project: dict) -> dict[str, list[str]]:
         for idx, page in enumerate(pages):
             if not isinstance(page, dict):
                 continue
-            _scan_text(page.get("content", ""), f"第{idx + 1}页内容")
             _scan_text(page.get("notes", ""), f"第{idx + 1}页笔记")
             _scan_text(page.get("script", ""), f"第{idx + 1}页讲稿")
             for entry in page.get("bib", []) or []:
@@ -2895,12 +2605,6 @@ def _collect_attachment_references(project: dict) -> dict[str, list[str]]:
                     _scan_text(entry.get("entry", ""), f"第{idx + 1}页参考文献")
                 else:
                     _scan_text(entry, f"第{idx + 1}页参考文献")
-
-    template = project.get("template", {})
-    if isinstance(template, dict):
-        _scan_text(template.get("header"), "模板 header")
-        _scan_text(template.get("beforePages"), "模板 beforePages")
-        _scan_text(template.get("footer"), "模板 footer")
 
     md_template = project.get("markdownTemplate", {})
     if isinstance(md_template, dict):
@@ -2924,7 +2628,7 @@ def _collect_attachment_references(project: dict) -> dict[str, list[str]]:
 _DEFAULT_LEARNING_SYSTEM_MESSAGE = (
     "You are a knowledgeable bilingual tutor. "
     "Provide thorough, structured explanations in Markdown. "
-    "Use LaTeX math when appropriate, and include actionable study advice."
+    "Use math notation when appropriate, and include actionable study advice."
 )
 
 
@@ -3026,8 +2730,7 @@ def _normalize_reference_link(ref: str, link: Optional[str], doi: Optional[str])
 
 
 _SEARCH_FIELD_LABELS = {
-    "content": "LaTeX 内容",
-    "notes": "Markdown 笔记",
+    "notes": "Markdown 正文",
     "script": "讲稿",
 }
 
@@ -3437,60 +3140,6 @@ def export_project_bundle():
         download_name=download_name,
     )
 
-
-@bp.route("/export_tex", methods=["GET"])
-def export_tex():
-    """导出完整 LaTeX 文件并打包所需媒体资源。"""
-
-    _, package, project, error = _require_workspace_project_response()
-    if error:
-        return error
-
-    pages = project.get("pages", []) if isinstance(project, dict) else []
-    if not pages:
-        return api_error("项目中没有幻灯片页", 400)
-
-    project_label = _workspace_project_label(package, project)
-    safe_label = secure_filename(project_label) or project_label or "project"
-
-    with _workspace_runtime_dirs(package) as paths:
-        latex_doc, chunks = _build_full_latex_document(project, paths["attachments"], paths["resources"])
-        export_dir = Path(tempfile.mkdtemp(prefix="benben_tex_export_"))
-        tex_name = f"{safe_label}.tex"
-        tex_path = export_dir / tex_name
-        tex_path.write_text(latex_doc, encoding="utf-8")
-
-        bib_entries = _collect_bib_entries_for_export(project)
-        bib_path = export_dir / "refs.bib"
-        if bib_entries:
-            bib_path.write_text("\n\n".join(bib_entries) + "\n", encoding="utf-8")
-        else:
-            bib_path.write_text("% Empty bibliography\n", encoding="utf-8")
-
-        _copy_asset_tree(paths["attachments"], export_dir / "attachments")
-        _copy_asset_tree(paths["resources"], export_dir / "resources")
-        prepare_latex_assets(chunks, paths["attachments"], paths["resources"], str(export_dir))
-
-        archive_path = Path(shutil.make_archive(str(export_dir), "zip", export_dir))
-
-    @after_this_request
-    def _cleanup_bundle(response):
-        try:
-            shutil.rmtree(export_dir, ignore_errors=True)
-        finally:
-            try:
-                os.remove(archive_path)
-            except Exception:
-                pass
-        return response
-
-    download_name = f"{safe_label}_tex_bundle.zip"
-    return send_file(
-        str(archive_path),
-        mimetype="application/zip",
-        as_attachment=True,
-        download_name=download_name,
-    )
 
 @bp.route("/workspaces", methods=["GET"])
 def api_list_workspaces():
@@ -3990,13 +3639,11 @@ _LOCKED_ERROR = '项目已加密，请先解锁'
 
 
 def _clean_text_for_excerpt(text: str) -> str:
-    """粗略去除 LaTeX/Markdown 标记，生成更易读的摘要。"""
+    """粗略去除 Markdown 标记，生成更易读的摘要。"""
 
     if not text:
         return ""
-    cleaned = re.sub(r"\\(begin|end)\{[^}]+\}", " ", text)
-    cleaned = re.sub(r"\\[a-zA-Z@]+\*?(?:\[[^\]]*\])?(?:\{[^}]*\})?", " ", cleaned)
-    cleaned = re.sub(r"\$[^$]*\$", " ", cleaned)
+    cleaned = re.sub(r"\[[^\]]*]\([^)]+\)", " ", text)
     cleaned = re.sub(r"`{1,3}[^`]*`{1,3}", " ", cleaned)
     cleaned = re.sub(r"[*_#>-]", " ", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned)
@@ -4029,20 +3676,14 @@ def _extract_page_label(idx: int, page: dict) -> str:
     if not isinstance(page, dict):
         return f"第 {idx + 1} 页"
 
-    content = page.get("content") or ""
     notes = page.get("notes") or ""
     script = page.get("script") or ""
-
-    for pattern in (r"\\frametitle\{([^}]*)\}", r"\\section\{([^}]*)\}"):
-        match = re.search(pattern, content)
-        if match and match.group(1).strip():
-            return _clean_text_for_excerpt(match.group(1).strip()) or f"第 {idx + 1} 页"
 
     note_title = re.search(r"^\s*#+\s+(.+)$", notes, flags=re.MULTILINE)
     if note_title and note_title.group(1).strip():
         return _clean_text_for_excerpt(note_title.group(1).strip()) or f"第 {idx + 1} 页"
 
-    for raw in (content, notes, script):
+    for raw in (notes, script):
         cleaned = _clean_text_for_excerpt(raw)
         if cleaned:
             return cleaned[:40]
@@ -4470,7 +4111,7 @@ def page_recording(page: int):
 
 @bp.route("/add_page", methods=["POST"])
 def add_page():
-    """在指定位置插入一张默认幻灯片。"""
+    """在指定位置插入一页默认 Markdown 内容。"""
 
     payload = request.get_json(silent=True) or {}
     idx_param = payload.get("idx")
@@ -4486,9 +4127,8 @@ def add_page():
         idx = len(pages)
     idx = max(0, min(idx, len(pages)))
     new_page = {
-        "content": "\\begin{frame}\n...\n\\end{frame}",
+        "notes": "# 新页面\n\n在这里写 Markdown 内容。",
         "script": "",
-        "notes": "",
         "bib": [],
         "resources": [],
         "pageId": f"page_{uuid.uuid4().hex[:8]}",
@@ -4496,197 +4136,6 @@ def add_page():
     pages.insert(idx, new_page)
     package.save_pages(pages)
     return jsonify({"success": True, "pages": pages})
-
-
-_ALLOWED_LATEX_COMPILE_STEPS = {"xelatex", "pdflatex", "lualatex", "bibtex", "biber"}
-
-
-def _parse_compile_steps(value: object) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, (list, tuple)):
-        steps: list[str] = []
-        for item in value:
-            steps.extend(_parse_compile_steps(item))
-        return steps
-    if isinstance(value, str):
-        cleaned = value.strip()
-    else:
-        cleaned = str(value).strip()
-    if not cleaned:
-        return []
-    if ";" in cleaned:
-        parts = [part.strip() for part in cleaned.split(";")]
-    elif "," in cleaned:
-        parts = [part.strip() for part in cleaned.split(",")]
-    else:
-        parts = cleaned.split()
-    return [part.lower() for part in parts if part]
-
-
-def _resolve_compile_steps(template: object) -> list[str]:
-    steps: list[str] = []
-    if isinstance(template, dict):
-        steps = _parse_compile_steps(template.get("compile"))
-    return steps or ["xelatex"]
-
-
-def _write_bibliography_files(project: dict, build_folder: str, pdf_folder: str) -> tuple[bool, str | None]:
-    bib_entries = _collect_bib_entries_for_export(project)
-    if bib_entries:
-        content = "\n\n".join(bib_entries) + "\n"
-    else:
-        content = "% Empty bibliography\n"
-    for target_dir in (build_folder, pdf_folder):
-        path = os.path.join(target_dir, "refs.bib")
-        try:
-            with open(path, "w", encoding="utf-8") as handle:
-                handle.write(content)
-        except OSError as exc:
-            return False, f"写入 refs.bib 失败: {exc}"
-    return True, None
-
-
-def _run_latex_compile_steps(
-    steps: list[str],
-    filename: str,
-    build_folder: str,
-    pdf_folder: str,
-    timeout: int = 30,
-) -> tuple[bool, str | None]:
-    base_name = os.path.splitext(filename)[0]
-    for step in steps:
-        if step not in _ALLOWED_LATEX_COMPILE_STEPS:
-            return False, f"不支持的编译步骤: {step}"
-        if step in {"xelatex", "pdflatex", "lualatex"}:
-            cmd = [step, "-output-directory", pdf_folder, filename]
-            cwd = build_folder
-        elif step == "bibtex":
-            cmd = ["bibtex", base_name]
-            cwd = pdf_folder
-        else:  # biber
-            cmd = ["biber", base_name]
-            cwd = pdf_folder
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=cwd,
-            )
-        except Exception as exc:
-            return False, str(exc)
-        if result.returncode != 0:
-            return False, result.stderr or result.stdout or f"{step} 编译失败"
-    return True, None
-
-
-def _compile_single_page_pdf(page_idx: int) -> tuple[int, dict]:
-    """编译指定页为 PDF，并返回状态码与信息。"""
-    workspace_id, package, locked = _resolve_workspace_context()
-    if not workspace_id:
-        return 400, {"error": "请先选择工作区"}
-    if locked:
-        return 423, {"error": "workspace 已加密，请先解锁"}
-    if package is None:
-        return 404, {"error": "workspace 未找到"}
-    project = package.export_project()
-    template = project.get("template") if isinstance(project, dict) else {}
-    pages = project.get("pages", []) if isinstance(project, dict) else []
-    if not isinstance(page_idx, int) or page_idx < 0:
-        return 400, {"error": "页索引无效"}
-    if not pages or page_idx >= len(pages):
-        return 404, {"error": "指定页不存在"}
-    default_template = get_default_template()
-    default_header = default_template.get("header", get_default_header())
-    default_before = default_template.get("beforePages", "\\begin{document}")
-    default_footer = default_template.get("footer", "\\end{document}")
-    with _workspace_runtime_dirs(package) as paths:
-        attachments_folder = paths["attachments"]
-        resources_folder = paths["resources"]
-        build_folder = paths["build"]
-        pdf_folder = paths["pdf"]
-        if isinstance(template, dict):
-            header = normalize_latex_content(template.get("header", default_header), attachments_folder, resources_folder)
-            before = normalize_latex_content(template.get("beforePages", default_before), attachments_folder, resources_folder)
-            footer = normalize_latex_content(template.get("footer", default_footer), attachments_folder, resources_folder)
-        else:
-            header = normalize_latex_content(str(template) if template else default_header, attachments_folder, resources_folder)
-            before = normalize_latex_content(default_before, attachments_folder, resources_folder)
-            footer = normalize_latex_content(default_footer, attachments_folder, resources_folder)
-        page = pages[page_idx]
-        raw = page["content"] if isinstance(page, dict) else str(page)
-        page_tex = normalize_latex_content(raw or "", attachments_folder, resources_folder)
-        tex = f"{header}\n{before}\n{page_tex}\n{footer}\n"
-        filename = f"slide_page_{page_idx + 1}.tex"
-        tex_path = os.path.join(build_folder, filename)
-        pdf_name = f"slide_page_{page_idx + 1}.pdf"
-        pdf_path = os.path.join(pdf_folder, pdf_name)
-        prepare_latex_assets([header, before, page_tex, footer], attachments_folder, resources_folder, build_folder, pdf_folder)
-        try:
-            with open(tex_path, "w", encoding="utf-8") as fh:
-                fh.write(tex)
-        except OSError as exc:
-            return 500, {"error": f"写入临时 TeX 文件失败: {exc}"}
-        ok, error = _write_bibliography_files(project, build_folder, pdf_folder)
-        if not ok:
-            return 500, {"error": error or "写入 refs.bib 失败"}
-        compile_steps = _resolve_compile_steps(template)
-        ok, error = _run_latex_compile_steps(compile_steps, filename, build_folder, pdf_folder)
-        if not ok:
-            return 500, {"error": error or "编译失败"}
-        cache_dir = _workspace_cache_dir(workspace_id) / "pdf"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_path = cache_dir / pdf_name
-        try:
-            shutil.copy2(pdf_path, cache_path)
-        except OSError as exc:
-            return 500, {"error": f"缓存 PDF 失败: {exc}"}
-    return 200, {"pdf": pdf_name, "path": str(cache_path)}
-
-
-@bp.route("/compile_page", methods=["POST"])
-def compile_page():
-    """将单页 LaTeX 组合模板后按模板编译指令生成 PDF。"""
-
-    data = request.json or {}
-    page_idx = int(data.get("page", 0))
-    status, payload = _compile_single_page_pdf(page_idx)
-    if status != 200:
-        return jsonify({"success": False, "error": payload.get("error", "编译失败")}), status
-    return jsonify({"success": True, "pdf": payload["pdf"]})
-
-
-@bp.route("/export_page_pdf", methods=["GET"])
-def export_page_pdf():
-    """导出当前页的 PDF 文件。"""
-
-    page_param = request.args.get("page", type=int)
-    page_idx = max((page_param or 1) - 1, 0)
-    status, payload = _compile_single_page_pdf(page_idx)
-    if status != 200:
-        return jsonify({"success": False, "error": payload.get("error", "导出失败")}), status
-
-    pdf_buffer = payload.get("buffer")
-    if pdf_buffer is not None:
-        return send_file(
-            io.BytesIO(pdf_buffer),
-            mimetype="application/pdf",
-            as_attachment=True,
-            download_name=payload["pdf"],
-        )
-
-    pdf_path = payload.get("path")
-    if not pdf_path or not os.path.exists(pdf_path):
-        return jsonify({"success": False, "error": "PDF 文件不存在"}), 500
-
-    return send_file(
-        pdf_path,
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=payload["pdf"],
-    )
 
 
 @bp.route("/export_page_notes", methods=["GET"])
@@ -4903,50 +4352,6 @@ def export_notes_html():
         download_name=download_name,
     )
 
-
-@bp.route("/page_pdf/<int:page>")
-def get_page_pdf(page: int):
-    """返回单页 PDF 结果，用于前端预览。"""
-    workspace_id, _, locked = _resolve_workspace_context()
-    pdf_name = f"slide_page_{page}.pdf"
-    if locked:
-        return "", 423
-    if workspace_id:
-        cache_path = _workspace_cache_dir(workspace_id) / "pdf" / pdf_name
-        if not cache_path.exists():
-            return "", 404
-        return send_file(
-            str(cache_path),
-            mimetype="application/pdf",
-            as_attachment=False,
-        )
-
-
-def _convert_pdf_to_images(pdf_path: str, output_dir: str, base_name: str) -> tuple[list[str], str | None]:
-    if convert_from_path is None:  # pragma: no cover - requires optional dependency
-        return [], '未安装 pdf2image，无法转换 PDF'
-    try:
-        images = convert_from_path(pdf_path, fmt='png', dpi=200)
-    except Exception as exc:  # pragma: no cover - conversion environment specific
-        return [], str(exc)
-    if not images:
-        return [], 'PDF 不包含可转换的页面'
-    sanitized_base = secure_filename(base_name) or base_name or 'pdf_image'
-    saved: list[str] = []
-    for idx, image in enumerate(images, start=1):
-        candidate_name = f"{sanitized_base}-p{idx}.png"
-        candidate_path = os.path.join(output_dir, candidate_name)
-        counter = 1
-        while os.path.exists(candidate_path):
-            candidate_name = f"{sanitized_base}-p{idx}-{counter}.png"
-            candidate_path = os.path.join(output_dir, candidate_name)
-            counter += 1
-        try:
-            image.save(candidate_path, "PNG")
-        except Exception as exc:  # pragma: no cover - filesystem dependent
-            return saved, f'保存图片失败: {exc}'
-        saved.append(candidate_name)
-    return saved, None
 
 
 @bp.route("/attachments/list")

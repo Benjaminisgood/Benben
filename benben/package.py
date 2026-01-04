@@ -16,7 +16,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .template_store import get_default_markdown_template, get_default_template
+from .template_store import get_default_markdown_template
 
 
 def _resolve_learning_record_ttl_seconds() -> int:
@@ -53,16 +53,8 @@ class WorkspaceVersionConflict(Exception):
 DEFAULT_PAGES: list[dict[str, Any]] = [
     {
         "pageId": f"default_{uuid.uuid4().hex[:8]}",
-        "content": "\\begin{frame}[plain]\n  \\titlepage\n\\end{frame}",
+        "notes": "# 新页面\n\n在这里写 Markdown 内容。",
         "script": "",
-        "notes": "",
-        "bib": [],
-    },
-    {
-        "pageId": f"default_{uuid.uuid4().hex[:8]}",
-        "content": "\\begin{frame}\n  \\frametitle{目录}\n  \\tableofcontents\n\\end{frame}",
-        "script": "",
-        "notes": "",
         "bib": [],
     },
 ]
@@ -96,15 +88,10 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     "  metadata TEXT,"
     "  updated_at REAL NOT NULL DEFAULT (strftime('%s','now'))"
     ");",
-    "CREATE TABLE IF NOT EXISTS page_latex ("
+    "CREATE TABLE IF NOT EXISTS page_markdown ("
     "  page_id TEXT PRIMARY KEY,"
     "  idx INTEGER NOT NULL DEFAULT 0,"
     "  meta TEXT NOT NULL DEFAULT '{}',"
-    "  content TEXT NOT NULL DEFAULT '',"
-    "  updated_at REAL NOT NULL DEFAULT (strftime('%s','now'))"
-    ");",
-    "CREATE TABLE IF NOT EXISTS page_markdown ("
-    "  page_id TEXT PRIMARY KEY,"
     "  content TEXT NOT NULL DEFAULT '',"
     "  updated_at REAL NOT NULL DEFAULT (strftime('%s','now'))"
     ");",
@@ -167,7 +154,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     "  review_state TEXT,"
     "  saved_at REAL NOT NULL DEFAULT (strftime('%s','now'))"
     ");",
-    "CREATE INDEX IF NOT EXISTS idx_page_latex_ord ON page_latex(idx);",
+    "CREATE INDEX IF NOT EXISTS idx_page_markdown_ord ON page_markdown(idx);",
     "CREATE INDEX IF NOT EXISTS idx_page_resources_page ON page_resources(page_id);",
     "CREATE INDEX IF NOT EXISTS idx_page_references_page ON page_references(page_id);",
     "CREATE INDEX IF NOT EXISTS idx_attachments_name ON attachments(name);",
@@ -246,7 +233,7 @@ def _coerce_bib_entries(entries: Any) -> list[dict[str, Any]]:
     return normalized
 
 
-_PAGE_CORE_FIELDS: set[str] = {"pageId", "content", "script", "notes", "resources", "bib"}
+_PAGE_CORE_FIELDS: set[str] = {"pageId", "script", "notes", "resources", "bib"}
 
 
 @dataclass(slots=True)
@@ -315,8 +302,6 @@ class BenbenPackage:
         self._migrate_templates_if_needed()
         self._ensure_learning_record_columns()
         self._migrate_learning_meta()
-        self._ensure_page_latex_columns()
-        self._migrate_page_tables()
         self._migrate_project_resources()
         self._migrate_project_references()
         self._migrate_legacy_assets()
@@ -418,9 +403,7 @@ class BenbenPackage:
                 return data
         fallback = default
         if not isinstance(fallback, dict):
-            if template_type == "latex":
-                fallback = get_default_template()
-            elif template_type == "markdown":
+            if template_type == "markdown":
                 fallback = get_default_markdown_template()
             else:
                 fallback = {}
@@ -726,7 +709,6 @@ class BenbenPackage:
             row = self.conn.execute("SELECT COUNT(*) AS total FROM templates").fetchone()
         if row and row["total"]:
             return
-        self.save_template("latex", get_default_template())
         self.save_template("markdown", get_default_markdown_template())
 
     def _migrate_learning_meta(self) -> None:
@@ -808,21 +790,6 @@ class BenbenPackage:
             rows = self.conn.execute(f"PRAGMA table_info({name})").fetchall()
         return {row["name"] for row in rows}
 
-    def _ensure_page_latex_columns(self) -> None:
-        if not self._table_exists("page_latex"):
-            return
-        columns = self._table_columns("page_latex")
-        statements: list[str] = []
-        if "idx" not in columns:
-            statements.append("ALTER TABLE page_latex ADD COLUMN idx INTEGER NOT NULL DEFAULT 0")
-        if "meta" not in columns:
-            statements.append("ALTER TABLE page_latex ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'")
-        for stmt in statements:
-            with self._lock:
-                self.conn.execute(stmt)
-        with self._lock:
-            self.conn.execute("CREATE INDEX IF NOT EXISTS idx_page_latex_ord ON page_latex(idx)")
-
     def _asset_table_for_scope(self, scope: str) -> str:
         normalized = (scope or "").strip().lower()
         if normalized == "attachment":
@@ -840,11 +807,11 @@ class BenbenPackage:
             data[row["page_id"]] = content if isinstance(content, str) else ""
         return data
 
-    def _upsert_page_latex(self, page_id: str, idx: int, body: str, meta: dict[str, Any]) -> None:
+    def _upsert_page_markdown(self, page_id: str, idx: int, body: str, meta: dict[str, Any]) -> None:
         payload = _serialize(meta or {})
         with self._lock:
             self.conn.execute(
-                "INSERT INTO page_latex (page_id, idx, meta, content, updated_at) "
+                "INSERT INTO page_markdown (page_id, idx, meta, content, updated_at) "
                 "VALUES (?, ?, ?, ?, strftime('%s','now')) "
                 "ON CONFLICT(page_id) DO UPDATE SET "
                 "idx = excluded.idx, meta = excluded.meta, content = excluded.content, "
@@ -916,11 +883,13 @@ class BenbenPackage:
         page_id = str(payload.get("pageId") or payload.get("id") or "").strip()
         if not page_id:
             page_id = f"page_{uuid.uuid4().hex[:8]}"
+        notes_value = payload.get("notes")
+        if not notes_value:
+            notes_value = payload.get("markdown") or payload.get("content")
         normalized = {
             "pageId": page_id,
-            "content": str(payload.get("content") or ""),
+            "notes": str(notes_value or ""),
             "script": str(payload.get("script") or ""),
-            "notes": str(payload.get("notes") or ""),
             "resources": _normalize_resource_list(payload.get("resources")),
             "bib": _coerce_bib_entries(payload.get("bib")),
         }
@@ -1047,8 +1016,7 @@ class BenbenPackage:
             page_id = row["id"] or normalized["pageId"]
             normalized["pageId"] = page_id
             extras = self._extract_page_meta(normalized)
-            self._upsert_page_latex(page_id, row["idx"], normalized["content"], extras)
-            self._upsert_page_text("page_markdown", page_id, normalized["notes"])
+            self._upsert_page_markdown(page_id, row["idx"], normalized["notes"], extras)
             self._upsert_page_text("page_notes", page_id, normalized["script"])
             self._rewrite_page_resources(page_id, normalized.get("resources", []))
             self._rewrite_page_references(page_id, normalized.get("bib", []))
@@ -1088,7 +1056,6 @@ class BenbenPackage:
 
     def _migrate_meta_entries(self) -> None:
         self._migrate_security_meta_key()
-        self._purge_template_meta_keys()
         
 
     def _migrate_security_meta_key(self) -> None:
@@ -1103,10 +1070,6 @@ class BenbenPackage:
                 return
         default_payload = {"passwordHash": None, "updatedAt": time.time()}
         self._set_meta(PROJECT_SECURITY_META_KEY, default_payload)
-
-    def _purge_template_meta_keys(self) -> None:
-        for key in ("latexTemplate", "markdownTemplate", "template"):
-            self._delete_meta(key)
 
     def _seed_default_attachments(self) -> None:
         """预置附件：将 temps/attachments_seed 下的文件写入 attachments 表。"""
@@ -1162,14 +1125,13 @@ class BenbenPackage:
         self._replace_project_resources([])
         self._replace_project_references([])
         self.save_pages(DEFAULT_PAGES)
-        self.save_template("latex", get_default_template())
         self.save_template("markdown", get_default_markdown_template())
         self._seed_default_attachments()
 
     # Pages -----------------------------------------------------------------
     def _fetch_page_order(self, page_id: str) -> Optional[int]:
         with self._lock:
-            row = self.conn.execute("SELECT idx FROM page_latex WHERE page_id = ?", (page_id,)).fetchone()
+            row = self.conn.execute("SELECT idx FROM page_markdown WHERE page_id = ?", (page_id,)).fetchone()
         if not row:
             return None
         try:
@@ -1184,16 +1146,12 @@ class BenbenPackage:
         if not page_id:
             return None
         with self._lock:
-            latex_row = self.conn.execute(
-                "SELECT page_id, idx, meta, content FROM page_latex WHERE page_id = ?",
-                (page_id,),
-            ).fetchone()
-            if not latex_row:
-                return None
             markdown_row = self.conn.execute(
-                "SELECT content FROM page_markdown WHERE page_id = ?",
+                "SELECT page_id, idx, meta, content FROM page_markdown WHERE page_id = ?",
                 (page_id,),
             ).fetchone()
+            if not markdown_row:
+                return None
             note_row = self.conn.execute(
                 "SELECT content FROM page_notes WHERE page_id = ?",
                 (page_id,),
@@ -1214,11 +1172,10 @@ class BenbenPackage:
                 references.append(payload)
             elif isinstance(payload, str):
                 references.append({"entry": payload})
-        meta = _deserialize(latex_row["meta"])
+        meta = _deserialize(markdown_row["meta"])
         payload = dict(meta) if isinstance(meta, dict) else {}
-        payload["pageId"] = payload.get("pageId") or latex_row["page_id"]
-        payload["content"] = latex_row["content"] or ""
-        payload["notes"] = markdown_row["content"] if markdown_row and markdown_row["content"] else ""
+        payload["pageId"] = payload.get("pageId") or markdown_row["page_id"]
+        payload["notes"] = markdown_row["content"] or ""
         payload["script"] = note_row["content"] if note_row and note_row["content"] else ""
         payload["resources"] = resources
         payload["bib"] = references
@@ -1238,7 +1195,7 @@ class BenbenPackage:
 
         with self._lock:
             rows = self.conn.execute(
-                "SELECT page_id, idx, meta FROM page_latex ORDER BY idx ASC, page_id ASC"
+                "SELECT page_id, idx, meta FROM page_markdown ORDER BY idx ASC, page_id ASC"
             ).fetchall()
             resource_rows = self.conn.execute(
                 "SELECT page_id, position, name FROM page_resources ORDER BY page_id, position"
@@ -1301,8 +1258,7 @@ class BenbenPackage:
         extras = self._extract_page_meta(normalized)
         with self._lock:
             self.conn.execute("BEGIN IMMEDIATE")
-            self._upsert_page_latex(page_id, order, normalized.get("content", ""), extras)
-            self._upsert_page_text("page_markdown", page_id, normalized.get("notes", ""))
+            self._upsert_page_markdown(page_id, order, normalized.get("notes", ""), extras)
             self._upsert_page_text("page_notes", page_id, normalized.get("script", ""))
             self._rewrite_page_resources(page_id, normalized.get("resources", []))
             self._rewrite_page_references(page_id, normalized.get("bib", []))
@@ -1317,9 +1273,8 @@ class BenbenPackage:
     def list_pages(self) -> list[PageRecord]:
         with self._lock:
             rows = self.conn.execute(
-                "SELECT page_id, idx, meta, content FROM page_latex ORDER BY idx ASC, page_id ASC"
+                "SELECT page_id, idx, meta, content FROM page_markdown ORDER BY idx ASC, page_id ASC"
             ).fetchall()
-            markdown_rows = self.conn.execute("SELECT page_id, content FROM page_markdown").fetchall()
             note_rows = self.conn.execute("SELECT page_id, content FROM page_notes").fetchall()
             resource_rows = self.conn.execute(
                 "SELECT page_id, position, name FROM page_resources ORDER BY page_id, position"
@@ -1327,7 +1282,6 @@ class BenbenPackage:
             reference_rows = self.conn.execute(
                 "SELECT page_id, position, data FROM page_references ORDER BY page_id, position"
             ).fetchall()
-        markdown_map = {row["page_id"]: row["content"] or "" for row in markdown_rows}
         notes_map = {row["page_id"]: row["content"] or "" for row in note_rows}
         resources_map: dict[str, list[str]] = defaultdict(list)
         for row in resource_rows:
@@ -1347,8 +1301,7 @@ class BenbenPackage:
             payload = dict(meta) if isinstance(meta, dict) else {}
             page_id = row["page_id"]
             payload["pageId"] = payload.get("pageId") or page_id
-            payload["content"] = row["content"] or ""
-            payload["notes"] = markdown_map.get(page_id, "")
+            payload["notes"] = row["content"] or ""
             payload["script"] = notes_map.get(page_id, "")
             payload["resources"] = list(resources_map.get(page_id, []))
             payload["bib"] = list(references_map.get(page_id, []))
@@ -1366,21 +1319,20 @@ class BenbenPackage:
             normalized_pages.append((idx, self._normalize_page_payload(page)))
         with self._lock:
             self.conn.execute("BEGIN IMMEDIATE")
-            existing_ids = {row["page_id"] for row in self.conn.execute("SELECT page_id FROM page_latex")}
+            existing_ids = {row["page_id"] for row in self.conn.execute("SELECT page_id FROM page_markdown")}
             desired_ids: set[str] = set()
             for idx, payload in normalized_pages:
                 page_id = payload["pageId"]
                 desired_ids.add(page_id)
                 extras = self._extract_page_meta(payload)
-                self._upsert_page_latex(page_id, idx, payload.get("content", ""), extras)
-                self._upsert_page_text("page_markdown", page_id, payload.get("notes", ""))
+                self._upsert_page_markdown(page_id, idx, payload.get("notes", ""), extras)
                 self._upsert_page_text("page_notes", page_id, payload.get("script", ""))
                 self._rewrite_page_resources(page_id, payload.get("resources", []))
                 self._rewrite_page_references(page_id, payload.get("bib", []))
             to_delete = existing_ids - desired_ids
             if to_delete:
                 doomed = [(pid,) for pid in to_delete]
-                for table in ("page_latex", "page_markdown", "page_notes"):
+                for table in ("page_markdown", "page_notes"):
                     self.conn.executemany(f"DELETE FROM {table} WHERE page_id = ?", doomed)
                 self.conn.executemany("DELETE FROM page_resources WHERE page_id = ?", doomed)
                 self.conn.executemany("DELETE FROM page_references WHERE page_id = ?", doomed)
@@ -1606,18 +1558,18 @@ class BenbenPackage:
                         if expected_updated_at is not None and info["metaUpdatedAt"] is not None:
                             info["matchesExpected"] = info["metaUpdatedAt"] >= expected_updated_at
                 counts = {}
-                for table, key in (("page_latex", "pages"), ("attachments", "attachments"), ("learning_records", "learningRecords")):
+                for table, key in (("page_markdown", "pages"), ("attachments", "attachments"), ("learning_records", "learningRecords")):
                     row = conn.execute(f"SELECT COUNT(1) AS c FROM {table}").fetchone()
                     counts[key] = int(row[0] if row else 0)
                 info["counts"] = counts
                 if page_probe:
                     row = conn.execute(
-                        "SELECT page_id, updated_at FROM page_latex WHERE page_id = ?",
+                        "SELECT page_id, updated_at FROM page_markdown WHERE page_id = ?",
                         (page_probe,),
                     ).fetchone()
                 else:
                     row = conn.execute(
-                        "SELECT page_id, updated_at FROM page_latex ORDER BY updated_at DESC LIMIT 1"
+                        "SELECT page_id, updated_at FROM page_markdown ORDER BY updated_at DESC LIMIT 1"
                     ).fetchone()
                 if row:
                     info["page"] = {
@@ -1708,7 +1660,6 @@ class BenbenPackage:
     # Composite helpers -----------------------------------------------------
     def export_project(self) -> dict[str, Any]:
         pages = [rec.payload for rec in self.list_pages()]
-        template = self.get_template_block("latex", get_default_template())
         md_template = self.get_template_block("markdown", get_default_markdown_template())
         meta = self._get_meta("project", {}) or {}
         if not isinstance(meta, dict):
@@ -1720,7 +1671,6 @@ class BenbenPackage:
             "project": meta.get("name") or self.path.stem,
             "updatedAt": meta.get("updatedAt"),
             "pages": pages,
-            "template": template,
             "markdownTemplate": md_template,
             "resources": resources_meta,
             "bib": references,
@@ -1751,8 +1701,6 @@ class BenbenPackage:
         if has_pages:
             pages = payload.get("pages") or []
             self.save_pages(pages)
-        if "template" in payload:
-            self.save_template("latex", payload["template"])
         if "markdownTemplate" in payload:
             self.save_template("markdown", payload["markdownTemplate"])
         if "resources" in payload:

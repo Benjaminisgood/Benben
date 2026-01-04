@@ -3,51 +3,8 @@
 import os
 import textwrap
 
-# 默认模板文件名，可根据需要在 temps 中新增不同方案
-DEFAULT_TEMPLATE_FILENAME = "base_template.yaml"
+# 默认 Markdown 模板文件名，可根据需要在 temps 中新增不同方案
 DEFAULT_MARKDOWN_TEMPLATE_FILENAME = "markdown_default.yaml"
-
-# 若项目未定制模板，使用该结构作为兜底的 LaTeX 片段
-FALLBACK_TEMPLATE: dict[str, str] = {
-    "header": textwrap.dedent(
-        r"""
-        \documentclass{beamer}
-        \usetheme{Madrid}
-        \usecolortheme{seahorse}
-        \usepackage{graphicx}
-        \usepackage{hyperref}
-        \usepackage{booktabs}
-        \usepackage{amsmath, amssymb}
-        \usepackage{fontspec}
-        \usepackage{mwe}
-        \usepackage{xeCJK}
-        \setCJKmainfont{PingFang SC}
-        \setsansfont{PingFang SC}
-        \setmainfont{PingFang SC}
-        \graphicspath{{.}{attachments/}}
-        \makeatletter
-
-        \newcommand{\benben@imginclude}[2][]{%
-          \IfFileExists{attachments/#2}{\includegraphics[#1]{attachments/#2}}{%
-            \IfFileExists{#2}{\includegraphics[#1]{#2}}{%
-              \typeout{[warn] Missing image #2}%
-              \fbox{\rule{0pt}{1.5cm}\rule{1.5cm}{0pt}}%
-            }%
-          }%
-        }
-        \newcommand{\img}[2][]{\benben@imginclude[#1]{#2}}
-
-        \makeatother
-        \usepackage[backend=bibtex,style=chem-acs,maxnames=6,giveninits=true,articletitle=true]{biblatex}
-        \addbibresource{refs.bib}
-        \setbeameroption{show notes}
-        \title{report}
-        \author{Ben}
-        """
-    ).strip(),
-    "beforePages": "\\begin{document}",
-    "footer": "\\end{document}",
-}
 
 # Markdown 预览默认样式配置
 FALLBACK_MARKDOWN_TEMPLATE: dict[str, str] = {
@@ -655,54 +612,28 @@ OPENAI_TTS_SPEED = 1.0
 # 不同优化场景对应的系统提示与用户模板
 AI_PROMPTS = {
     "script": {
-        "system": "你是一个幻灯片演讲稿写作专家，服从我的指示，返回优化后的讲稿文本。",
+        "system": "你是一个讲稿写作专家，服从我的指示，返回优化后的讲稿文本。",
         "template": (
-            "你是一个幻灯片演讲稿写作专家。选择合适的演讲风格，可以进行高级感的幽默和帮助演讲者学习英语。\n"
-            "优化对应的讲稿，使其表达更清晰、逻辑更流畅、适合演讲，内容不要脱离幻灯片主题。\n"
-            "你需要根据我的幻灯片内容（也就是beamer）生成讲稿，LaTeX页面内容如下：\n{latex}\n\n"
-            "我的笔记也可以作为你的参考，笔记内容如下：\n{markdown}\n\n"
-            "如果没有特别说明，无论原始内容是什么语言，默认输出语言是英文en。\n\n"
+            "你是一个讲稿写作专家。选择合适的演讲风格，可以进行高级感的幽默和帮助演讲者学习英语。\n"
+            "优化对应的讲稿，使其表达更清晰、逻辑更流畅、适合演讲，内容不要脱离主题。\n"
+            "你需要根据我的 Markdown 内容生成讲稿，正文如下：\n{markdown}\n\n"
+            "如果没有特别说明，无论原始内容是什么语言，默认输出语言是英文 en。\n\n"
             "原始讲稿如下：\n{script}\n\n"
-            "如果原始讲稿有内容，判断是我的要求还是讲稿内容，如果是内容，请返回优化后的英文版讲稿文本。\n"
-            "演讲稿不带有任何latex和markdown语法，可以附上一些表情包以及演讲技巧提示。\n"
+            "如果原始讲稿有内容，判断是我的要求还是讲稿内容，如果是内容，请返回优化后的讲稿文本。\n"
+            "讲稿不带 Markdown 标记，可以附上一些表情包以及演讲技巧提示。\n"
         ),
     },
     "note": {
         "system": "你是一个笔记写作专家，返回优化后的笔记（Markdown）。",
         "template": (
-            "你是一个幻灯片笔记/摘要写作专家。\n"
-            "生成或优化一份适合阅读和记录的笔记（Markdown格式），保留要点、关键结论和联系。\n"
-            "一切数学公式或者代码请用Markdown的$包裹的数学表示法以及代码块格式表示。注意！markdown不被认为是代码！不要出现```markdown，我的笔记本来就是markdownown格式的。\n"
-            "LaTeX页面内容如下：\n{latex}\n\n"
+            "你是一个 Markdown 笔记/摘要写作专家。\n"
+            "生成或优化一份适合阅读和记录的笔记（Markdown 格式），保留要点、关键结论和联系。\n"
             "原始笔记如下：\n{markdown}\n\n"
-            "“ # ”后面是markdownown的注释，也是我给你的一些指示要求。\n"
-            "如果笔记有内容，请参考latex beamer的内容直接返回优化后的笔记文本，主要是en和cn，使用Markdown格式。\n"
-            "如果原始笔记为空，则自动根据我的现有幻灯片内容（也就是Latexbeamer的内容）进行生成相关的笔记。\n"
-            "输出内容的语言应该和我的笔记原始文本保持一致，语言保持一致！！！我的笔记原文是英文就输出英文，中文就输出中文！！！\n"
-            "再次强调！不要做翻译的工作，不允许偷懒输出一样的内容，我给的原始笔记是英文就必须输出优化后的英文en版笔记，并且我首选就是全英文笔记。\n"
+            "“ # ”后面是 Markdown 的注释，也是我给你的一些指示要求。\n"
+            "输出内容的语言应该和我的笔记原始文本保持一致。\n"
             "Markdown 输出需使用下方组件库中已经定义的语法与组件（含 ::: 自建块与可用的 HTML 模板），不要引入组件库之外的自定义语法。\n"
             "组件库清单如下：\n{component_library}\n"
-            "只要输出笔记内容，不要输出任何多余的内容。比如“```markdown、注释：” 这种的垃圾。\n"
-        ),
-    },
-    "latex": {
-        "system": (
-            "你是一个LaTeX Beamer幻灯片专家，只能在当前模板允许的宏包和命令范围内工作。 "
-            "必须严格使用组件库中定义的结构/语法，不得引入组件库之外的命令或环境。 "
-            "禁止添加新的宏包、命令或依赖，确保生成的代码在现有模板下可直接编译。"
-        ),
-        "template": (
-            "请优化以下LaTeX Beamer幻灯片页面内容(每一个%后面都是给你的一些指示）。你需要完成“%”给你的命令任务指示要求，用beamer输出完成的结果！\n"
-            "使其更规范、简洁、美观，并保留原有结构：\n{latex}\n\n"
-            "当前页的笔记内容如下：\n{markdown}\n\n"
-            "如果上述 LaTeX 内容为空但笔记存在，请基于笔记生成新的、可直接编译的幻灯片内容。并且注意如有需要，记得用多个frame以防止单个页面的内容溢出\n"
-            "严格遵守以下规则：\n"
-            "1. 只使用当前模板已经加载的宏包({allowed_packages})和命令({custom_macros})，禁止新增宏包、字体或 \\usepackage/\\RequirePackage 指令。\n"
-            "2. 不要输出 \\documentclass、\\begin{{document}}、\\end{{document}} 等全局结构，不要出现```latex，```等无关标记，只返回纯LaTeX代码。\n"
-            "3. 不允许使用需要额外宏包才能编译的命令，也不要新增 \\newcommand/\\renewcommand/\\DeclareMathOperator 等定义。\n"
-            "4. 只允许使用组件库中已有的语法和结构（见下方组件库清单），禁止出现组件库之外的命令/环境/结构；若原内容包含不在组件库内的语法，请重写为组件库允许的表达。\n"
-            "5. 输出内容的语言应该与我的原有内容一致，除非通过 % 特别要求。主要是 en 和 cn 两种。\n"
-            "组件库清单如下：\n{component_library}\n"
+            "只要输出笔记内容，不要输出任何多余的内容。\n"
         ),
     },
 }
@@ -715,7 +646,7 @@ AI_BIB_PROMPT = {
         " id(推荐的引用键，仅含字母数字或-), link(首选规范化URL),"
         " metadata(对象，包含作者数组authors、年份year、来源venue、doi、type等可用信息)。"
         " 若是学术论文请返回 metadata.doi、metadata.authors(最多5位作者全名)、metadata.year、metadata.venue。"
-        " 如能生成 BibTeX，可放在 bibtex 字段。"
+        " 如能生成引用条目，可放在 bibtex 字段。"
         " 严格返回单个 JSON 对象，不要额外解释。"
     ),
     "user": (
@@ -734,7 +665,7 @@ LEARNING_ASSISTANT_DEFAULT_PROMPTS = [
             "You are an experienced bilingual English-Chinese tutor. "
             "Explain grammar, nuance, and background in Chinese where appropriate, "
             "but keep important terminology bilingual. Provide clear, structured output in Markdown, "
-            "and include LaTeX math when useful."
+            "and include math notation when useful."
         ),
         "template": (
             "学习目标：针对以下句子进行英语学习，需包含翻译、语法结构解析、表达优化建议、相关文化或专业知识补充。\n"
@@ -841,7 +772,7 @@ LEARNING_ASSISTANT_DEFAULT_PROMPTS = [
             "1. **结构梳理**：调整标题层级、列表、段落顺序，使逻辑清晰。\n"
             "2. **公式与符号**：统一使用 `$...$` 或 `$$...$$`，排查未闭合/格式错误的表达式，并适当添加注释。\n"
             "3. **表达优化**：润色语言，使表述准确、紧凑，必要时补充定义或说明。\n"
-            "4. **语法检查**：md和latex的语法是否足够简单，方便渲染。\n"
+            "4. **语法检查**：Markdown 语法是否足够简单，方便渲染。\n"
             "5. **垃圾清理**：直接返回优化之后的笔记就好，不要生成多余内容。\n"
         ),
     },
@@ -853,7 +784,7 @@ LEARNING_ASSISTANT_DEFAULT_PROMPTS = [
             "You are a meticulous copyeditor for chemistry papers. "
             "Tidy noisy OCR/PDF-copied text without adding or removing facts. "
             "Preserve original languages (Chinese/English or mixed), scientific notation, and chemical meaning exactly. "
-            "Use Markdown/LaTeX-friendly formatting, fix subscripts/superscripts and Greek letters, and strip obvious noise like page numbers or stray citation markers."
+            "Use Markdown-friendly formatting, fix subscripts/superscripts and Greek letters, and strip obvious noise like page numbers or stray citation markers."
         ),
         "template": (
             "任务：对从化学论文 PDF 中复制/识别的原文做纯粹的内容清洗与重新排版，保证信息不增不减、不改动含义。\n"
@@ -862,7 +793,7 @@ LEARNING_ASSISTANT_DEFAULT_PROMPTS = [
             "请严格遵循：\n"
             "- 仅整理排版与格式，不改写或摘要，不补充缺失信息。\n"
             "- 合并被硬换行分割的句子或段落，保持原有段落逻辑；删除各种引用标识、页码、页眉/页脚、残缺引用编号、脚注提示等明显噪声。\n"
-            "- 修复上下标、离子电荷、化学式与数学符号，可用 Markdown/LaTeX 记法（如 H_{2}O、Na^{+}、\\alpha），包裹采用美元符号$\n"
+            "- 修复上下标、离子电荷、化学式与数学符号，可用常见记法（如 H2O、Na+、alpha），包裹采用美元符号$\n"
             "- 保留原有的中英文混排与符号；遇到无法确定的字符，用原样保留并可用 [?] 标记。\n"
             "输出：仅给出清洗排版后的正文（Markdown），不要额外解释或代码块标记。\n"
         ),
@@ -887,189 +818,9 @@ LEARNING_ASSISTANT_DEFAULT_PROMPTS = [
             "5. **下一步行动**：以待办清单形式输出 2-3 条可执行任务（含负责账户或时间节点）。\n"
         ),
     },
-    {
-        "id": "beamer_polish",
-        "name": "LaTeX Beamer 优化",
-        "description": "优化 Beamer 幻灯片代码与排版，确保兼容现有模板。",
-        "system": (
-            "You are a LaTeX Beamer specialist. "
-            "Respect existing template constraints, avoid introducing new packages, and focus on presentation clarity."
-        ),
-        "template": (
-            "需要优化的 Beamer 幻灯片代码如下：\n{content}\n\n"
-            "可参考的上下文：\n{context}\n\n"
-            "请提供：\n"
-            "1. **主要问题**：指出排版、结构或风格上的不足。\n"
-            "2. **优化后的代码**：在现有宏包限制下给出改进版，必要时拆分为多个 frame，并保持可直接编译。\n"
-            "3. **视觉与叙事建议**：针对文字密度、重点突出、颜色或动画提出改进意见。\n"
-            "4. **后续检查**：列出编译、演示或分享前需要确认的事项。\n"
-        ),
-    },
 ]
 
 COMPONENT_LIBRARY = {
-    "latex": [
-        {
-            "group": "结构",
-            "items": [
-                {"name": "章节（Section）", "code": "\\section{章节标题}"},
-                {"name": "小节（Subsection）", "code": "\\subsection{小节标题}"},
-                {"name": "幻灯片标题", "code": "\\frametitle{幻灯片标题}"},
-                {"name": "幻灯片副标题", "code": "\\framesubtitle{幻灯片副标题}"},
-                {
-                    "name": "摘要（Abstract）",
-                    "code": "\\begin{abstract}\n这里是摘要内容。\n\\end{abstract}",
-                },
-                {
-                    "name": "目录（Table of Contents）",
-                    "code": "\\tableofcontents",
-                },
-            ],
-        },
-        {
-            "group": "排版",
-            "items": [
-                {
-                    "name": "两栏排版",
-                    "code": "\\begin{columns}\n  \\column{0.5\\textwidth}\n  左侧内容\n  \\column{0.5\\textwidth}\n  右侧内容\n\\end{columns}",
-                },
-                {
-                    "name": "左右两列上下分块",
-                    "code": "\\begin{columns}[T,onlytextwidth]\n  \\column{0.48\\textwidth}\n  % 左侧内容\n  这里是左侧一整块内容\n  \\column{0.48\\textwidth}\n  % 右侧上块\n  \\textbf{右上块标题}\n  右上块内容\\\\[1em]\n  % 右侧下块\n  \\textbf{右下块标题}\n  右下块内容\n\\end{columns}",
-                },
-                {
-                    "name": "田字格（2x2分栏）",
-                    "code": "\\begin{columns}\n  \\column{0.5\\textwidth}\n    \\begin{block}{左上}\n    内容1\n    \\end{block}\n    \\begin{block}{左下}\n    内容2\n    \\end{block}\n  \\column{0.5\\textwidth}\n    \\begin{block}{右上}\n    内容3\n    \\end{block}\n    \\begin{block}{右下}\n    内容4\n    \\end{block}\n\\end{columns}",
-                },
-                {
-                    "name": "三列关键点",
-                    "code": "\\begin{columns}[onlytextwidth]\n  \\column{0.32\\textwidth}\n  \\begin{block}{要点一}\n  内容 A\n  \\end{block}\n  \\column{0.32\\textwidth}\n  \\begin{block}{要点二}\n  内容 B\n  \\end{block}\n  \\column{0.32\\textwidth}\n  \\begin{block}{要点三}\n  内容 C\n  \\end{block}\n\\end{columns}",
-                },
-                {
-                    "name": "引用块（Quote）",
-                    "code": "\\begin{quote}\n引用内容。\n\\end{quote}",
-                },
-            ],
-        },
-        {
-            "group": "组件",
-            "items": [
-                {
-                    "name": "项目符号列表",
-                    "code": "\\begin{itemize}\n  \\item 第一项\n  \\item 第二项\n\\end{itemize}",
-                },
-                {
-                    "name": "编号列表",
-                    "code": "\\begin{enumerate}\n  \\item 第一项\n  \\item 第二项\n\\end{enumerate}",
-                },
-                {
-                    "name": "表格",
-                    "code": "\\begin{tabular}{|c|c|c|}\n  \\hline\nA & B & C \\\\ \\hline\n1 & 2 & 3 \\\\ \\hline\n\\end{tabular}",
-                },
-                {
-                    "name": "浮动表格（table）",
-                    "code": "\\begin{table}[htbp]\n  \\centering\n  \\begin{tabular}{ccc}\n    A & B & C \\\\ \n    1 & 2 & 3 \\\\ \n  \\end{tabular}\n  \\caption{表格标题}\n  \\label{tab:label}\n\\end{table}",
-                },
-                {
-                    "name": "代码块（verbatim）",
-                    "code": "\\begin{verbatim}\n这里是代码内容\n\\end{verbatim}",
-                },
-                {
-                    "name": "交叉引用",
-                    "code": "见图\\ref{fig:label}，表\\ref{tab:label}，公式\\eqref{eq:label}",
-                },
-            ],
-        },
-        {
-            "group": "数学/定理",
-            "items": [
-                {
-                    "name": "公式（有编号）",
-                    "code": "\\begin{equation}\n  E=mc^2\n  \\end{equation}",
-                },
-                {
-                    "name": "公式（无编号）",
-                    "code": "\\[ E^2 = p^2c^2 + m^2c^4 \\]",
-                },
-                {
-                    "name": "定理（theorem）",
-                    "code": "\\begin{theorem}\n  定理内容。\n  \\end{theorem}",
-                },
-                {
-                    "name": "证明（proof）",
-                    "code": "\\begin{proof}\n  证明过程。\n  \\end{proof}",
-                },
-                {
-                    "name": "公式排列（align）",
-                    "code": "\\begin{align}\n  f(x) &= x^2 + 1 \\ \\n  f'(x) &= 2x\\,.\n\\end{align}",
-                },
-            ],
-        },
-        {
-            "group": "卡片",
-            "items": [
-                {
-                    "name": "普通卡片（block）",
-                    "code": "\\begin{block}{卡片标题}\n  这里是卡片内容，可用于强调信息。\n  \\end{block}",
-                },
-                {
-                    "name": "警告卡片（alertblock）",
-                    "code": "\\begin{alertblock}{警告/高亮}\n  这里是高亮警告内容。\n  \\end{alertblock}",
-                },
-                {
-                    "name": "示例卡片（exampleblock）",
-                    "code": "\\begin{exampleblock}{示例}\n  这里是示例内容。\n  \\end{exampleblock}",
-                },
-            ],
-        },
-        {
-            "group": "图片",
-            "items": [
-                {
-                    "name": "插入图片",
-                    "code": "\\begin{center}\n  \\img[width=0.7\\textwidth]{example-image}\n\\end{center}",
-                },
-                {
-                    "name": "浮动图片（figure）",
-                    "code": "\\begin{figure}[htbp]\n  \\centering\n  \\img[width=0.6\\textwidth]{example-image}\n  \\caption{图片标题}\n  \\label{fig:label}\n\\end{figure}",
-                },
-                {
-                    "name": "双图对比",
-                    "code": "\\begin{figure}[htbp]\n  \\centering\n  \\begin{subfigure}{0.48\\textwidth}\n    \\img[width=\\linewidth]{example-image-a}\n    \\caption{左图}\n  \\end{subfigure}\n  \\hfill\n  \\begin{subfigure}{0.48\\textwidth}\n    \\img[width=\\linewidth]{example-image-b}\n    \\caption{右图}\n  \\end{subfigure}\n\\end{figure}",
-                },
-            ],
-        },
-        {
-            "group": "幻灯片主题样式",
-            "items": [
-                {
-                    "name": "单页背景（自定义）",
-                    "code": "\\begin{BenbenBgFrame}{bg_red_1.png}\n  % 页面内容\n\\end{BenbenBgFrame}",
-                },
-                {
-                    "name": "单页背景（带 frame 选项）",
-                    "code": "\\begin{BenbenBgFrame}[plain]{bg_red_1.png}\n  % 页面内容\n\\end{BenbenBgFrame}",
-                },
-                {
-                    "name": "过渡页（无背景）",
-                    "code": "\\begin{frame}[plain]\n  \\centering\\Huge 章节标题\n\\end{frame}",
-                },
-            ],
-        },
-        {
-            "group": "上科大论文样式",
-            "items": [
-                {
-                    "name": "插入封面 PDF（cover.pdf）",
-                    "code": "\\begin{titlepage}\n  \\centering\n  \\includegraphics[page=1,width=\\paperwidth,height=\\paperheight,keepaspectratio]{cover.pdf}\n\\end{titlepage}",
-                },
-                {
-                    "name": "插入封面 PDF（自定义文件名）",
-                    "code": "\\begin{titlepage}\n  \\centering\n  \\includegraphics[page=1,width=\\paperwidth,height=\\paperheight,keepaspectratio]{your_cover.pdf}\n\\end{titlepage}",
-                },
-            ],
-        },
-    ],
     "markdown": [
         {
             "group": "现成的模板",
@@ -1438,6 +1189,10 @@ _ui_pane_ratio = (os.environ.get("BENBEN_UI_PANE_RATIO") or "balanced").strip().
 if _ui_pane_ratio not in {"no-script", "editor-wide", "balanced", "preview-wide", "equal"}:
     _ui_pane_ratio = "balanced"
 
+_ui_pane_layout = (os.environ.get("BENBEN_UI_PANE_LAYOUT") or "default").strip().lower()
+if _ui_pane_layout not in {"default", "editor-only", "preview-only"}:
+    _ui_pane_layout = "default"
+
 _ui_color_mode = (os.environ.get("BENBEN_COLOR_MODE") or "light").strip().lower()
 if _ui_color_mode not in {"light", "dark"}:
     _ui_color_mode = "light"
@@ -1460,6 +1215,8 @@ UI_THEME = {
     "fontSize": _ui_tier,
     "pane_ratio": _ui_pane_ratio,
     "paneRatio": _ui_pane_ratio,
+    "pane_layout": _ui_pane_layout,
+    "paneLayout": _ui_pane_layout,
     "navbar_buttons": {
         "preset": (os.environ.get("BENBEN_NAVBAR_PRESET") or "modern").strip().lower(),
         "style": _navbar_style,  # uniform | palette
@@ -1471,7 +1228,7 @@ UI_THEME = {
 
 
 def template_library_root(app: object | None = None) -> str:
-    """确定可复用 LaTeX 模板所在目录。"""
+    """确定可复用 Markdown 模板所在目录。"""
 
     if app is not None:
         # 在应用上下文内优先读取配置值
@@ -1501,9 +1258,7 @@ def init_app_config(app) -> None:
 
 
 __all__ = [
-    "DEFAULT_TEMPLATE_FILENAME",
     "DEFAULT_MARKDOWN_TEMPLATE_FILENAME",
-    "FALLBACK_TEMPLATE",
     "FALLBACK_MARKDOWN_TEMPLATE",
     "OPENAI_CHAT_COMPLETIONS_MODEL",
     "OPENAI_API_BASE_URL",
