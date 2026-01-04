@@ -118,7 +118,7 @@ _ASSISTANT_SYSTEM_PROMPT = (
 def _build_markdown_callout_renderer(name: str):
     """Return a renderer that wraps :::callouts with semantic containers."""
 
-    def _render(tokens, idx, _options, _env):
+    def _render(self, tokens, idx, _options, _env):
         if tokens[idx].nesting == 1:
             info = tokens[idx].info.strip()
             title_text = info[len(name):].strip()
@@ -228,7 +228,7 @@ def _parse_qa_info(info: str) -> tuple[str, bool]:
 def _build_markdown_qa_renderer():
     """Render :::qa Question | collapse blocks into Q/A cards."""
 
-    def _render(tokens, idx, _options, _env):
+    def _render(self, tokens, idx, _options, _env):
         info = tokens[idx].info if hasattr(tokens[idx], "info") else ""
         question, collapsed = _parse_qa_info(info)
         question_html = escapeHtml(question or "问题")
@@ -277,7 +277,7 @@ def _build_image_grid_renderer(layout: str):
       :::
     """
 
-    def _render(tokens, idx, _options, _env):
+    def _render(self, tokens, idx, _options, _env):
         if tokens[idx].nesting == 1:
             return f'<div class="markdown-img-grid {layout}">'
         return "</div>\n"
@@ -288,7 +288,7 @@ def _build_image_grid_renderer(layout: str):
 def _build_media_renderer(kind: str):
     """Render :::audio / :::video blocks into semantic figure + media tag."""
 
-    def _render(tokens, idx, _options, _env):
+    def _render(self, tokens, idx, _options, _env):
         if tokens[idx].nesting == 1:
             info = tokens[idx].info.strip()
             src = info[len(kind) :].strip()
@@ -320,7 +320,7 @@ _MARKDOWN_RENDERER.use(container_plugin, "video", render=_build_media_renderer("
 
 # 通用展示块容器渲染器（自建语法）
 def _build_simple_block_renderer(css_class: str):
-    def _render(tokens, idx, _options, _env):
+    def _render(self, tokens, idx, _options, _env):
         if tokens[idx].nesting == 1:
             return f'<div class="{css_class}">'
         return "</div>\n"
