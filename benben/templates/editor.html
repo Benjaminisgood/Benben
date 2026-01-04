@@ -2887,7 +2887,7 @@
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="ai-assistant-btn" title="AI 助理（可选 RAG）">AI助理</button></li>
 
         <li><hr class="dropdown-divider m-1"></li>
-        <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="edit-bib" title="管理文献">管理文献</button></li>
+        <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="edit-bib" title="管理链接">管理链接</button></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="manage-resources" title="管理资源">管理资源</button></li>
         <li class="nav-item"><button class="btn btn-outline-primary me-2 js-nav-btn" id="manage-attachments" title="管理附件">管理附件</button></li>
 
@@ -2973,13 +2973,13 @@
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
             <div class="modal-header">
-              <h5 class="modal-title" id="bibModalLabel">参考文献管理</h5>
+              <h5 class="modal-title" id="bibModalLabel">参考链接管理</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
               <div class="row g-2 align-items-center mb-3">
                 <div class="col-12 col-lg">
-                  <input id="bib-input" class="form-control" placeholder="输入 DOI、文献链接或完整引用条目">
+                  <input id="bib-input" class="form-control" placeholder="输入 DOI、链接链接或完整引用条目">
                 </div>
                 <div class="col-6 col-sm-4 col-lg-2">
                   <select id="bib-scope" class="form-select">
@@ -2996,23 +2996,23 @@
               </div>
               <div class="row g-2 mb-3">
                 <div class="col-12 col-md-6">
-                  <input id="bib-label-input" class="form-control" placeholder="可选：给文献起一个记忆用的名字">
+                  <input id="bib-label-input" class="form-control" placeholder="可选：给链接起一个记忆用的名字">
                 </div>
                 <div class="col-12 col-md-6">
-                  <input id="bib-note-input" class="form-control" placeholder="可选：备注这篇文献的重点">
+                  <input id="bib-note-input" class="form-control" placeholder="可选：备注这篇链接的重点">
                 </div>
               </div>
               <div id="bib-list" class="d-flex flex-column gap-3">
                 <div>
                   <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">本页文献</h6>
+                    <h6 class="mb-0">本页链接</h6>
                     <small class="text-muted" id="bib-page-count"></small>
                   </div>
                   <div id="bib-page-list" class="list-group"></div>
                 </div>
                 <div>
                   <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">全局文献</h6>
+                    <h6 class="mb-0">全局链接</h6>
                     <small class="text-muted" id="bib-global-count"></small>
                   </div>
                   <div id="bib-global-list" class="list-group"></div>
@@ -3029,20 +3029,20 @@
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="bibEntryModalLabel">编辑文献信息</h5>
+          <h5 class="modal-title" id="bibEntryModalLabel">编辑链接信息</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <div class="mb-3">
-            <label for="bib-edit-label" class="form-label">文献名称</label>
+            <label for="bib-edit-label" class="form-label">链接名称</label>
             <input type="text" class="form-control" id="bib-edit-label" placeholder="输入显示名称">
           </div>
           <div class="mb-3">
             <label for="bib-edit-note" class="form-label">备注</label>
-            <textarea class="form-control" id="bib-edit-note" rows="3" placeholder="补充这篇文献的重点"></textarea>
+            <textarea class="form-control" id="bib-edit-note" rows="3" placeholder="补充这篇链接的重点"></textarea>
           </div>
           <div class="border rounded p-3 bg-light" id="bib-edit-details">
-            <div class="text-muted">暂无文献信息</div>
+            <div class="text-muted">暂无链接信息</div>
           </div>
         </div>
         <div class="modal-footer">
@@ -15274,7 +15274,7 @@ applyDefaultWorkspaceIfNeeded();
         const infoEl = document.getElementById('bib-edit-details');
         if (labelInput) labelInput.value = '';
         if (noteInput) noteInput.value = '';
-        if (infoEl) infoEl.innerHTML = '<div class="text-muted">暂无文献信息</div>';
+        if (infoEl) infoEl.innerHTML = '<div class="text-muted">暂无链接信息</div>';
       });
     }
     return bibEditModalInstance;
@@ -15322,7 +15322,7 @@ applyDefaultWorkspaceIfNeeded();
       infoChunks.push(`<div class="mb-0"><div class="text-muted small">原始引用条目</div><pre class="mb-0 small bg-white border rounded p-2">${raw}</pre></div>`);
     }
     if (!infoChunks.length) {
-      infoChunks.push('<div class="text-muted">暂无文献信息</div>');
+      infoChunks.push('<div class="text-muted">暂无链接信息</div>');
     }
     return infoChunks.join('');
   }
@@ -15357,7 +15357,7 @@ applyDefaultWorkspaceIfNeeded();
       return;
     }
     if(!PROJECT_ENDPOINTS.projectSave){
-      promptWorkspaceSelection('请先选择工作区后再保存文献信息');
+      promptWorkspaceSelection('请先选择工作区后再保存链接信息');
       return;
     }
     const payload = { bib: bibData };
@@ -15376,10 +15376,10 @@ applyDefaultWorkspaceIfNeeded();
         return data;
       }
       const message = (parsed.json && parsed.json.error) ? parsed.json.error : (parsed.text || (`HTTP ${res.status}`));
-      showStatus('保存文献信息失败：' + message, 'danger', 6000);
+      showStatus('保存链接信息失败：' + message, 'danger', 6000);
     }catch(err){
       console.error('saveGlobalBib failed', err);
-      showStatus('保存文献信息失败：' + (err?.message || err || '未知错误'), 'danger', 6000);
+      showStatus('保存链接信息失败：' + (err?.message || err || '未知错误'), 'danger', 6000);
     }
   }
 
@@ -15478,7 +15478,7 @@ applyDefaultWorkspaceIfNeeded();
           icon: '🗑️',
           variant: 'outline-danger',
           onClick: () => {
-            if (!confirm('确认删除这条文献吗？')) return;
+            if (!confirm('确认删除这条链接吗？')) return;
               if (scope === 'page') {
                 const idx = findBibIndex(pageEntries, entry.id);
                 if (idx > -1) {
@@ -15527,7 +15527,7 @@ applyDefaultWorkspaceIfNeeded();
       return;
     }
     if(!PROJECT_ENDPOINTS.project){
-      promptWorkspaceSelection('请先选择工作区后再编辑文献');
+      promptWorkspaceSelection('请先选择工作区后再编辑链接');
       return;
     }
     fetch(PROJECT_ENDPOINTS.project).then(res=>res.json()).then(data=>{

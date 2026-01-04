@@ -1868,7 +1868,7 @@ def ai_bib():
     data = request.get_json(silent=True) or {}
     ref = str(data.get("ref") or "").strip()
     if not ref:
-        return api_error("参考文献输入为空", 400)
+        return api_error("参考链接输入为空", 400)
 
     _, _, project, error = _require_workspace_project_response()
     if error:
@@ -2602,9 +2602,9 @@ def _collect_attachment_references(project: dict) -> dict[str, list[str]]:
             _scan_text(page.get("script", ""), f"第{idx + 1}页讲稿")
             for entry in page.get("bib", []) or []:
                 if isinstance(entry, dict):
-                    _scan_text(entry.get("entry", ""), f"第{idx + 1}页参考文献")
+                    _scan_text(entry.get("entry", ""), f"第{idx + 1}页参考链接")
                 else:
-                    _scan_text(entry, f"第{idx + 1}页参考文献")
+                    _scan_text(entry, f"第{idx + 1}页参考链接")
 
     md_template = project.get("markdownTemplate", {})
     if isinstance(md_template, dict):
@@ -2616,9 +2616,9 @@ def _collect_attachment_references(project: dict) -> dict[str, list[str]]:
     if isinstance(global_bib, list):
         for idx, entry in enumerate(global_bib):
             if isinstance(entry, dict):
-                _scan_text(entry.get("entry", ""), f"全局参考文献 {idx + 1}")
+                _scan_text(entry.get("entry", ""), f"全局参考链接 {idx + 1}")
             else:
-                _scan_text(entry, f"全局参考文献 {idx + 1}")
+                _scan_text(entry, f"全局参考链接 {idx + 1}")
 
     return {name: sorted(contexts) for name, contexts in usage.items()}
 
