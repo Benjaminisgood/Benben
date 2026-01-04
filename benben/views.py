@@ -13,10 +13,11 @@ import tempfile
 import threading
 import time
 import uuid
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Tuple
-from urllib.parse import urlparse, unquote
+from urllib.parse import parse_qsl, urlparse, unquote
 
 import requests
 import yaml
@@ -99,6 +100,7 @@ _DOI_PATTERN = re.compile(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", flags=re.IGNORECASE)
 _MARKDOWN_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 _HTML_SRC_RE = re.compile(r'\bsrc=["\']([^"\']+)["\']', re.IGNORECASE)
 _HTML_HREF_RE = re.compile(r'\bhref=["\']([^"\']+)["\']', re.IGNORECASE)
+_INTERNAL_LINK_SCHEMES_RE = re.compile(r"^(?:https?:|mailto:|tel:|ftp:|file:|data:|//)", re.IGNORECASE)
 
 _IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp', '.heic', '.heif'}
 
@@ -334,209 +336,6 @@ _MARKDOWN_RENDERER.use(container_plugin, "divider", render=_build_simple_block_r
 _MARKDOWN_RENDERER.use(container_plugin, "banner", render=_build_simple_block_renderer("markdown-banner"))
 _MARKDOWN_RENDERER.use(container_plugin, "notes", render=_build_simple_block_renderer("markdown-notes"))
 _MARKDOWN_RENDERER.use(container_plugin, "code-split", render=_build_simple_block_renderer("markdown-code-split"))
-
-_DEFAULT_MARKDOWN_EXPORT_STYLE = """
-:root { color-scheme: light dark; }
-* { box-sizing: border-box; }
-body.markdown-export {
-  margin: 0;
-  padding: 36px 18px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  line-height: 1.7;
-}
-body.markdown-export .markdown-export-content {
-  max-width: min(1024px, 100%);
-  margin: 0 auto;
-}
-body.markdown-export pre { overflow-x: auto; }
-body.markdown-export img,
-body.markdown-export video {
-  max-width: 100%;
-  height: auto;
-}
-/* 轻量 TOC 控件样式（不干扰模板） */
-.markdown-export-toc-toggle {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 999;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid currentColor;
-  background: color-mix(in srgb, currentColor 6%, transparent);
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-.markdown-export-toc {
-  position: fixed;
-  right: 16px;
-  bottom: 64px;
-  max-height: min(60vh, 480px);
-  width: min(320px, 86vw);
-  overflow: auto;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid currentColor;
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  box-shadow: 0 16px 36px color-mix(in srgb, currentColor 14%, transparent);
-  display: none;
-}
-.markdown-export-toc.open { display: block; }
-.markdown-export-toc ul { list-style: none; padding-left: 0; margin: 0; }
-.markdown-export-toc li { margin: 4px 0; }
-.markdown-export-toc a {
-  color: inherit;
-  text-decoration: none;
-}
-.markdown-export-toc a:hover { text-decoration: underline; }
-/* === 自建展示样式（用于导出） === */
-.markdown-img-grid { display: grid; gap: 14px; margin: 18px 0; align-items: center; }
-.markdown-img-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(180px, auto); }
-.markdown-img-grid.two-vertical { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(220px, 1fr); }
-.markdown-img-grid.four-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(180px, 1fr); }
-.markdown-img-grid.rail { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 32vw); overflow-x: auto; gap: 12px; padding: 6px 4px; scroll-snap-type: x mandatory; }
-.markdown-img-grid img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; box-shadow: 0 12px 30px rgba(15,23,42,0.14); scroll-snap-align: start; }
-.markdown-img-grid.four-grid img { aspect-ratio: 1 / 1; }
-.markdown-kpi { display: flex; gap: 18px; flex-wrap: wrap; }
-.markdown-kpi > * { flex: 1 1 180px; padding: 12px; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.markdown-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.markdown-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.markdown-cover { display:flex; align-items:center; justify-content:center; text-align:center; padding:48px 18px; background:transparent; }
-.markdown-cover h1 { font-size: 2.4rem; margin: 0 0 8px; }
-.markdown-divider { text-align:center; padding: 18px 0; }
-.markdown-divider::before { content: ""; display:block; height:1px; background:rgba(0,0,0,0.08); margin:12px auto; max-width: 60%; }
-.markdown-banner { padding: 18px; border-radius:8px; background: color-mix(in srgb, var(--bs-primary) 8%, transparent); }
-.markdown-notes { font-size: 0.9rem; color: #6b7280; font-style: italic; border-left: 3px solid rgba(0,0,0,0.06); padding: 10px 12px; background: rgba(0,0,0,0.02); }
-.markdown-code-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items:start; }
-.markdown-qa { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 12px; padding: 12px 14px; margin: 1.1rem 0; background: color-mix(in srgb, currentColor 6%, transparent); box-shadow: 0 10px 26px rgba(15,23,42,0.08); }
-.markdown-qa .markdown-qa-question,
-details.markdown-qa .markdown-qa-question { font-weight: 650; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.markdown-qa .markdown-qa-label { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%; background: color-mix(in srgb, currentColor 18%, transparent); font-weight: 700; font-size: 0.85rem; }
-.markdown-qa .markdown-qa-question-text { display: inline; }
-.markdown-qa .markdown-qa-answer > :first-child { margin-top: 0; }
-.markdown-qa .markdown-qa-answer > :last-child { margin-bottom: 0; }
-details.markdown-qa { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 12px; padding: 10px 12px; margin: 1.1rem 0; background: color-mix(in srgb, currentColor 4%, transparent); box-shadow: 0 10px 26px rgba(15,23,42,0.08); }
-details.markdown-qa[open] { background: color-mix(in srgb, currentColor 8%, transparent); }
-details.markdown-qa summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 650; list-style: none; }
-details.markdown-qa summary::-webkit-details-marker { display: none; }
-details.markdown-qa .markdown-qa-toggle { margin-left: auto; font-size: 0.9rem; color: color-mix(in srgb, currentColor 70%, transparent); }
-details.markdown-qa .markdown-qa-answer { margin-top: 10px; }
-.markdown-media { margin: 1rem 0; border-radius: 12px; background: color-mix(in srgb, currentColor 6%, transparent); padding: 12px; box-shadow: 0 10px 28px rgba(15,23,42,0.08); }
-.markdown-media audio, .markdown-media video { width: 100%; display: block; border-radius: 10px; outline: none; background: #000; }
-.markdown-media video { max-height: min(420px, 48vh); object-fit: contain; }
-.markdown-media .markdown-media-caption { margin-top: 8px; font-size: 0.95rem; color: rgba(0,0,0,0.7); }
-.markdown-highlight,
-.markdown-blur {
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-mark.markdown-highlight {
-  color: inherit;
-}
-.markdown-highlight {
-  background: color-mix(in srgb, #f59e0b 32%, transparent);
-  border-radius: 0.2em;
-  padding: 0.05em 0.2em;
-}
-.markdown-blur {
-  filter: blur(6px);
-  opacity: 0.35;
-  transition: filter 0.2s ease, opacity 0.2s ease;
-  cursor: pointer;
-  padding: 0.05em 0.2em;
-  border-radius: 0.2em;
-  background: color-mix(in srgb, currentColor 8%, transparent);
-}
-.markdown-blur:hover,
-.markdown-blur:focus {
-  filter: none;
-  opacity: 1;
-}
-
-"""
-
-_DEFAULT_MARKDOWN_EXPORT_SCRIPT = """
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const root = document.querySelector('.markdown-export-content');
-  if (!root) return;
-  const headings = Array.from(root.querySelectorAll('h1, h2, h3, h4'));
-  if (!headings.length) return;
-  const slug = text => text.toLowerCase().trim()
-    .replace(/[^\\w\\u4e00-\\u9fa5\\- ]+/g, '')
-    .replace(/\\s+/g, '-')
-    .replace(/-+/g, '-')
-    || 'section';
-  headings.forEach((h, idx) => {
-    if (!h.id) {
-      h.id = `${slug(h.textContent || 'section')}-${idx + 1}`;
-    }
-  });
-  const toggle = document.createElement('button');
-  toggle.className = 'markdown-export-toc-toggle';
-  toggle.type = 'button';
-  toggle.textContent = '目录';
-  const panel = document.createElement('div');
-  panel.className = 'markdown-export-toc';
-  const list = document.createElement('ul');
-  headings.forEach(h => {
-    const li = document.createElement('li');
-    li.style.paddingLeft = `${(parseInt(h.tagName.substring(1), 10) - 1) * 12}px`;
-    const a = document.createElement('a');
-    a.href = `#${h.id}`;
-    a.textContent = h.textContent || h.id;
-    li.appendChild(a);
-    list.appendChild(li);
-  });
-  panel.appendChild(list);
-  toggle.addEventListener('click', () => panel.classList.toggle('open'));
-  document.body.append(toggle, panel);
-});
-</script>
-"""
-
-_DEFAULT_HIGHLIGHT_EXPORT_SNIPPET = """<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script>
-window.addEventListener('DOMContentLoaded', function(){
-  if (window.hljs && typeof window.hljs.highlightAll === 'function') {
-    window.hljs.highlightAll();
-  }
-});
-</script>
-"""
-
-# 为导出样式追加图片网格 CSS（保证导出/打印中也能正确布局）
-_DEFAULT_MARKDOWN_EXPORT_STYLE += """
-/* 图片网格样式（导出与打印友好） */
-.markdown-img-grid {
-    display: grid;
-    gap: 0.6rem;
-    align-items: center;
-    justify-items: center;
-    margin: 1rem auto;
-}
-.markdown-img-grid.two-col {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.markdown-img-grid.two-vertical {
-    grid-template-columns: 1fr;
-}
-.markdown-img-grid.four-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.markdown-img-grid img {
-    width: 100%;
-    height: auto;
-    border-radius: 8px;
-    box-shadow: 0 12px 36px rgba(15,23,42,0.12);
-    display: block;
-}
-"""
-
-
 def _resolve_cache_env_seconds(env_name: str, default: int, minimum: int) -> int:
     """Parse an environment override for cache timing, clamping to sane bounds."""
 
@@ -2209,6 +2008,22 @@ def _enhance_markdown_soup(
 
     soup = BeautifulSoup(html, "html.parser")
 
+    def _inline_media_attr(tag, attr: str, hint: Optional[str] = None) -> None:
+        src = tag.get(attr) or ""
+        content, mime_type = _load_image_bytes(
+            src,
+            project_name,
+            attachments_folder,
+            resources_folder,
+            attachment_map=attachment_map,
+            asset_hint=hint,
+        )
+        if content and mime_type:
+            encoded = base64.b64encode(content).decode("ascii")
+            tag[attr] = f"data:{mime_type};base64,{encoded}"
+            if tag.name == "source" and not tag.get("type"):
+                tag["type"] = mime_type
+
     for pre in soup.find_all("pre"):
         code_block = pre.find("code", recursive=False)
         if not code_block:
@@ -2224,17 +2039,7 @@ def _enhance_markdown_soup(
 
     for img in soup.find_all("img"):
         src = img.get("src") or ""
-        content, mime_type = _load_image_bytes(
-            src,
-            project_name,
-            attachments_folder,
-            resources_folder,
-            attachment_map=attachment_map,
-            asset_hint=img.get("alt"),
-        )
-        if content and mime_type:
-            encoded = base64.b64encode(content).decode("ascii")
-            img["src"] = f"data:{mime_type};base64,{encoded}"
+        _inline_media_attr(img, "src", hint=img.get("alt") or src)
         classes = set(img.get("class") or [])
         classes.add("markdown-preview-image")
         img["class"] = list(classes)
@@ -2242,6 +2047,15 @@ def _enhance_markdown_soup(
             img["loading"] = "lazy"
         if not img.has_attr("decoding"):
             img["decoding"] = "async"
+
+    for media in soup.find_all(["video", "audio"]):
+        if media.get("src"):
+            _inline_media_attr(media, "src", hint=media.get("src"))
+        if media.name == "video" and media.get("poster"):
+            _inline_media_attr(media, "poster", hint=media.get("poster"))
+        for source in media.find_all("source"):
+            if source.get("src"):
+                _inline_media_attr(source, "src", hint=source.get("src"))
 
     return soup
 
@@ -2273,9 +2087,18 @@ def _build_markdown_export_html(
     wrapper_class_attr = " ".join(dict.fromkeys(wrapper_classes))
 
     css = str(template.get("css") or "")
+    export_css = str(template.get("exportCss") or "")
     custom_head = str(template.get("customHead") or "")
-    include_highlight = "highlight" not in custom_head.lower() and "hljs" not in custom_head.lower()
-    highlight_head = _DEFAULT_HIGHLIGHT_EXPORT_SNIPPET if include_highlight else ""
+    custom_body = str(template.get("customBody") or "")
+
+    css_blocks = []
+    if export_css.strip():
+        css_blocks.append(export_css)
+    if css.strip():
+        css_blocks.append(css)
+    style_block = ""
+    if css_blocks:
+        style_block = "<style>\n" + "\n".join(css_blocks) + "\n  </style>"
 
     color_mode = "light"
     if isinstance(UI_THEME, dict):
@@ -2292,20 +2115,14 @@ def _build_markdown_export_html(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Markdown 预览导出</title>
-  <style>
-{_DEFAULT_MARKDOWN_EXPORT_STYLE}
-  </style>
-  <style>
-{css}
-  </style>
-  {highlight_head if highlight_head else ""}
+  {style_block}
   {custom_head}
 </head>
 <body {body_attr}>
   <div class="{wrapper_class_attr}">
 {body_html}
   </div>
-  {_DEFAULT_MARKDOWN_EXPORT_SCRIPT}
+  {custom_body}
   </body>
 </html>
 """
@@ -2480,10 +2297,14 @@ def _resolve_markdown_template(project: Optional[dict]) -> dict:
     template: dict[str, str] = {
         "css": default_template.get("css", ""),
         "wrapperClass": default_template.get("wrapperClass", ""),
+        "exportCss": default_template.get("exportCss", ""),
     }
     default_head = default_template.get("customHead")
     if isinstance(default_head, str) and default_head.strip():
         template["customHead"] = default_head
+    default_body = default_template.get("customBody")
+    if isinstance(default_body, str) and default_body.strip():
+        template["customBody"] = default_body
 
     raw_template = project.get("markdownTemplate") if isinstance(project, dict) else None
     if isinstance(raw_template, dict):
@@ -2493,11 +2314,19 @@ def _resolve_markdown_template(project: Optional[dict]) -> dict:
         wrapper_value = raw_template.get("wrapperClass")
         if isinstance(wrapper_value, str):
             template["wrapperClass"] = wrapper_value
+        export_css_value = raw_template.get("exportCss")
+        if isinstance(export_css_value, str):
+            template["exportCss"] = export_css_value
         head_value = raw_template.get("customHead")
         if isinstance(head_value, str) and head_value.strip():
             template["customHead"] = head_value
         elif not head_value:
             template.pop("customHead", None)
+        body_value = raw_template.get("customBody")
+        if isinstance(body_value, str) and body_value.strip():
+            template["customBody"] = body_value
+        elif not body_value:
+            template.pop("customBody", None)
 
     return template
 
@@ -2514,6 +2343,167 @@ def _normalize_link_target(value: object) -> str:
     cleaned = cleaned.split("?", 1)[0]
     cleaned = cleaned.split("#", 1)[0]
     return cleaned.strip()
+
+
+def _safe_unquote(value: str) -> str:
+    try:
+        return unquote(value)
+    except Exception:
+        return value
+
+
+def _build_page_id_index(pages: list) -> dict[str, int]:
+    """Build a lowercase pageId -> index lookup table."""
+
+    mapping: dict[str, int] = {}
+    for idx, page in enumerate(pages):
+        if not isinstance(page, dict):
+            continue
+        for key in ("pageId", "id"):
+            raw = page.get(key)
+            if isinstance(raw, str) and raw.strip():
+                mapping[raw.strip().lower()] = idx
+    return mapping
+
+
+def _parse_markdown_internal_link(href: object) -> tuple[Optional[int], Optional[str]]:
+    """Parse a Markdown/HTML link target and extract page index or page ID."""
+
+    if href is None:
+        return None, None
+    trimmed = str(href).strip()
+    if not trimmed:
+        return None, None
+    if _INTERNAL_LINK_SCHEMES_RE.match(trimmed):
+        return None, None
+    if trimmed.startswith("#"):
+        return None, None
+
+    working = trimmed
+    if working.startswith("./"):
+        working = working[2:]
+    working = working.lstrip("/")
+
+    if "#" in working:
+        working = working.split("#", 1)[0]
+
+    if not working:
+        return None, None
+
+    working = _safe_unquote(working)
+    if working.startswith("?"):
+        working = working[1:]
+    if working.lower().endswith(".md"):
+        working = working[:-3]
+
+    page_index: Optional[int] = None
+    page_id: Optional[str] = None
+
+    if "=" in working:
+        params: dict[str, str] = {}
+        for key, value in parse_qsl(working, keep_blank_values=True):
+            if key:
+                params[key.lower()] = value
+
+        def _get_param(*keys: str) -> Optional[str]:
+            for key in keys:
+                if key in params:
+                    return params[key]
+            return None
+
+        page_param = _get_param("page", "p")
+        if page_param is not None:
+            try:
+                page_index = int(page_param) - 1
+            except (TypeError, ValueError):
+                page_index = None
+        page_index_param = _get_param("pageindex", "page_idx", "index")
+        if page_index_param is not None:
+            try:
+                page_index = int(page_index_param) - 1
+            except (TypeError, ValueError):
+                page_index = None
+        page_id_param = _get_param("pageid", "page_id", "pid", "id")
+        if page_id_param is not None:
+            trimmed_pid = str(page_id_param).strip()
+            if trimmed_pid:
+                page_id = trimmed_pid
+
+    if page_index is None and not page_id:
+        match = re.match(r"^(?:page[-_]?|p)(\d+)$", working, flags=re.IGNORECASE)
+        if match:
+            page_index = int(match.group(1)) - 1
+        else:
+            match = re.match(r"^(\d+)$", working)
+            if match:
+                page_index = int(match.group(1)) - 1
+            else:
+                match = re.match(r"^page(?:Id)?[-_:]?([0-9a-f]{32})$", working, flags=re.IGNORECASE)
+                if match:
+                    page_id = match.group(1)
+                else:
+                    match = re.match(r"^page(?:Id)?[-_:]?(.+)$", working, flags=re.IGNORECASE)
+                    if match:
+                        candidate = match.group(1).strip()
+                        if candidate:
+                            page_id = candidate
+                    else:
+                        match = re.match(r"^([0-9a-f]{32})$", working, flags=re.IGNORECASE)
+                        if match:
+                            page_id = match.group(1)
+
+    if page_index is not None and page_index < 0:
+        page_index = None
+
+    return page_index, page_id
+
+
+def _resolve_markdown_target_page_index(
+    target: tuple[Optional[int], Optional[str]],
+    page_id_index: dict[str, int],
+    total_pages: int,
+) -> Optional[int]:
+    page_index, page_id = target
+    if page_index is not None and 0 <= page_index < total_pages:
+        return page_index
+    if page_id:
+        normalized = str(page_id).strip().lower()
+        return page_id_index.get(normalized)
+    return None
+
+
+def _collect_markdown_link_targets(
+    markdown_text: str,
+    source_index: int,
+    page_id_index: dict[str, int],
+    total_pages: int,
+) -> list[int]:
+    """Return ordered page indices referenced by Markdown content."""
+
+    if not markdown_text or not markdown_text.strip():
+        return []
+
+    targets: list[int] = []
+    seen: set[int] = set()
+
+    def _handle_target(raw: object) -> None:
+        target = _parse_markdown_internal_link(raw)
+        target_idx = _resolve_markdown_target_page_index(target, page_id_index, total_pages)
+        if target_idx is None or target_idx == source_index:
+            return
+        if target_idx in seen:
+            return
+        seen.add(target_idx)
+        targets.append(target_idx)
+
+    for match in _MARKDOWN_LINK_RE.finditer(markdown_text):
+        _handle_target(match.group(1))
+    for match in _HTML_SRC_RE.finditer(markdown_text):
+        _handle_target(match.group(1))
+    for match in _HTML_HREF_RE.finditer(markdown_text):
+        _handle_target(match.group(1))
+
+    return targets
 
 
 def _normalize_resource_path(value: str) -> str:
@@ -2611,6 +2601,8 @@ def _collect_attachment_references(project: dict) -> dict[str, list[str]]:
         _scan_text(md_template.get("css"), "Markdown 模板 CSS")
         _scan_text(md_template.get("wrapperClass"), "Markdown 模板 wrapperClass")
         _scan_text(md_template.get("customHead"), "Markdown 模板自定义头部")
+        _scan_text(md_template.get("exportCss"), "Markdown 模板导出 CSS")
+        _scan_text(md_template.get("customBody"), "Markdown 模板自定义脚本")
 
     global_bib = project.get("bib", [])
     if isinstance(global_bib, list):
@@ -3691,17 +3683,16 @@ def _extract_page_label(idx: int, page: dict) -> str:
     return f"第 {idx + 1} 页"
 
 
-def _collect_project_notes_markdown(project: Optional[dict]) -> tuple[str, list[int]]:
-    """Merge all page notes into one Markdown document."""
-
-    pages = project.get("pages", []) if isinstance(project, dict) else []
-    if not isinstance(pages, list):
-        pages = []
+def _collect_notes_markdown_for_pages(pages: list, indices: list[int]) -> tuple[str, list[int]]:
+    """Merge selected page notes into one Markdown document."""
 
     sections: list[str] = []
     included_pages: list[int] = []
 
-    for idx, page in enumerate(pages):
+    for idx in indices:
+        if idx < 0 or idx >= len(pages):
+            continue
+        page = pages[idx]
         if isinstance(page, dict):
             notes_raw = page.get("notes", "") or ""
         else:  # pragma: no cover - defensive fallback for unexpected payloads
@@ -3711,7 +3702,7 @@ def _collect_project_notes_markdown(project: Optional[dict]) -> tuple[str, list[
         if not normalized.strip():
             continue
 
-        title = _extract_page_label(idx, page)
+        title = _extract_page_label(idx, page if isinstance(page, dict) else {})
         clean_title = re.sub(r"[\r\n]+", " ", title).strip()
         default_title = f"第 {idx + 1} 页"
         if clean_title == default_title:
@@ -3725,6 +3716,48 @@ def _collect_project_notes_markdown(project: Optional[dict]) -> tuple[str, list[
 
     merged = "\n\n---\n\n".join(sections)
     return merged, included_pages
+
+
+def _collect_related_page_indices(project: Optional[dict], start_idx: int) -> list[int]:
+    """Return breadth-first related page indices from a start page."""
+
+    pages = project.get("pages", []) if isinstance(project, dict) else []
+    if not isinstance(pages, list) or not pages:
+        return []
+    if start_idx < 0 or start_idx >= len(pages):
+        return []
+
+    page_id_index = _build_page_id_index(pages)
+    visited: set[int] = set()
+    order: list[int] = []
+    queue: deque[int] = deque([start_idx])
+
+    while queue:
+        idx = queue.popleft()
+        if idx in visited:
+            continue
+        if idx < 0 or idx >= len(pages):
+            continue
+        visited.add(idx)
+        order.append(idx)
+        page = pages[idx]
+        notes = page.get("notes", "") if isinstance(page, dict) else str(page or "")
+        targets = _collect_markdown_link_targets(notes, idx, page_id_index, len(pages))
+        for target_idx in targets:
+            if target_idx not in visited:
+                queue.append(target_idx)
+
+    return order
+
+
+def _collect_project_notes_markdown(project: Optional[dict]) -> tuple[str, list[int]]:
+    """Merge all page notes into one Markdown document."""
+
+    pages = project.get("pages", []) if isinstance(project, dict) else []
+    if not isinstance(pages, list):
+        pages = []
+    indices = list(range(len(pages)))
+    return _collect_notes_markdown_for_pages(pages, indices)
 
 
 def _get_page_id_by_index(project: dict, page_idx: int) -> tuple[str | None, list[dict] | list]:
@@ -4214,7 +4247,7 @@ def export_page_notes():
 
 @bp.route("/export_page_markdown_html", methods=["GET"])
 def export_page_markdown_html():
-    """导出当前页 Markdown 渲染后的 HTML（内联图片）。"""
+    """导出当前页 Markdown 渲染后的 HTML（内联媒体）。"""
 
     page_param = request.args.get("page", type=int)
     page_idx = max((page_param or 1) - 1, 0)
@@ -4252,6 +4285,115 @@ def export_page_markdown_html():
     download_name = f"page_{page_idx + 1}_notes.html"
     return send_file(
         buffer,
+        mimetype="text/html",
+        as_attachment=True,
+        download_name=download_name,
+    )
+
+
+@bp.route("/export_page_related_notes", methods=["GET"])
+def export_page_related_notes():
+    """导出当前页及相关页的 Markdown 笔记。"""
+
+    page_param = request.args.get("page", type=int)
+    page_idx = max((page_param or 1) - 1, 0)
+
+    workspace_id, package, project, error = _require_workspace_project_response()
+    if error:
+        return error
+
+    pages = project.get("pages", []) if isinstance(project, dict) else []
+    if not pages or page_idx >= len(pages):
+        return jsonify({"success": False, "error": "指定页不存在"}), 404
+
+    related_indices = _collect_related_page_indices(project, page_idx)
+    merged_markdown, _included_pages = _collect_notes_markdown_for_pages(pages, related_indices)
+    if not merged_markdown.strip():
+        return jsonify({"success": False, "error": "当前页及相关页没有笔记可导出"}), 400
+
+    raw_flag = _parse_bool_flag(request.args.get("raw") or request.args.get("plain"))
+    bundle_flag = _parse_bool_flag(request.args.get("bundle"))
+    use_bundle = True
+    if raw_flag is True or bundle_flag is False:
+        use_bundle = False
+
+    if not use_bundle:
+        buffer = io.BytesIO(merged_markdown.encode("utf-8"))
+        download_name = f"page_{page_idx + 1}_related_notes.md"
+        return send_file(
+            buffer,
+            mimetype="text/markdown",
+            as_attachment=True,
+            download_name=download_name,
+        )
+
+    project_name = _workspace_project_label(package, project)
+    safe_project = secure_filename(project_name) or project_name or "project"
+    md_name = f"page_{page_idx + 1}_related_notes.md"
+    with _workspace_runtime_dirs(package) as paths:
+        archive_path, bundle_dir = _build_markdown_bundle(
+            merged_markdown,
+            md_name,
+            project_name,
+            paths["attachments"],
+            paths["resources"],
+            attachment_map=paths.get("attachment_map"),
+        )
+
+    @after_this_request
+    def _cleanup_bundle(response):
+        try:
+            shutil.rmtree(bundle_dir, ignore_errors=True)
+        finally:
+            try:
+                os.remove(archive_path)
+            except Exception:
+                pass
+        return response
+
+    download_name = f"{safe_project}_page_{page_idx + 1}_related_notes_bundle.zip"
+    return send_file(
+        str(archive_path),
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=download_name,
+    )
+
+
+@bp.route("/export_page_related_notes_html", methods=["GET"])
+def export_page_related_notes_html():
+    """导出当前页及相关页的 Markdown 渲染 HTML（内联媒体）。"""
+
+    page_param = request.args.get("page", type=int)
+    page_idx = max((page_param or 1) - 1, 0)
+    workspace_id, package, project, error = _require_workspace_project_response()
+    if error:
+        return error
+
+    pages = project.get("pages", []) if isinstance(project, dict) else []
+    if not pages or page_idx >= len(pages):
+        return jsonify({"success": False, "error": "指定页不存在"}), 404
+
+    related_indices = _collect_related_page_indices(project, page_idx)
+    merged_markdown, _included_pages = _collect_notes_markdown_for_pages(pages, related_indices)
+    if not merged_markdown.strip():
+        return jsonify({"success": False, "error": "当前页及相关页没有笔记可导出"}), 400
+
+    template = _resolve_markdown_template(project)
+    with _workspace_runtime_dirs(package) as paths:
+        project_name = _workspace_project_label(package, project)
+        html_output = _build_markdown_export_html(
+            merged_markdown,
+            template,
+            project_name,
+            paths["attachments"],
+            paths["resources"],
+            attachment_map=paths.get("attachment_map"),
+        )
+
+    download_name = f"page_{page_idx + 1}_related_notes.html"
+    return send_file(
+        io.BytesIO(html_output.encode("utf-8")),
         mimetype="text/html",
         as_attachment=True,
         download_name=download_name,
@@ -4321,7 +4463,7 @@ def export_notes():
 
 @bp.route("/export_notes_html", methods=["GET"])
 def export_notes_html():
-    """导出全部页面的 Markdown 渲染 HTML（合并）。"""
+    """导出全部页面的 Markdown 渲染 HTML（合并，内联媒体）。"""
 
     _, package, project, error = _require_workspace_project_response()
     if error:

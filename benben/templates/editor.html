@@ -2940,7 +2940,6 @@
               <option value="preview-wide">讲稿偏宽（6:4）</option>
               <option value="equal">对半分（5:5）</option>
             </select>
-            <div class="form-text">始终保持左右布局，不会纵向堆叠。</div>
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label fw-semibold" for="ui-font-size-select">字号 & 菜单占用</label>
@@ -4039,6 +4038,14 @@
             <label class="form-check-label" for="exportPageNotesHtmlOption">导出 当前页 HTML</label>
           </div>
           <div class="form-check">
+            <input class="form-check-input" type="radio" name="exportOption" id="exportPageRelatedNotesOption" value="page_related_notes">
+            <label class="form-check-label" for="exportPageRelatedNotesOption">导出 当前页及相关页 Markdown</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="exportOption" id="exportPageRelatedNotesHtmlOption" value="page_related_notes_html">
+            <label class="form-check-label" for="exportPageRelatedNotesHtmlOption">导出 当前页及相关页 HTML</label>
+          </div>
+          <div class="form-check">
             <input class="form-check-input" type="radio" name="exportOption" id="exportNotesOption" value="notes">
             <label class="form-check-label" for="exportNotesOption">导出 全部页 Markdown</label>
           </div>
@@ -4765,7 +4772,8 @@ function jumpToPage(targetIdx) {
   let globalResources = [];
   let markdownTemplate = {
     css: '',
-    wrapperClass: ''
+    wrapperClass: '',
+    exportCss: '',
   };
   const markdownSlideCache = new Map();
   const markdownPageDirty = new Set();
@@ -11336,6 +11344,9 @@ function syncMarkdownEditorToPreview(container) {
     if (typeof markdownTemplate.customHead === 'string' && !markdownTemplate.customHead.trim()) {
       delete markdownTemplate.customHead;
     }
+    if (typeof markdownTemplate.customBody === 'string' && !markdownTemplate.customBody.trim()) {
+      delete markdownTemplate.customBody;
+    }
     const chosen = selectEl ? selectEl.value : '';
     let matchedTemplate = null;
     if (chosen) {
@@ -11354,8 +11365,22 @@ function syncMarkdownEditorToPreview(container) {
     } else {
       selectedTemplateName.markdown = '';
     }
-    if (matchedTemplate && matchedTemplate.customHead) {
-      markdownTemplate.customHead = matchedTemplate.customHead;
+    if (matchedTemplate) {
+      if (typeof matchedTemplate.exportCss === 'string') {
+        markdownTemplate.exportCss = matchedTemplate.exportCss;
+      } else if ('exportCss' in markdownTemplate) {
+        delete markdownTemplate.exportCss;
+      }
+      if (matchedTemplate.customHead) {
+        markdownTemplate.customHead = matchedTemplate.customHead;
+      } else if ('customHead' in markdownTemplate) {
+        delete markdownTemplate.customHead;
+      }
+      if (matchedTemplate.customBody) {
+        markdownTemplate.customBody = matchedTemplate.customBody;
+      } else if ('customBody' in markdownTemplate) {
+        delete markdownTemplate.customBody;
+      }
     }
     detectCurrentTemplate();
     saveProject();
@@ -11507,6 +11532,35 @@ function syncMarkdownEditorToPreview(container) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = `page_${pageNumber}_notes.html`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
         showStatus(`第 ${pageNumber} 页 HTML 已导出`, 'success', 2500);
+      }).catch(e=>alert('导出失败：'+e.message));
+      return;
+    }
+    if(opt === 'page_related_notes') {
+      const pageNumber = currentPageIdx + 1;
+      const requestUrl = appendWorkspaceQuery(`/export_page_related_notes?page=${pageNumber}`);
+      fetch(requestUrl).then(res => {
+        if(res.ok) {
+          const filename = getDownloadNameFromResponse(res, `page_${pageNumber}_related_notes_bundle.zip`);
+          return res.blob().then(blob => ({blob, filename}));
+        }
+        return res.json().then(data=>{throw new Error(data.error||'导出失败')});
+      }).then(({blob, filename}) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        showStatus(`第 ${pageNumber} 页相关 Markdown 包已导出`, 'success', 2500);
+      }).catch(e=>alert('导出失败：'+e.message));
+      return;
+    }
+    if(opt === 'page_related_notes_html') {
+      const pageNumber = currentPageIdx + 1;
+      const requestUrl = appendWorkspaceQuery(`/export_page_related_notes_html?page=${pageNumber}`);
+      fetch(requestUrl).then(res => {
+        if(res.ok) return res.blob();
+        return res.json().then(data=>{throw new Error(data.error||'导出失败')});
+      }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `page_${pageNumber}_related_notes.html`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        showStatus(`第 ${pageNumber} 页相关 HTML 已导出`, 'success', 2500);
       }).catch(e=>alert('导出失败：'+e.message));
       return;
     }
@@ -11777,19 +11831,25 @@ function syncMarkdownEditorToPreview(container) {
         refreshLlmUi();
         const mdTemplate = data.markdownTemplate;
         if (typeof mdTemplate === 'string') {
-          markdownTemplate = { css: mdTemplate, wrapperClass: '' };
+          markdownTemplate = { css: mdTemplate, wrapperClass: '', exportCss: '' };
         } else if (mdTemplate && typeof mdTemplate === 'object') {
           markdownTemplate = {
             css: mdTemplate.css || '',
             wrapperClass: mdTemplate.wrapperClass || '',
+            exportCss: mdTemplate.exportCss || '',
           };
           if (mdTemplate.customHead) {
             markdownTemplate.customHead = mdTemplate.customHead;
           } else if ('customHead' in markdownTemplate) {
             delete markdownTemplate.customHead;
           }
+          if (mdTemplate.customBody) {
+            markdownTemplate.customBody = mdTemplate.customBody;
+          } else if ('customBody' in markdownTemplate) {
+            delete markdownTemplate.customBody;
+          }
         } else {
-          markdownTemplate = { css: '', wrapperClass: '' };
+          markdownTemplate = { css: '', wrapperClass: '', exportCss: '' };
         }
 
         pagesData = (data.pages || []).map((p, index) => {

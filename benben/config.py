@@ -456,6 +456,9 @@ FALLBACK_MARKDOWN_TEMPLATE: dict[str, str] = {
         """
     ).strip(),
     "wrapperClass": "markdown-note",
+    "exportCss": "",
+    "customHead": "",
+    "customBody": "",
 }
 
 # OpenAI ChatCompletion / Embedding / TTS 相关配置（支持分用途 env）

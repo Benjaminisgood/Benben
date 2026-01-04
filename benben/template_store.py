@@ -39,7 +39,9 @@ def load_markdown_template(name: str = DEFAULT_MARKDOWN_TEMPLATE_FILENAME) -> di
     path = _template_path(name)
     fallback_css = FALLBACK_MARKDOWN_TEMPLATE.get("css", "")
     fallback_wrapper = FALLBACK_MARKDOWN_TEMPLATE.get("wrapperClass", "")
+    fallback_export_css = FALLBACK_MARKDOWN_TEMPLATE.get("exportCss", "")
     fallback_head = FALLBACK_MARKDOWN_TEMPLATE.get("customHead", "")
+    fallback_body = FALLBACK_MARKDOWN_TEMPLATE.get("customBody", "")
     try:
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as handle:
@@ -47,18 +49,24 @@ def load_markdown_template(name: str = DEFAULT_MARKDOWN_TEMPLATE_FILENAME) -> di
                 if isinstance(data, dict):
                     css = _safe_strip(str(data.get("css") or fallback_css)) or fallback_css
                     wrapper = str(data.get("wrapperClass") or fallback_wrapper).strip()
+                    export_css = _safe_strip(str(data.get("exportCss") or fallback_export_css))
                     custom_head = _safe_strip(str(data.get("customHead") or fallback_head))
+                    custom_body = _safe_strip(str(data.get("customBody") or fallback_body))
                     return {
                         "css": css,
                         "wrapperClass": wrapper,
+                        "exportCss": export_css,
                         "customHead": custom_head,
+                        "customBody": custom_body,
                     }
     except Exception as exc:  # pragma: no cover - defensive log
         print(f"加载模板失败 {path}: {exc}")
     return {
         "css": fallback_css,
         "wrapperClass": fallback_wrapper,
+        "exportCss": fallback_export_css,
         "customHead": fallback_head,
+        "customBody": fallback_body,
     }
 
 
