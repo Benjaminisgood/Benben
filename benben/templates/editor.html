@@ -2300,6 +2300,31 @@
       max-height: min(70vh, 560px);
       overflow: auto;
     }
+    #componentModal .modal-dialog {
+      max-width: min(860px, 96vw);
+    }
+    #componentModal .modal-body {
+      overflow: hidden;
+    }
+    #componentModal .component-modal-layout {
+      display: flex;
+      gap: 0.75rem;
+      min-height: 0;
+    }
+    #componentModal .component-modal-nav {
+      flex: 0 0 160px;
+      max-height: min(65vh, 520px);
+      overflow-y: auto;
+    }
+    #componentModal .component-modal-items {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-height: min(65vh, 520px);
+      overflow-y: auto;
+    }
+    #componentModal .component-modal-items .list-group-item {
+      margin-bottom: 0.5rem;
+    }
     /* page-tabs 用 CSS Grid 平铺小标签，auto-fit+minmax 保持弹性数量 */
     #tabsModal #page-tabs {
       display: grid;
@@ -4047,14 +4072,14 @@
       </div>
 
       <div class="modal fade" id="componentModal" tabindex="-1" aria-labelledby="componentModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title" id="componentModalLabel">插入常用页面组件</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <div class="list-group" id="component-list">
+              <div class="component-modal-list" id="component-list">
               </div>
             </div>
             <div class="modal-footer">
@@ -4833,38 +4858,44 @@ function jumpToPage(targetIdx) {
 
   document.getElementById('insert-component').onclick = function() {
     const list = document.getElementById('component-list');
-    list.innerHTML = '';
+    if (!list) return;
+    list.replaceChildren();
     const groups = getComponentGroups();
     const modalLabel = document.getElementById('componentModalLabel');
     if (modalLabel) {
       modalLabel.textContent = '插入 Markdown 片段';
     }
     if (!groups.length) {
-      list.innerHTML = '<div class="text-center text-muted py-3">暂无可用组件</div>';
+      const empty = document.createElement('div');
+      empty.className = 'text-center text-muted py-3';
+      empty.textContent = '暂无可用组件';
+      list.replaceChildren(empty);
       const fallbackModal = new bootstrap.Modal(document.getElementById('componentModal'));
       fallbackModal.show();
       return;
     }
 
     const container = document.createElement('div');
-    container.className = 'd-flex';
+    container.className = 'component-modal-layout';
     const nav = document.createElement('div');
-    nav.className = 'list-group me-3';
-    nav.style.minWidth = '140px';
+    nav.className = 'list-group component-modal-nav';
     const compArea = document.createElement('div');
-    compArea.style.flex = '1';
+    compArea.className = 'list-group component-modal-items';
 
     function renderCompList(idx) {
-      compArea.innerHTML = '';
       const currentGroup = groups[idx];
-      if (!currentGroup || !Array.isArray(currentGroup.items)) {
-        compArea.innerHTML = '<div class="text-muted">该分类暂无片段</div>';
+      if (!currentGroup || !Array.isArray(currentGroup.items) || !currentGroup.items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'text-muted px-2 py-1';
+        empty.textContent = '该分类暂无片段';
+        compArea.replaceChildren(empty);
         return;
       }
+      const fragment = document.createDocumentFragment();
       currentGroup.items.forEach(comp => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'list-group-item list-group-item-action mb-1 text-start';
+        btn.className = 'list-group-item list-group-item-action text-start';
         btn.textContent = comp.name;
         btn.onclick = function() {
           if(singleEditor) {
@@ -4881,15 +4912,17 @@ function jumpToPage(targetIdx) {
           const modalInstance = bootstrap.Modal.getInstance(document.getElementById('componentModal'));
           if (modalInstance) modalInstance.hide();
         };
-        compArea.appendChild(btn);
+        fragment.appendChild(btn);
       });
+      compArea.replaceChildren(fragment);
+      compArea.scrollTop = 0;
     }
 
     groups.forEach((group, idx) => {
       const navBtn = document.createElement('button');
       navBtn.type = 'button';
-      navBtn.className = 'list-group-item list-group-item-action' + (idx === 0 ? ' active' : '');
-      navBtn.textContent = group.group;
+      navBtn.className = 'list-group-item list-group-item-action text-start' + (idx === 0 ? ' active' : '');
+      navBtn.textContent = group.group || `分组 ${idx + 1}`;
       navBtn.onclick = function() {
         Array.from(nav.children).forEach(btn => btn.classList.remove('active'));
         navBtn.classList.add('active');
@@ -4898,10 +4931,10 @@ function jumpToPage(targetIdx) {
       nav.appendChild(navBtn);
     });
 
-    renderCompList(0);
     container.appendChild(nav);
     container.appendChild(compArea);
     list.appendChild(container);
+    renderCompList(0);
     const modal = new bootstrap.Modal(document.getElementById('componentModal'));
     modal.show();
   };
