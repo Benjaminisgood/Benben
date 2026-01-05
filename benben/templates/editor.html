@@ -6,6 +6,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/diff/5.1.0/diff.min.js"></script>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
@@ -934,6 +935,66 @@
       overflow: auto;
       resize: vertical;
     }
+    /* 笔记 AI 优化结果 diff 视图 */
+    .ai-note-diff-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .ai-note-diff-panel {
+      border: 1px solid var(--surface-border);
+      border-radius: 0.85rem;
+      background: var(--surface-1);
+      overflow: hidden;
+      box-shadow: 0 12px 26px color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+    .ai-note-diff-header {
+      padding: 0.5rem 0.75rem;
+      font-weight: 600;
+      background: color-mix(in srgb, var(--surface-2) 80%, var(--accent) 20%);
+      border-bottom: 1px solid var(--surface-border);
+    }
+    .ai-note-diff-body {
+      max-height: 52vh;
+      overflow: auto;
+      font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .ai-note-diff-line {
+      display: grid;
+      grid-template-columns: 3.25rem 1fr;
+      gap: 0.75rem;
+      padding: 0.1rem 0.6rem;
+      border-left: 3px solid transparent;
+    }
+    .ai-note-diff-line-number {
+      text-align: right;
+      color: var(--preview-muted);
+      user-select: none;
+    }
+    .ai-note-diff-line-text {
+      white-space: pre;
+    }
+    .ai-note-diff-line--added {
+      background: color-mix(in srgb, #22c55e 16%, transparent);
+      border-left-color: #22c55e;
+    }
+    .ai-note-diff-line--removed {
+      background: color-mix(in srgb, #ef4444 14%, transparent);
+      border-left-color: #ef4444;
+    }
+    .ai-note-diff-line--empty .ai-note-diff-line-number {
+      color: transparent;
+    }
+    .ai-note-diff-line--empty .ai-note-diff-line-text {
+      color: color-mix(in srgb, var(--preview-muted) 55%, transparent);
+    }
+    @media (max-width: 992px) {
+      .ai-note-diff-grid {
+        grid-template-columns: 1fr;
+      }
+    }
     .ai-assistant-context-toggle {
       font-size: 0.9rem;
     }
@@ -1115,7 +1176,7 @@
     .storage-inline .form-check-label {
       color: var(--shell-text);
     }
-    /* 模型配置弹窗的折叠区域与内容底色（随主题） */
+    /* 模型弹窗的折叠区域与内容底色（随主题） */
     #llmModal .accordion-item {
       background: color-mix(in srgb, var(--surface-1) 92%, var(--accent) 8%);
       border: 1px solid var(--surface-border);
@@ -1373,7 +1434,7 @@
       border-color: color-mix(in srgb, var(--surface-border) 62%, var(--accent-strong) 38%);
       color: color-mix(in srgb, var(--shell-text) 84%, var(--accent-strong));
     }
-    /* badge 状态色也用主题混色，覆盖模型配置等场景 */
+    /* badge 状态色也用主题混色，覆盖模型等场景 */
     .llm-modal-provider-status.badge,
     #llm-modal-api-status {
       background: color-mix(in srgb, var(--accent) 18%, var(--surface-1)) !important;
@@ -2878,8 +2939,8 @@
         
         <li><hr class="dropdown-divider m-1"></li>
         <li class="nav-item">
-          <button class="btn btn-outline-primary me-2 js-nav-btn" id="llm-manage-btn" title="管理模型配置">
-            模型配置
+          <button class="btn btn-outline-primary me-2 js-nav-btn" id="llm-manage-btn" title="管理模型">
+            模型
           </button>
         </li>
 
@@ -3226,14 +3287,39 @@
 
       
           <div class="modal fade" id="aiNoteModal" tabindex="-1" aria-labelledby="aiNoteModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title" id="aiNoteModalLabel">笔记AI优化结果</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <textarea id="ai-note-result" class="form-control" rows="8"></textarea>
+              <ul class="nav nav-tabs" id="ai-note-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="ai-note-result-tab" data-bs-toggle="tab" data-bs-target="#ai-note-result-panel" type="button" role="tab" aria-controls="ai-note-result-panel" aria-selected="true">优化结果</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="ai-note-diff-tab" data-bs-toggle="tab" data-bs-target="#ai-note-diff-panel" type="button" role="tab" aria-controls="ai-note-diff-panel" aria-selected="false">对比</button>
+                </li>
+              </ul>
+              <div class="tab-content pt-3" id="ai-note-tab-content">
+                <div class="tab-pane fade show active" id="ai-note-result-panel" role="tabpanel" aria-labelledby="ai-note-result-tab">
+                  <textarea id="ai-note-result" class="form-control" rows="12"></textarea>
+                </div>
+                <div class="tab-pane fade" id="ai-note-diff-panel" role="tabpanel" aria-labelledby="ai-note-diff-tab">
+                  <div class="ai-note-diff-grid">
+                    <div class="ai-note-diff-panel">
+                      <div class="ai-note-diff-header">优化前</div>
+                      <div id="ai-note-diff-before" class="ai-note-diff-body" aria-label="优化前内容"></div>
+                    </div>
+                    <div class="ai-note-diff-panel">
+                      <div class="ai-note-diff-header">优化后</div>
+                      <div id="ai-note-diff-after" class="ai-note-diff-body" aria-label="优化后内容"></div>
+                    </div>
+                  </div>
+                  <div class="small text-muted mt-2">绿色为新增，红色为删减。</div>
+                </div>
+              </div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
@@ -3758,7 +3844,7 @@
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
             <div class="modal-header">
-              <h5 class="modal-title" id="llmModalLabel">模型配置</h5>
+              <h5 class="modal-title" id="llmModalLabel">模型</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -12271,6 +12357,106 @@ applyDefaultWorkspaceIfNeeded();
   }
 })();
 
+  let aiNoteOriginal = '';
+  let aiNoteDiffTimer = null;
+
+  function splitAiNoteDiffLines(value) {
+    if (!value) return [];
+    const normalized = value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = normalized.split('\n');
+    if (lines.length && lines[lines.length - 1] === '') {
+      lines.pop();
+    }
+    return lines;
+  }
+
+  function buildAiNoteDiffRows(before, after) {
+    if (!window.Diff || typeof window.Diff.diffLines !== 'function') return [];
+    const parts = window.Diff.diffLines(before || '', after || '');
+    const rows = [];
+    let leftNo = 1;
+    let rightNo = 1;
+    parts.forEach(part => {
+      const lines = splitAiNoteDiffLines(part.value);
+      if (!lines.length) return;
+      lines.forEach(line => {
+        const row = {
+          left: {text: '', number: '', type: 'empty'},
+          right: {text: '', number: '', type: 'empty'},
+        };
+        if (part.added) {
+          row.right = {text: line, number: rightNo++, type: 'added'};
+        } else if (part.removed) {
+          row.left = {text: line, number: leftNo++, type: 'removed'};
+        } else {
+          row.left = {text: line, number: leftNo++, type: 'same'};
+          row.right = {text: line, number: rightNo++, type: 'same'};
+        }
+        rows.push(row);
+      });
+    });
+    return rows;
+  }
+
+  function buildAiNoteDiffLine(cell) {
+    const lineEl = document.createElement('div');
+    lineEl.className = `ai-note-diff-line ai-note-diff-line--${cell.type || 'same'}`;
+    const numEl = document.createElement('span');
+    numEl.className = 'ai-note-diff-line-number';
+    numEl.textContent = cell.number ? String(cell.number) : '';
+    const textEl = document.createElement('span');
+    textEl.className = 'ai-note-diff-line-text';
+    textEl.textContent = cell.text || '';
+    lineEl.appendChild(numEl);
+    lineEl.appendChild(textEl);
+    return lineEl;
+  }
+
+  function renderAiNoteDiff(before, after) {
+    const beforeEl = document.getElementById('ai-note-diff-before');
+    const afterEl = document.getElementById('ai-note-diff-after');
+    if (!beforeEl || !afterEl) return;
+    beforeEl.innerHTML = '';
+    afterEl.innerHTML = '';
+    if (!window.Diff || typeof window.Diff.diffLines !== 'function') {
+      beforeEl.textContent = 'Diff 组件未加载';
+      afterEl.textContent = '';
+      return;
+    }
+    const rows = buildAiNoteDiffRows(before || '', after || '');
+    if (!rows.length) {
+      beforeEl.textContent = '暂无内容';
+      afterEl.textContent = '暂无内容';
+      return;
+    }
+    rows.forEach(row => {
+      beforeEl.appendChild(buildAiNoteDiffLine(row.left));
+      afterEl.appendChild(buildAiNoteDiffLine(row.right));
+    });
+  }
+
+  function scheduleAiNoteDiff() {
+    if (aiNoteDiffTimer) window.clearTimeout(aiNoteDiffTimer);
+    aiNoteDiffTimer = window.setTimeout(() => {
+      const resultEl = document.getElementById('ai-note-result');
+      if (!resultEl) return;
+      renderAiNoteDiff(aiNoteOriginal || '', resultEl.value || '');
+    }, 120);
+  }
+
+  const aiNoteResultEl = document.getElementById('ai-note-result');
+  if (aiNoteResultEl) {
+    aiNoteResultEl.addEventListener('input', () => {
+      scheduleAiNoteDiff();
+    });
+  }
+  const aiNoteDiffTab = document.getElementById('ai-note-diff-tab');
+  if (aiNoteDiffTab) {
+    aiNoteDiffTab.addEventListener('shown.bs.tab', () => {
+      scheduleAiNoteDiff();
+    });
+  }
+
   
   // AI script optimization (讲稿)
   const aiScriptBtn = document.getElementById('ai-script-optimize');
@@ -12311,6 +12497,7 @@ applyDefaultWorkspaceIfNeeded();
   
   document.getElementById('ai-note-optimize').onclick = function() {
     const note = pagesData[currentPageIdx]?.notes || '';
+    aiNoteOriginal = note;
     this.disabled = true;
     this.textContent = '优化中...';
     fetch('/ai_optimize', {
@@ -12320,6 +12507,7 @@ applyDefaultWorkspaceIfNeeded();
     }).then(res => res.json()).then(data => {
       if(data.success && data.result) {
         document.getElementById('ai-note-result').value = data.result;
+        renderAiNoteDiff(aiNoteOriginal, data.result);
         var modal = new bootstrap.Modal(document.getElementById('aiNoteModal'));
         modal.show();
       } else {
