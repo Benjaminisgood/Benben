@@ -1,93 +1,147 @@
 type: markdown
 css: |
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
   .md-contrast {
-    --md-accent: #0ea5e9;
-    --md-accent-strong: #0284c7;
+    --contrast-bg: #ffffff;
+    --contrast-surface: #ffffff;
+    --contrast-text: #0b0b0f;
+    --contrast-muted: #4b5563;
+    --contrast-border: #0b0b0f;
+    --contrast-accent: #f97316;
+    --contrast-accent-strong: #ea580c;
     font-family: "Space Grotesk", "Segoe UI", sans-serif;
-    font-size: 16px;
+    font-size: 16.5px;
     line-height: 1.7;
-    color: var(--shell-text, #0f172a);
-    max-width: 900px;
+    color: var(--shell-text, var(--contrast-text));
+    max-width: 920px;
     margin: 0 auto;
+  }
+  body.theme-dark .md-contrast {
+    --contrast-bg: #050505;
+    --contrast-surface: #0f1115;
+    --contrast-text: #f9fafb;
+    --contrast-muted: #9ca3af;
+    --contrast-border: #f9fafb;
+    --contrast-accent: #34d399;
+    --contrast-accent-strong: #10b981;
   }
   .md-contrast h1,
   .md-contrast h2,
-  .md-contrast h3 {
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.15;
-    margin: 1.6em 0 0.6em;
-  }
-  .md-contrast h1 {
-    font-size: 2.4rem;
-    text-transform: uppercase;
+  .md-contrast h3,
+  .md-contrast h4 {
+    font-family: "Bebas Neue", "Space Grotesk", sans-serif;
     letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.05;
+    margin: 1.5em 0 0.6em;
   }
-  .md-contrast h2 {
-    font-size: 1.7rem;
-    border-left: 4px solid var(--md-accent);
-    padding-left: 0.6rem;
-  }
-  .md-contrast h3 { font-size: 1.3rem; }
+  .md-contrast h1 { font-size: 3rem; }
+  .md-contrast h2 { font-size: 2.1rem; border-left: 6px solid var(--contrast-accent); padding-left: 0.6rem; }
+  .md-contrast h3 { font-size: 1.5rem; }
+  .md-contrast h4 { font-size: 1.1rem; color: var(--contrast-muted); }
+  .md-contrast p { margin: 0 0 1em; }
   .md-contrast a {
-    color: var(--md-accent);
-    text-decoration: none;
-    background: color-mix(in srgb, var(--md-accent) 12%, transparent);
+    color: var(--contrast-accent);
+    text-decoration: underline;
+    text-decoration-thickness: 0.18em;
+    text-underline-offset: 0.18em;
+    background: color-mix(in srgb, var(--contrast-accent) 18%, transparent);
     padding: 0 0.2em;
-    border-radius: 0.2em;
   }
   .md-contrast a:hover {
-    background: color-mix(in srgb, var(--md-accent-strong) 20%, transparent);
+    color: var(--contrast-accent-strong);
+    background: color-mix(in srgb, var(--contrast-accent) 26%, transparent);
   }
+  .md-contrast ul,
+  .md-contrast ol {
+    margin: 0 0 1em;
+    padding-left: 1.3em;
+  }
+  .md-contrast li + li { margin-top: 0.25em; }
   .md-contrast blockquote {
-    border-left: 4px solid var(--md-accent-strong);
+    border-left: 6px solid var(--contrast-accent-strong);
     padding: 0.9em 1.1em;
     margin: 1.2em 0;
-    background: color-mix(in srgb, var(--md-accent) 8%, transparent);
+    background: color-mix(in srgb, var(--contrast-accent) 12%, transparent);
   }
   .md-contrast code {
     font-family: "IBM Plex Mono", "Fira Mono", monospace;
     font-size: 0.95em;
     padding: 0.12em 0.35em;
     border-radius: 0.25rem;
-    background: color-mix(in srgb, var(--md-accent) 16%, transparent);
+    background: color-mix(in srgb, var(--contrast-accent) 18%, transparent);
   }
   .md-contrast pre {
     margin: 1.1em 0;
     padding: 1em 1.1em;
     border-radius: 0.7rem;
-    border: 1px solid color-mix(in srgb, var(--md-accent) 24%, transparent);
-    background: rgba(15, 23, 42, 0.04);
+    border: 2px solid var(--contrast-border);
+    background: color-mix(in srgb, var(--contrast-text) 6%, transparent);
     overflow-x: auto;
+  }
+  .md-contrast pre code {
+    display: block;
+    padding: 0;
+    background: transparent;
+  }
+  .md-contrast table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+  }
+  .md-contrast th,
+  .md-contrast td {
+    border: 2px solid var(--contrast-border);
+    padding: 0.65em 0.85em;
+    text-align: left;
+  }
+  .md-contrast th {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: color-mix(in srgb, var(--contrast-accent) 12%, transparent);
   }
   .md-contrast hr {
     border: none;
-    border-top: 2px solid color-mix(in srgb, var(--md-accent) 30%, transparent);
+    height: 2px;
+    background: var(--contrast-border);
     margin: 2em 0;
   }
+  .md-contrast figure {
+    margin: 1.6rem auto;
+    text-align: center;
+  }
+  .md-contrast figcaption {
+    margin-top: 0.6rem;
+    font-size: 0.92rem;
+    color: var(--contrast-muted);
+  }
+  .md-contrast img {
+    max-width: 100%;
+    border-radius: 0.9rem;
+    border: 3px solid var(--contrast-border);
+  }
   .md-contrast .markdown-callout {
-    border: 1px solid color-mix(in srgb, var(--md-accent) 45%, transparent);
-    border-left: 4px solid var(--md-accent);
+    border: 2px solid var(--contrast-border);
+    border-left: 6px solid var(--contrast-accent);
     border-radius: 0.6rem;
     padding: 0.9rem 1.1rem;
     margin: 1.1rem 0;
-    background: color-mix(in srgb, var(--md-accent) 8%, transparent);
+    background: color-mix(in srgb, var(--contrast-accent) 12%, transparent);
   }
   .md-contrast .markdown-callout-title {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-size: 0.82rem;
     margin-bottom: 0.4rem;
-    color: var(--md-accent-strong);
+    color: var(--contrast-accent-strong);
   }
   .md-contrast .markdown-qa {
-    border: 1px solid color-mix(in srgb, var(--md-accent) 35%, transparent);
+    border: 2px solid var(--contrast-border);
     border-radius: 0.75rem;
     padding: 0.95rem 1.1rem;
     margin: 1.1rem 0;
-    background: rgba(14, 165, 233, 0.08);
+    background: color-mix(in srgb, var(--contrast-accent) 10%, transparent);
   }
   .md-contrast details.markdown-qa summary {
     cursor: pointer;
@@ -104,14 +158,14 @@ css: |
     font-size: 0.75rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--md-accent);
+    color: var(--contrast-accent);
   }
   .md-contrast .markdown-media {
-    border: 1px solid color-mix(in srgb, var(--md-accent) 30%, transparent);
+    border: 2px solid var(--contrast-border);
     border-radius: 0.7rem;
     padding: 0.8rem;
     margin: 1.1rem 0;
-    background: rgba(15, 23, 42, 0.04);
+    background: color-mix(in srgb, var(--contrast-text) 6%, transparent);
   }
   .md-contrast .markdown-media audio,
   .md-contrast .markdown-media video {
@@ -123,6 +177,11 @@ css: |
     display: grid;
     gap: 14px;
     margin: 1.1rem 0;
+  }
+  .md-contrast .markdown-img-grid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
   .md-contrast .markdown-img-grid.two-col,
   .md-contrast .markdown-img-grid.two-vertical {
@@ -138,20 +197,26 @@ css: |
     padding-bottom: 6px;
   }
   .md-contrast .markdown-cover {
-    border: 1px solid color-mix(in srgb, var(--md-accent) 30%, transparent);
+    border: 2px solid var(--contrast-border);
     border-radius: 1rem;
     padding: 1.4rem 1.2rem;
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(15, 23, 42, 0.02));
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(15, 23, 42, 0.02));
   }
   .md-contrast .markdown-banner {
     border-radius: 0.8rem;
     padding: 0.9rem 1.1rem;
-    background: color-mix(in srgb, var(--md-accent) 12%, transparent);
+    background: color-mix(in srgb, var(--contrast-accent) 12%, transparent);
+    border: 2px solid var(--contrast-border);
   }
   .md-contrast .markdown-notes {
-    border-left: 3px solid var(--md-accent);
+    border-left: 4px solid var(--contrast-accent);
     padding-left: 0.9rem;
-    color: color-mix(in srgb, currentColor 70%, transparent);
+    color: var(--contrast-muted);
+  }
+  .md-contrast .markdown-divider {
+    height: 4px;
+    background: var(--contrast-border);
+    margin: 1.6rem 0;
   }
   .md-contrast .markdown-kpi,
   .md-contrast .markdown-features {
@@ -162,10 +227,10 @@ css: |
   }
   .md-contrast .markdown-kpi > *,
   .md-contrast .markdown-features > * {
-    border: 1px solid color-mix(in srgb, var(--md-accent) 45%, transparent);
+    border: 2px solid var(--contrast-border);
     border-radius: 0.8rem;
     padding: 1rem 1.1rem;
-    background: rgba(14, 165, 233, 0.08);
+    background: color-mix(in srgb, var(--contrast-accent) 10%, transparent);
   }
   .md-contrast .markdown-cols {
     display: grid;
@@ -183,7 +248,7 @@ css: |
     margin: 0;
   }
   .md-contrast .markdown-highlight {
-    background: color-mix(in srgb, var(--md-accent) 24%, transparent);
+    background: color-mix(in srgb, var(--contrast-accent) 25%, transparent);
     border-radius: 0.25rem;
     padding: 0 0.25rem;
   }
@@ -198,47 +263,71 @@ css: |
 wrapperClass: md-contrast
 exportCss: |
   body.markdown-export {
-    background:
-      radial-gradient(circle at 15% 10%, rgba(34, 211, 238, 0.18), transparent 45%),
-      radial-gradient(circle at 85% 0%, rgba(14, 165, 233, 0.12), transparent 50%),
-      linear-gradient(180deg, #05070b 0%, #0b0f14 55%, #0b111a 100%);
-    color: #e5e7eb;
-    font-family: "Space Grotesk", "Segoe UI", sans-serif;
     margin: 0;
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    color: var(--contrast-text);
+    background-color: var(--contrast-bg);
+    background-image: var(--contrast-pattern);
+    background-size: 80px 80px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  body.markdown-export.theme-light {
+    --contrast-bg: #fefefe;
+    --contrast-surface: #ffffff;
+    --contrast-text: #0b0b0f;
+    --contrast-muted: #4b5563;
+    --contrast-border: #0b0b0f;
+    --contrast-accent: #f97316;
+    --contrast-accent-strong: #ea580c;
+    --contrast-pattern:
+      linear-gradient(90deg, rgba(0, 0, 0, 0.08) 0, rgba(0, 0, 0, 0.08) 1px, transparent 1px, transparent 40px),
+      linear-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px, transparent 40px);
+  }
+  body.markdown-export.theme-dark {
+    --contrast-bg: #050505;
+    --contrast-surface: #0f1115;
+    --contrast-text: #f9fafb;
+    --contrast-muted: #9ca3af;
+    --contrast-border: #f9fafb;
+    --contrast-accent: #34d399;
+    --contrast-accent-strong: #10b981;
+    --contrast-pattern:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.12) 0, rgba(255, 255, 255, 0.12) 1px, transparent 1px, transparent 48px),
+      linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px, transparent 48px);
   }
   body.markdown-export .markdown-export-content {
-    max-width: 940px;
+    max-width: 960px;
     margin: 40px auto;
-    padding: 48px 52px;
-    background: #0f172a;
-    border: 1px solid #1f2937;
+    padding: 50px 56px;
+    background: var(--contrast-surface);
+    border: 3px solid var(--contrast-border);
     border-radius: 18px;
-    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.45);
-    animation: md-contrast-rise 0.55s ease-out both;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.3);
+    animation: md-contrast-rise 0.5s ease-out both;
   }
   body.markdown-export .md-contrast a {
-    color: #22d3ee;
+    color: var(--contrast-accent);
   }
-  body.markdown-export pre {
-    background: #111827;
-    border-color: #1f2937;
+  body.markdown-export .md-contrast pre {
+    background: color-mix(in srgb, var(--contrast-text) 10%, transparent);
   }
-  .md-now {
+  .contrast-toggle {
     position: fixed;
     right: 18px;
     top: 18px;
     padding: 0.4rem 0.75rem;
     border-radius: 999px;
-    border: 1px solid rgba(34, 211, 238, 0.45);
-    background: rgba(15, 23, 42, 0.8);
-    color: #22d3ee;
+    border: 3px solid var(--contrast-border);
+    background: var(--contrast-surface);
+    color: var(--contrast-text);
     font-size: 0.8rem;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
     z-index: 1000;
-    max-width: 240px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  }
+  .contrast-toggle:hover {
+    color: var(--contrast-accent);
   }
   @keyframes md-contrast-rise {
     from { opacity: 0; transform: translateY(12px); }
@@ -252,34 +341,39 @@ exportCss: |
 customHead: |
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 customBody: |
   <script>
   (() => {
-    const root = document.querySelector('.markdown-export-content');
-    if (!root) return;
-    const headings = Array.from(root.querySelectorAll('h1, h2, h3'));
-    if (!headings.length) return;
+    const body = document.body;
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'contrast-toggle';
 
-    const pill = document.createElement('div');
-    pill.className = 'md-now';
-    document.body.appendChild(pill);
-
-    const update = () => {
-      let current = headings[0];
-      for (const heading of headings) {
-        const rect = heading.getBoundingClientRect();
-        if (rect.top <= 140) {
-          current = heading;
-        } else {
-          break;
-        }
+    const normalize = () => {
+      if (!body.classList.contains('theme-dark') && !body.classList.contains('theme-light')) {
+        body.classList.add('theme-light');
+        body.setAttribute('data-theme', 'light');
       }
-      const text = (current.textContent || '').trim();
-      pill.textContent = text || 'Section';
     };
 
-    update();
-    window.addEventListener('scroll', update, {passive: true});
+    const setLabel = () => {
+      const isDark = body.classList.contains('theme-dark');
+      toggle.textContent = isDark ? 'Light' : 'Dark';
+      toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    };
+
+    normalize();
+    setLabel();
+
+    toggle.addEventListener('click', () => {
+      const isDark = body.classList.contains('theme-dark');
+      body.classList.toggle('theme-dark', !isDark);
+      body.classList.toggle('theme-light', isDark);
+      body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      setLabel();
+    });
+
+    document.body.appendChild(toggle);
   })();
   </script>

@@ -10,6 +10,7 @@
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <script>
     window.BENBEN_COMPONENT_LIBRARY = {{ (component_library or {})|tojson }};
     window.BENBEN_UI_THEME = {{ (ui_theme or {})|tojson }};
@@ -4272,6 +4273,8 @@
     hljs.configure({ignoreUnescapedHTML: true});
   }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
   marked.setOptions({
@@ -4557,6 +4560,27 @@
         default: return ch;
       }
     });
+  }
+
+  function renderMarkdownMath(container) {
+    if (!container) return;
+    const renderer = window.renderMathInElement;
+    if (typeof renderer !== 'function') return;
+    try {
+      renderer(container, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false},
+        ],
+        throwOnError: false,
+        strict: 'ignore',
+        ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+      });
+    } catch (err) {
+      console.warn('渲染公式失败', err);
+    }
   }
 
   function highlightExcerptText(excerpt, query) {
@@ -9378,6 +9402,7 @@ function syncMarkdownEditorToPreview(container) {
     enhanceMarkdownHeadingAnchors(preview, wrapper);
     enhanceMarkdownImages(preview);
     enhanceMarkdownTables(preview);
+    renderMarkdownMath(preview);
     if (window.hljs && preview.querySelectorAll) {
       preview.querySelectorAll('pre code').forEach(block => {
         hljs.highlightElement(block);
@@ -10327,17 +10352,6 @@ function syncMarkdownEditorToPreview(container) {
     bodyEl.innerHTML = marked.parser(tokensForHtml);
     enhanceMarkdownImages(bodyEl);
     enhanceMarkdownTables(bodyEl);
-    if (window.hljs && bodyEl.querySelectorAll) {
-      bodyEl.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
-    }
-    enhanceCodeCopy(bodyEl);
-    loadLearningReviewIndex(false);
-    applyReviewHighlights(bodyEl);
-    bindReviewHighlightInteractions(bodyEl);
-    if (!bodyEl.dataset.slideshowLinksBound) {
-      bodyEl.addEventListener('click', handleSlideshowLinkClick);
-      bodyEl.dataset.slideshowLinksBound = '1';
-    }
     // 手动处理标题 slug 与复制按钮，避免复用主预览的点击导航
     const slugRegistry = Object.create(null);
     bodyEl.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(heading => {
@@ -10351,6 +10365,18 @@ function syncMarkdownEditorToPreview(container) {
       heading.dataset.markdownHeadingId = slug;
       attachHeadingCopyControl(heading);
     });
+    renderMarkdownMath(bodyEl);
+    if (window.hljs && bodyEl.querySelectorAll) {
+      bodyEl.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+    }
+    enhanceCodeCopy(bodyEl);
+    loadLearningReviewIndex(false);
+    applyReviewHighlights(bodyEl);
+    bindReviewHighlightInteractions(bodyEl);
+    if (!bodyEl.dataset.slideshowLinksBound) {
+      bodyEl.addEventListener('click', handleSlideshowLinkClick);
+      bodyEl.dataset.slideshowLinksBound = '1';
+    }
     if (headingToHighlight) {
       highlightHeadingInContainer(bodyEl, headingToHighlight);
     }
@@ -14240,6 +14266,8 @@ applyDefaultWorkspaceIfNeeded();
     'option',
     'script',
     'style',
+    '.katex',
+    '.katex-display',
     '.markdown-blur',
     '.markdown-highlight',
     '.markdown-review-hit',

@@ -3,44 +3,48 @@ css: |
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
   .md-minimal {
-    --md-accent: #111827;
-    --md-border: color-mix(in srgb, #111827 18%, #e5e7eb);
+    --md-text: #111827;
+    --md-muted: #6b7280;
+    --md-border: #e5e7eb;
+    --md-soft: rgba(17, 24, 39, 0.05);
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
     font-size: 15.5px;
     line-height: 1.65;
-    color: var(--shell-text, #111827);
-    max-width: 740px;
+    color: var(--shell-text, var(--md-text));
+    max-width: 720px;
     margin: 0 auto;
   }
   .md-minimal h1,
   .md-minimal h2,
-  .md-minimal h3 {
+  .md-minimal h3,
+  .md-minimal h4 {
     font-weight: 600;
-    line-height: 1.25;
-    margin: 1.35em 0 0.5em;
+    line-height: 1.3;
+    margin: 1.35em 0 0.55em;
   }
   .md-minimal h1 {
-    font-size: 2.05rem;
-    padding-bottom: 0.2rem;
+    font-size: 2.1rem;
     border-bottom: 1px solid var(--md-border);
+    padding-bottom: 0.2rem;
   }
   .md-minimal h2 {
-    font-size: 1.45rem;
+    font-size: 1.5rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .md-minimal h3 { font-size: 1.2rem; }
+  .md-minimal h4 {
+    font-size: 1rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-  }
-  .md-minimal h3 {
-    font-size: 1.15rem;
-    letter-spacing: 0.03em;
+    color: var(--md-muted);
   }
   .md-minimal p { margin: 0 0 0.9em; }
   .md-minimal a {
     color: inherit;
-    text-decoration: none;
-    border-bottom: 1px solid var(--md-border);
-  }
-  .md-minimal a:hover {
-    border-bottom-color: color-mix(in srgb, var(--md-accent) 60%, transparent);
+    text-decoration: underline;
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.2em;
   }
   .md-minimal ul,
   .md-minimal ol {
@@ -52,14 +56,14 @@ css: |
     border-left: 2px solid var(--md-border);
     padding: 0.6em 0.9em;
     margin: 1.1em 0;
-    color: color-mix(in srgb, currentColor 75%, transparent);
+    color: var(--md-muted);
   }
   .md-minimal code {
     font-family: "IBM Plex Mono", "Fira Mono", monospace;
-    font-size: 0.94em;
+    font-size: 0.93em;
     padding: 0.1em 0.3em;
     border-radius: 0.25rem;
-    background: color-mix(in srgb, var(--md-accent) 10%, transparent);
+    background: var(--md-soft);
   }
   .md-minimal pre {
     margin: 1em 0;
@@ -88,11 +92,27 @@ css: |
   .md-minimal th {
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    font-size: 0.88em;
+    color: var(--md-muted);
   }
   .md-minimal hr {
     border: none;
     border-top: 1px solid var(--md-border);
     margin: 1.6em 0;
+  }
+  .md-minimal figure {
+    margin: 1.4rem auto;
+    text-align: center;
+  }
+  .md-minimal figcaption {
+    margin-top: 0.6rem;
+    font-size: 0.9rem;
+    color: var(--md-muted);
+  }
+  .md-minimal img {
+    max-width: 100%;
+    border-radius: 0.6rem;
+    border: 1px solid var(--md-border);
   }
   .md-minimal .markdown-callout {
     border: 1px solid var(--md-border);
@@ -106,14 +126,13 @@ css: |
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin-bottom: 0.4rem;
-    color: color-mix(in srgb, currentColor 70%, transparent);
+    color: var(--md-muted);
   }
   .md-minimal .markdown-qa {
     border: 1px solid var(--md-border);
     border-radius: 0.6rem;
     padding: 0.85rem 0.95rem;
     margin: 1rem 0;
-    background: #ffffff;
   }
   .md-minimal details.markdown-qa summary {
     cursor: pointer;
@@ -130,7 +149,7 @@ css: |
     font-size: 0.72rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: color-mix(in srgb, currentColor 55%, transparent);
+    color: var(--md-muted);
   }
   .md-minimal .markdown-media {
     border: 1px solid var(--md-border);
@@ -148,6 +167,11 @@ css: |
     display: grid;
     gap: 12px;
     margin: 1rem 0;
+  }
+  .md-minimal .markdown-img-grid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
   .md-minimal .markdown-img-grid.two-col,
   .md-minimal .markdown-img-grid.two-vertical {
@@ -171,12 +195,13 @@ css: |
   .md-minimal .markdown-banner {
     border-radius: 0.6rem;
     padding: 0.8rem 0.95rem;
+    border: 1px solid var(--md-border);
     background: rgba(17, 24, 39, 0.04);
   }
   .md-minimal .markdown-notes {
     border-left: 2px solid var(--md-border);
     padding-left: 0.8rem;
-    color: color-mix(in srgb, currentColor 65%, transparent);
+    color: var(--md-muted);
   }
   .md-minimal .markdown-divider {
     text-align: center;
@@ -213,7 +238,7 @@ css: |
     margin: 0;
   }
   .md-minimal .markdown-highlight {
-    background: color-mix(in srgb, currentColor 14%, transparent);
+    background: rgba(17, 24, 39, 0.12);
     border-radius: 0.25rem;
     padding: 0 0.2rem;
   }
@@ -228,60 +253,25 @@ css: |
 wrapperClass: md-minimal
 exportCss: |
   body.markdown-export {
-    background: #f6f7f8;
-    background-image:
-      linear-gradient(transparent 95%, rgba(15, 23, 42, 0.04) 96%),
-      linear-gradient(90deg, transparent 95%, rgba(15, 23, 42, 0.04) 96%);
-    background-size: 28px 28px;
+    background: #f8fafc;
+    background-image: radial-gradient(circle, rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
     color: #111827;
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
     margin: 0;
   }
   body.markdown-export .markdown-export-content {
-    max-width: 760px;
-    margin: 48px auto;
-    padding: 40px 44px;
+    max-width: 740px;
+    margin: 40px auto;
+    padding: 36px 40px;
     background: #ffffff;
     border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    box-shadow: 0 24px 50px rgba(15, 23, 42, 0.08);
-    animation: md-minimal-rise 0.55s ease-out both;
+    border-radius: 14px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+    animation: md-minimal-fade 0.4s ease-out both;
   }
-  body.markdown-export.focus-mode .markdown-export-content {
-    max-width: 640px;
-  }
-  .md-focus-toggle {
-    position: fixed;
-    right: 18px;
-    top: 18px;
-    border: 1px solid rgba(15, 23, 42, 0.2);
-    background: rgba(255, 255, 255, 0.9);
-    color: #111827;
-    font-size: 0.8rem;
-    padding: 0.3rem 0.75rem;
-    border-radius: 999px;
-    cursor: pointer;
-    z-index: 1000;
-  }
-  .md-focus-toggle:hover {
-    border-color: rgba(15, 23, 42, 0.4);
-  }
-  .md-anchor {
-    margin-left: 0.5rem;
-    border: none;
-    background: transparent;
-    color: rgba(17, 24, 39, 0.5);
-    font-size: 0.85rem;
-    cursor: pointer;
-    opacity: 0;
-  }
-  .md-minimal h1:hover .md-anchor,
-  .md-minimal h2:hover .md-anchor,
-  .md-minimal h3:hover .md-anchor {
-    opacity: 1;
-  }
-  @keyframes md-minimal-rise {
-    from { opacity: 0; transform: translateY(10px); }
+  @keyframes md-minimal-fade {
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -293,42 +283,4 @@ customHead: |
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
-customBody: |
-  <script>
-  (() => {
-    const root = document.querySelector('.markdown-export-content');
-    if (!root) return;
-
-    const toggle = document.createElement('button');
-    toggle.className = 'md-focus-toggle';
-    toggle.type = 'button';
-    toggle.textContent = 'Focus';
-    toggle.addEventListener('click', () => {
-      document.body.classList.toggle('focus-mode');
-      toggle.textContent = document.body.classList.contains('focus-mode') ? 'Wide' : 'Focus';
-    });
-    document.body.appendChild(toggle);
-
-    const slugify = text => text.toLowerCase().trim()
-      .replace(/[^\w\u4e00-\u9fa5\- ]+/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-') || 'section';
-
-    root.querySelectorAll('h1, h2, h3').forEach((heading, idx) => {
-      if (!heading.id) {
-        heading.id = `${slugify(heading.textContent || 'section')}-${idx + 1}`;
-      }
-      const anchor = document.createElement('button');
-      anchor.type = 'button';
-      anchor.className = 'md-anchor';
-      anchor.textContent = '#';
-      anchor.addEventListener('click', () => {
-        const url = `${window.location.href.split('#')[0]}#${heading.id}`;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(url).catch(() => {});
-        }
-      });
-      heading.appendChild(anchor);
-    });
-  })();
-  </script>
+customBody: ""

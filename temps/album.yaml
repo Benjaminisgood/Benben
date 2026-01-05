@@ -1,20 +1,24 @@
 type: markdown
 css: |
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;600;700&family=Playfair+Display:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&family=Playfair+Display:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
 
   .md-album {
-    --md-accent: #b45309;
-    --md-shadow: 0 22px 50px rgba(31, 41, 55, 0.18);
-    font-family: "DM Sans", "Segoe UI", sans-serif;
+    --album-ink: #2b2116;
+    --album-muted: rgba(43, 33, 22, 0.7);
+    --album-accent: #b45309;
+    --album-frame: #fffaf3;
+    --album-shadow: 0 22px 50px rgba(31, 41, 55, 0.16);
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
     font-size: 16px;
     line-height: 1.7;
-    color: var(--shell-text, #1f2937);
+    color: var(--shell-text, var(--album-ink));
     max-width: 980px;
     margin: 0 auto;
   }
   .md-album h1,
   .md-album h2,
-  .md-album h3 {
+  .md-album h3,
+  .md-album h4 {
     font-family: "Playfair Display", "Times New Roman", serif;
     line-height: 1.2;
     margin: 1.6em 0 0.55em;
@@ -22,30 +26,50 @@ css: |
   .md-album h1 { font-size: 2.6rem; }
   .md-album h2 { font-size: 1.9rem; }
   .md-album h3 { font-size: 1.35rem; }
+  .md-album h4 {
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--album-muted);
+  }
   .md-album p { margin: 0 0 1.05em; }
   .md-album a {
-    color: var(--md-accent);
+    color: var(--album-accent);
     text-decoration: none;
-    border-bottom: 1px solid color-mix(in srgb, var(--md-accent) 35%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--album-accent) 35%, transparent);
   }
+  .md-album ul,
+  .md-album ol {
+    margin: 0 0 1em;
+    padding-left: 1.2em;
+  }
+  .md-album li + li { margin-top: 0.25em; }
   .md-album figure {
     margin: 1.6rem auto;
-    padding: 0.75rem;
+    padding: 0.9rem;
     border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.7);
-    box-shadow: var(--md-shadow);
+    background: var(--album-frame);
+    border: 1px solid rgba(180, 83, 9, 0.18);
+    box-shadow: var(--album-shadow);
   }
   .md-album img {
     max-width: 100%;
     height: auto;
     display: block;
-    border-radius: 0.9rem;
+    border-radius: 0.8rem;
     box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
   }
   .md-album figcaption {
     margin-top: 0.75rem;
     font-size: 0.92rem;
-    color: color-mix(in srgb, currentColor 70%, transparent);
+    color: var(--album-muted);
+  }
+  .md-album blockquote {
+    border-left: 3px solid var(--album-accent);
+    padding: 0.8em 1em;
+    margin: 1.1em 0;
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--album-muted);
   }
   .md-album code {
     font-family: "Space Mono", "Fira Mono", monospace;
@@ -54,18 +78,76 @@ css: |
     border-radius: 0.3rem;
     background: rgba(15, 23, 42, 0.08);
   }
+  .md-album pre {
+    margin: 1.1em 0;
+    padding: 1em 1.1em;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(180, 83, 9, 0.2);
+    background: rgba(255, 255, 255, 0.7);
+    overflow-x: auto;
+  }
+  .md-album pre code {
+    display: block;
+    padding: 0;
+    background: transparent;
+  }
+  .md-album table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.4em 0;
+  }
+  .md-album th,
+  .md-album td {
+    border: 1px solid rgba(180, 83, 9, 0.2);
+    padding: 0.7em 0.85em;
+  }
+  .md-album th {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(180, 83, 9, 0.1);
+  }
+  .md-album hr {
+    border: none;
+    border-top: 1px solid rgba(180, 83, 9, 0.22);
+    margin: 2em 0;
+  }
+  .md-album .markdown-img-grid {
+    display: grid;
+    gap: 16px;
+    margin: 1.1rem 0;
+    grid-auto-flow: dense;
+    grid-auto-rows: 180px;
+  }
   .md-album .markdown-img-grid img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 0.9rem;
+  }
+  .md-album .markdown-img-grid.two-col,
+  .md-album .markdown-img-grid.two-vertical {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-album .markdown-img-grid.four-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-album .markdown-img-grid.rail {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 1fr);
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x mandatory;
+  }
+  .md-album .markdown-img-grid.rail img {
+    scroll-snap-align: center;
   }
   .md-album .markdown-callout {
     border: 1px solid rgba(180, 83, 9, 0.25);
     border-radius: 1rem;
     padding: 1rem 1.2rem;
     margin: 1.2rem 0;
-    background: rgba(255, 255, 255, 0.75);
-    box-shadow: var(--md-shadow);
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: var(--album-shadow);
   }
   .md-album .markdown-callout-title {
     font-family: "Space Mono", "Fira Mono", monospace;
@@ -73,7 +155,7 @@ css: |
     letter-spacing: 0.08em;
     font-size: 0.82rem;
     margin-bottom: 0.4rem;
-    color: #b45309;
+    color: var(--album-accent);
   }
   .md-album .markdown-qa {
     border: 1px solid rgba(180, 83, 9, 0.22);
@@ -81,7 +163,7 @@ css: |
     padding: 1rem 1.2rem;
     margin: 1.2rem 0;
     background: rgba(255, 255, 255, 0.85);
-    box-shadow: var(--md-shadow);
+    box-shadow: var(--album-shadow);
   }
   .md-album details.markdown-qa summary {
     cursor: pointer;
@@ -105,8 +187,8 @@ css: |
     border-radius: 1rem;
     padding: 0.9rem;
     margin: 1.1rem 0;
-    background: rgba(255, 255, 255, 0.7);
-    box-shadow: var(--md-shadow);
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: var(--album-shadow);
   }
   .md-album .markdown-media audio,
   .md-album .markdown-media video {
@@ -114,29 +196,11 @@ css: |
     display: block;
     border-radius: 0.8rem;
   }
-  .md-album .markdown-img-grid {
-    display: grid;
-    gap: 16px;
-    margin: 1.1rem 0;
-  }
-  .md-album .markdown-img-grid.two-col,
-  .md-album .markdown-img-grid.two-vertical {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .md-album .markdown-img-grid.four-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .md-album .markdown-img-grid.rail {
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(220px, 1fr);
-    overflow-x: auto;
-    padding-bottom: 6px;
-  }
   .md-album .markdown-cover {
     border: 1px solid rgba(180, 83, 9, 0.2);
     border-radius: 1.2rem;
     padding: 1.6rem 1.4rem;
-    background: linear-gradient(135deg, rgba(180, 83, 9, 0.12), rgba(255, 255, 255, 0.8));
+    background: linear-gradient(135deg, rgba(180, 83, 9, 0.12), rgba(255, 255, 255, 0.85));
   }
   .md-album .markdown-banner {
     border-radius: 1rem;
@@ -147,7 +211,7 @@ css: |
   .md-album .markdown-notes {
     border-left: 3px solid rgba(180, 83, 9, 0.5);
     padding-left: 0.9rem;
-    color: rgba(55, 65, 81, 0.75);
+    color: var(--album-muted);
   }
   .md-album .markdown-kpi,
   .md-album .markdown-features {
@@ -161,8 +225,8 @@ css: |
     border: 1px solid rgba(180, 83, 9, 0.22);
     border-radius: 1rem;
     padding: 1rem 1.1rem;
-    background: rgba(255, 255, 255, 0.8);
-    box-shadow: var(--md-shadow);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: var(--album-shadow);
   }
   .md-album .markdown-cols {
     display: grid;
@@ -195,17 +259,19 @@ css: |
 wrapperClass: md-album
 exportCss: |
   body.markdown-export {
-    background: radial-gradient(circle at top, rgba(253, 230, 138, 0.25), transparent 45%),
+    background:
+      radial-gradient(circle at top, rgba(253, 230, 138, 0.28), transparent 45%),
+      radial-gradient(circle at 80% 20%, rgba(251, 146, 60, 0.18), transparent 50%),
       linear-gradient(180deg, #fff7ed 0%, #fef3c7 100%);
-    color: #1f2937;
-    font-family: "DM Sans", "Segoe UI", sans-serif;
+    color: #2b2116;
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
     margin: 0;
   }
   body.markdown-export .markdown-export-content {
     max-width: 1040px;
     margin: 48px auto;
     padding: 48px 52px;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.92);
     border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 24px;
     box-shadow: 0 30px 70px rgba(15, 23, 42, 0.16);
@@ -219,33 +285,45 @@ exportCss: |
     transform: translateY(-2px) scale(1.01);
     box-shadow: 0 26px 60px rgba(15, 23, 42, 0.22);
   }
-  .md-lightbox {
+  .md-album-lightbox {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.75);
+    background: rgba(15, 23, 42, 0.78);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 2000;
     padding: 24px;
   }
-  .md-lightbox.open { display: flex; }
-  .md-lightbox-inner {
+  .md-album-lightbox.open { display: flex; }
+  .md-album-lightbox-inner {
     max-width: min(100%, 1100px);
     max-height: 90vh;
-    background: rgba(17, 24, 39, 0.9);
+    background: rgba(17, 24, 39, 0.92);
     border-radius: 18px;
     padding: 18px;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+    position: relative;
   }
-  .md-lightbox-inner img {
+  .md-album-lightbox-close {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(15, 23, 42, 0.8);
+    color: #f8fafc;
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    cursor: pointer;
+  }
+  .md-album-lightbox-inner img {
     max-width: 100%;
     max-height: 70vh;
     border-radius: 12px;
     display: block;
     margin: 0 auto;
   }
-  .md-lightbox-caption {
+  .md-album-lightbox-caption {
     margin-top: 10px;
     color: #f8fafc;
     text-align: center;
@@ -263,7 +341,7 @@ exportCss: |
 customHead: |
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;600;700&family=Playfair+Display:wght@600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&family=Playfair+Display:wght@600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 customBody: |
   <script>
   (() => {
@@ -271,17 +349,19 @@ customBody: |
     if (!root) return;
 
     const overlay = document.createElement('div');
-    overlay.className = 'md-lightbox';
+    overlay.className = 'md-album-lightbox';
     overlay.innerHTML = `
-      <div class="md-lightbox-inner">
+      <div class="md-album-lightbox-inner">
+        <button class="md-album-lightbox-close" type="button">Close</button>
         <img alt="" />
-        <div class="md-lightbox-caption"></div>
+        <div class="md-album-lightbox-caption"></div>
       </div>
     `;
     document.body.appendChild(overlay);
 
     const overlayImg = overlay.querySelector('img');
-    const overlayCaption = overlay.querySelector('.md-lightbox-caption');
+    const overlayCaption = overlay.querySelector('.md-album-lightbox-caption');
+    const closeBtn = overlay.querySelector('.md-album-lightbox-close');
 
     const close = () => {
       overlay.classList.remove('open');
@@ -290,6 +370,7 @@ customBody: |
       overlayCaption.textContent = '';
     };
 
+    closeBtn.addEventListener('click', close);
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) {
         close();
