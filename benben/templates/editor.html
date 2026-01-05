@@ -940,6 +940,8 @@
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 1rem;
+      --diff-added-color: color-mix(in srgb, var(--accent) 40%, #22c55e 60%);
+      --diff-removed-color: color-mix(in srgb, var(--accent-strong) 25%, #ef4444 75%);
     }
     .ai-note-diff-panel {
       border: 1px solid var(--surface-border);
@@ -977,12 +979,12 @@
       white-space: pre;
     }
     .ai-note-diff-line--added {
-      background: color-mix(in srgb, #22c55e 16%, transparent);
-      border-left-color: #22c55e;
+      background: color-mix(in srgb, var(--diff-added-color) 20%, var(--surface-2) 80%);
+      border-left-color: var(--diff-added-color);
     }
     .ai-note-diff-line--removed {
-      background: color-mix(in srgb, #ef4444 14%, transparent);
-      border-left-color: #ef4444;
+      background: color-mix(in srgb, var(--diff-removed-color) 18%, var(--surface-2) 82%);
+      border-left-color: var(--diff-removed-color);
     }
     .ai-note-diff-line--empty .ai-note-diff-line-number {
       color: transparent;
@@ -12370,9 +12372,89 @@ applyDefaultWorkspaceIfNeeded();
     return lines;
   }
 
+  // Fallback LCS diff for offline/blocked CDN environments.
+  function diffLinesFallback(before, after) {
+    const beforeLines = splitAiNoteDiffLines(before || '');
+    const afterLines = splitAiNoteDiffLines(after || '');
+    if (!beforeLines.length && !afterLines.length) return [];
+    const maxCells = 4000000;
+    if (beforeLines.length * afterLines.length > maxCells) {
+      const parts = [];
+      if (beforeLines.length) {
+        parts.push({removed: true, value: `${beforeLines.join('\n')}\n`});
+      }
+      if (afterLines.length) {
+        parts.push({added: true, value: `${afterLines.join('\n')}\n`});
+      }
+      return parts;
+    }
+    const n = beforeLines.length;
+    const m = afterLines.length;
+    const dp = Array(n + 1);
+    for (let i = 0; i <= n; i++) {
+      dp[i] = new Int32Array(m + 1);
+    }
+    for (let i = n - 1; i >= 0; i--) {
+      const row = dp[i];
+      const next = dp[i + 1];
+      for (let j = m - 1; j >= 0; j--) {
+        row[j] = beforeLines[i] === afterLines[j] ? next[j + 1] + 1 : Math.max(next[j], row[j + 1]);
+      }
+    }
+    const parts = [];
+    const matchesKind = (part, kind) => {
+      if (!part) return false;
+      if (kind === 'added') return !!part.added;
+      if (kind === 'removed') return !!part.removed;
+      return !part.added && !part.removed;
+    };
+    const pushPart = (kind, line) => {
+      const value = `${line}\n`;
+      const last = parts[parts.length - 1];
+      if (matchesKind(last, kind)) {
+        last.value += value;
+        return;
+      }
+      const entry = {value};
+      if (kind === 'added') entry.added = true;
+      if (kind === 'removed') entry.removed = true;
+      parts.push(entry);
+    };
+    let i = 0;
+    let j = 0;
+    while (i < n && j < m) {
+      if (beforeLines[i] === afterLines[j]) {
+        pushPart('equal', beforeLines[i]);
+        i++;
+        j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        pushPart('removed', beforeLines[i]);
+        i++;
+      } else {
+        pushPart('added', afterLines[j]);
+        j++;
+      }
+    }
+    while (i < n) {
+      pushPart('removed', beforeLines[i]);
+      i++;
+    }
+    while (j < m) {
+      pushPart('added', afterLines[j]);
+      j++;
+    }
+    return parts;
+  }
+
+  function getAiNoteDiffParts(before, after) {
+    if (window.Diff && typeof window.Diff.diffLines === 'function') {
+      return window.Diff.diffLines(before || '', after || '');
+    }
+    return diffLinesFallback(before || '', after || '');
+  }
+
   function buildAiNoteDiffRows(before, after) {
-    if (!window.Diff || typeof window.Diff.diffLines !== 'function') return [];
-    const parts = window.Diff.diffLines(before || '', after || '');
+    const parts = getAiNoteDiffParts(before, after);
     const rows = [];
     let leftNo = 1;
     let rightNo = 1;
@@ -12418,11 +12500,6 @@ applyDefaultWorkspaceIfNeeded();
     if (!beforeEl || !afterEl) return;
     beforeEl.innerHTML = '';
     afterEl.innerHTML = '';
-    if (!window.Diff || typeof window.Diff.diffLines !== 'function') {
-      beforeEl.textContent = 'Diff 组件未加载';
-      afterEl.textContent = '';
-      return;
-    }
     const rows = buildAiNoteDiffRows(before || '', after || '');
     if (!rows.length) {
       beforeEl.textContent = '暂无内容';
