@@ -229,10 +229,12 @@ def _build_markdown_qa_renderer():
     """Render :::qa Question | collapse blocks into Q/A cards."""
 
     def _render(self, tokens, idx, _options, _env):
-        info = tokens[idx].info if hasattr(tokens[idx], "info") else ""
-        question, collapsed = _parse_qa_info(info)
-        question_html = escapeHtml(question or "问题")
         if tokens[idx].nesting == 1:
+            info = tokens[idx].info if hasattr(tokens[idx], "info") else ""
+            question, collapsed = _parse_qa_info(info)
+            question_html = escapeHtml(question or "问题")
+            if isinstance(_env, dict):
+                _env.setdefault("_qa_stack", []).append(collapsed)
             if collapsed:
                 return (
                     '<details class="markdown-qa collapsed">'
@@ -248,6 +250,14 @@ def _build_markdown_qa_renderer():
                 "</div>"
                 '<div class="markdown-qa-answer">'
             )
+        collapsed = None
+        if isinstance(_env, dict):
+            stack = _env.get("_qa_stack", [])
+            if stack:
+                collapsed = stack.pop()
+        if collapsed is None:
+            info = tokens[idx].info if hasattr(tokens[idx], "info") else ""
+            collapsed = _parse_qa_info(info)[1]
         return "</div></details>\n" if collapsed else "</div></div>\n"
 
     return _render

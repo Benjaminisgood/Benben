@@ -1,88 +1,43 @@
 # Benben
 
-Benben 是一个 **Markdown 驱动** 的演示/笔记工作台：后端基于 Flask，前端使用单页 `editor.html` 整合 CodeMirror、Markdown 渲染与 Bootstrap 交互，并接入主流 LLM、TTS 能力。适合做分享稿、课程笔记、读书摘要与项目备忘。
-
-最新版本已将所有“项目”存储迁移为 **`.benben` SQLite 容器工作区**。一个 `.benben` 文件就是完整项目（页面、模板、附件、资源、学习记录等都封装进去），支持本地与远程（OSS）双工作区。
-
-> 若你看到 `demo.benben-wal` / `demo.benben-shm`，这是 SQLite WAL 模式的正常产物，连接关闭或执行 checkpoint 后会自动清理。
+Benben 是一个 **Markdown 驱动** 的演示/笔记工作台：后端基于 Flask，前端使用单页 `editor.html` 集成 CodeMirror 与 Markdown 渲染，适合做分享稿、课程笔记、读书摘要与项目备忘。  
+一个 `.benben` 文件就是完整工作区（页面、模板、附件、资源、学习记录等全部封装在 SQLite 中），支持本地与 OSS 远程工作区。
 
 ---
 
-## 核心特性
+## 快速开始
 
-- **Markdown 单一编辑模式**：一份正文 + 实时预览，支持表格、任务清单、代码高亮与自定义 Markdown 组件。
-- **滚动同步**：编辑器与预览区同步滚动，减少定位成本。
-- **讲稿与 TTS**：每页独立讲稿，支持导出当前页或全局 MP3。
-- **AI 工作流**：
-  - 笔记优化、讲稿优化；
-  - “AI 学习”支持后台运行与结果归档；
-  - “AI 复习”可按分类/收藏/关键词检索历史记录。
-- **AI 助理（可选 RAG）**：可检索当前工作区 Markdown 笔记生成上下文，不上传附件。
-- **模板体系**：内置 Markdown CSS 模板库，支持自定义样式与预览容器 class。
-- **工作区安全**：每个 `.benben` 可设置访问密码。
-- **附件与资源管理**：附件、资源可按页面/项目管理，支持引用统计与清理。
-- **关系图谱**：基于 Markdown 内部跳转生成页面关系图。
-
----
-
-## 目录与组件概览
-
-```
-Benben/
-├─ benben/
-│  ├─ __init__.py        # Flask 工厂 & .env 加载
-│  ├─ package.py         # `.benben` SQLite 容器读写
-│  ├─ workspace.py       # 运行时工作区注册/切换
-│  ├─ views.py           # Flask 蓝图（API + 模板渲染）
-│  ├─ templates/
-│  │   └─ editor.html    # 唯一的前端页面，内含所有 JS/CSS
-│  └─ ...
-├─ temps/                # Markdown 模板（YAML）
-├─ README.md
-└─ pyproject.toml
-```
-
-### 额外资源 & 清理脚本
-- `node_modules/` & `package(-lock).json`：前端调试依赖，运行 `npm install` 后生成。如不需要，可用 `scripts/clean_workspace.py --include-node` 移除。
-- `.pytest_cache/`、`__pycache__/`、`build/`、`benben.egg-info/` 等目录仅由测试/打包流程生成，Benben 启动时会自动清理（设置 `BENBEN_DISABLE_AUTO_CLEAN=1` 可关闭），也可手动执行 `scripts/clean_workspace.py`。
-
----
-
-## 环境准备
-
-1. **Python**：建议 Python 3.11+。
-2. **虚拟环境与依赖**：
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate        # Windows: venv\Scripts\activate
-   pip install --upgrade pip
-   pip install .
-   ```
-
-3. **配置环境变量**：在仓库根目录放置 `.env`（Flask 启动时自动加载），示例：
-
-   ```ini
-   FLASK_DEBUG=1
-   OPENAI_API_KEY=sk-xxxx
-
-   # OSS/远程工作区
-   ALIYUN_OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
-   ALIYUN_OSS_ACCESS_KEY_ID=xxx
-   ALIYUN_OSS_ACCESS_KEY_SECRET=xxx
-   ALIYUN_OSS_BUCKET=benben
-   ALIYUN_OSS_PREFIX=workspaces
-   ```
-
----
-
-## 运行
+1. **环境**：建议 Python 3.11+。
+2. **安装依赖**：
 
 ```bash
-flask --app benben run    # http://localhost:5000
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install --upgrade pip
+pip install .
 ```
 
-生产环境：
+3. **配置 `.env`（可选）**：
+
+```ini
+FLASK_DEBUG=1
+OPENAI_API_KEY=sk-xxxx
+
+# 远程工作区（OSS）
+ALIYUN_OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
+ALIYUN_OSS_ACCESS_KEY_ID=xxx
+ALIYUN_OSS_ACCESS_KEY_SECRET=xxx
+ALIYUN_OSS_BUCKET=benben
+ALIYUN_OSS_PREFIX=workspaces
+```
+
+4. **启动**：
+
+```bash
+flask --app benben run
+```
+
+生产部署示例：
 
 ```bash
 gunicorn -w 4 -b 0.0.0.0:5555 benben:app
@@ -90,52 +45,269 @@ gunicorn -w 4 -b 0.0.0.0:5555 benben:app
 
 ---
 
-## 工作区使用指南
+## 目录结构
 
-1. **打开工作区菜单**：导航栏左上角显示当前工作区名。
-   - `📁 打开本地工作区`：列出项目根目录下的 `.benben` 文件。
-   - `☁️ 打开远程工作区`：列出 OSS 上的 `.benben` 包。
-
-2. **本地工作区**：
-   - 自动扫描项目根目录的 `.benben` 文件；
-   - 新建时会自动追加 `.benben` 后缀。
-
-3. **远程工作区（OSS）**：
-   - 需在 `.env` 配置 OSS 相关变量；
-   - 支持创建、打开与同步。
-
-4. **WAL 文件提示**：`xxx.benben-wal` 与 `xxx.benben-shm` 为正常写前日志文件，推荐保留。
+```
+Benben/
+├─ benben/
+│  ├─ __init__.py        # Flask 工厂 & .env 加载
+│  ├─ package.py         # `.benben` SQLite 容器读写
+│  ├─ workspace.py       # 运行时工作区注册/切换
+│  ├─ views.py           # API + 导出/渲染逻辑
+│  ├─ templates/
+│  │   └─ editor.html    # 唯一前端页面（含 JS/CSS）
+│  └─ ...
+├─ temps/                # Markdown 模板（YAML）
+│  └─ attachments_seed/  # 预置附件
+├─ README.md
+└─ pyproject.toml
+```
 
 ---
 
-## `.benben` 架构简述
+## 工作区与数据
 
-- SQLite 数据库关键表：
-  - `meta`：项目基础信息与时间戳；
-  - `pages`：页顺序与更新时间；
-  - `page_markdown`：Markdown 正文；
-  - `page_notes`：讲稿（脚本）；
-  - `page_recordings`：录播/音频信息；
-  - `page_resources` / `page_references`：页面级资源与引用；
-  - `project_resources` / `project_references`：项目级资源与引用；
-  - `attachments` / `resource_files`：附件与静态资源；
-  - `templates`：模板；
-  - `learning_prompts` / `learning_records`：学习助手提示词与记录；
-  - `settings`：全局设置。
-- `benben/package.py` 封装所有读写逻辑，前端只需调用 `/workspaces/<id>/project`。
+- **工作区**：每个 `.benben` 是一个 SQLite 数据库文件。  
+  WAL 文件（`.benben-wal` / `.benben-shm`）是正常产物，连接关闭或 checkpoint 后会自动清理。
+- **核心表**：
+  - `meta`：项目基础信息与时间戳
+  - `pages` / `page_markdown` / `page_notes`：页面结构与正文/讲稿
+  - `attachments` / `resource_files`：附件与资源
+  - `templates`：保存到项目内的模板
+  - `learning_prompts` / `learning_records`：学习助手与记录
+  - `settings`：全局设置
 
-### 附件与图片
-- 附件统一存储于 SQLite `attachments` 表；
-- 渲染/导出时会展开到临时目录，避免重复上传。
+---
+
+## 编辑与预览
+
+- **Markdown 单一编辑模式**：实时预览、滚动同步。
+- **内置 Markdown 特性**：表格、任务清单、脚注、删除线、内联 HTML。
+- **讲稿 & TTS**：每页讲稿可独立导出音频。
+
+---
+
+## 自定义 Markdown 语法（Benben 扩展）
+
+Benben 内置多种自定义块语法（通过 container 插件实现），你需要在模板 CSS 中为这些类名提供样式：
+
+### Callout（提示框）
+
+```md
+:::info 标题
+这里是内容
+:::
+```
+
+输出结构：  
+`.markdown-callout.info` + `.markdown-callout-title` + `.markdown-callout-body`
+
+支持 `:::info` / `:::tip` / `:::warning`。
+
+### Q&A（可折叠）
+
+```md
+:::qa 这里是问题？ | collapse
+这里写默认隐藏、点击展开的答案。
+:::
+```
+
+输出结构：  
+`details.markdown-qa.collapsed`（折叠）或 `div.markdown-qa`（不折叠）  
+内部包含：`.markdown-qa-label` / `.markdown-qa-question` / `.markdown-qa-toggle` / `.markdown-qa-answer`
+
+### 图片网格
+
+```md
+:::img-2
+![](a.png)
+![](b.png)
+:::
+```
+
+支持容器：
+- `:::img-2` → `.markdown-img-grid.two-col`
+- `:::img-2v` → `.markdown-img-grid.two-vertical`
+- `:::img-4` → `.markdown-img-grid.four-grid`
+- `:::img-scroll` → `.markdown-img-grid.rail`
+
+### 媒体块
+
+```md
+:::audio path/to/audio.mp3
+:::
+
+:::video path/to/video.mp4
+:::
+```
+
+输出结构：`.markdown-media.audio` / `.markdown-media.video`  
+内部包含 `audio`/`video` 与 `.markdown-media-caption`。
+
+### 视觉块容器（仅包裹内容）
+
+```md
+:::kpi
+这里是指标卡
+:::
+```
+
+可用容器：
+`:::kpi`、`:::cols`、`:::features`、`:::cover`、`:::divider`、`:::banner`、`:::notes`、`:::code-split`  
+分别对应：
+`.markdown-kpi` / `.markdown-cols` / `.markdown-features` / `.markdown-cover` / `.markdown-divider` /
+`.markdown-banner` / `.markdown-notes` / `.markdown-code-split`
+
+### 内联语法
+
+```
+==highlight==
+??blur??
+```
+
+输出结构：  
+`<mark class="markdown-highlight">`  
+`<span class="markdown-blur" tabindex="0">`
+
+> 建议给 `.markdown-blur` 设置 `filter: blur(...)`，并在 `:hover` 或 `:focus` 时恢复清晰。
+
+---
+
+## 模板系统（temps）说明书
+
+### 1) 模板位置与加载规则
+
+- **模板库目录**：`temps/`  
+  默认模板：`temps/markdown_default.yaml`
+- **命名规则**：任意 `*.yaml` 文件都会被识别为可选模板。
+- **缓存**：模板读取有 LRU 缓存，直接改动文件后需要 **重启服务** 才能刷新。
+
+### 2) YAML 字段说明
+
+```yaml
+type: markdown
+css: |
+  # 预览样式（也会注入导出 HTML）
+wrapperClass: markdown-note
+exportCss: |
+  # 仅用于 HTML 导出（body/容器基础样式）
+customHead: |
+  <!-- 仅用于 HTML 导出：字体/额外样式/第三方库 -->
+customBody: |
+  <script>
+  // 仅用于 HTML 导出：交互脚本
+  </script>
+```
+
+字段含义：
+- `css`：编辑器预览样式（同时会被注入导出 HTML）。  
+- `wrapperClass`：Markdown 渲染根容器 class（预览与导出都会加上）。  
+- `exportCss`：导出 HTML 专用 CSS（推荐写 `body.markdown-export` 和 `.markdown-export-content` 的基础布局）。  
+- `customHead`：导出 HTML 的 `<head>` 额外内容（字体/外部样式）。  
+- `customBody`：导出 HTML 的 `<body>` 尾部脚本（交互/目录/复制等）。
+
+### 3) 导出 HTML 结构（CSS 必须覆盖）
+
+导出 HTML 的外层结构固定如下：
+
+- `body`：`class="markdown-export theme-light|theme-dark"` 且带 `data-theme`  
+- 内容容器：  
+  `div.markdown-preview-content.markdown-export-content.{wrapperClass}`
+
+因此导出 CSS 至少覆盖：
+- `body.markdown-export`：页面底色、字体、排版
+- `.markdown-export-content`：内容容器宽度/间距/阴影
+- `.markdown-preview-image`：导出时所有图片都会自动加此 class
+
+### 4) CSS 清单（建议完整覆盖）
+
+基础元素（Markdown 原生）：
+- `h1..h4`, `p`, `a`, `ul/ol`, `blockquote`, `code`, `pre`, `table`, `hr`, `img`, `figure`, `figcaption`
+- 代码块高亮：`pre.hljs`、`code.hljs`（导出时自动添加）
+
+Benben 自建语法类：
+- `.markdown-callout`, `.markdown-callout-title`, `.markdown-callout-body`
+- `.markdown-qa`, `.markdown-qa-label`, `.markdown-qa-question`, `.markdown-qa-toggle`, `.markdown-qa-answer`
+- `.markdown-img-grid` + `two-col`/`two-vertical`/`four-grid`/`rail`
+- `.markdown-media` + `audio`/`video` + `.markdown-media-caption`
+- `.markdown-kpi`, `.markdown-cols`, `.markdown-features`, `.markdown-cover`, `.markdown-divider`, `.markdown-banner`, `.markdown-notes`, `.markdown-code-split`
+- `.markdown-highlight`, `.markdown-blur`
+
+### 5) JS 清单（customBody）
+
+`customBody` 会在导出 HTML 中执行，可实现以下功能：
+
+- **目录/锚点跳转**：扫描 `h1..h3` 生成目录并写入 DOM  
+- **标题锚点复制**：为标题生成 ID 与复制按钮  
+- **阅读进度条**：滚动进度条  
+- **Back to Top**：返回顶部  
+- **图片灯箱**：点击图片全屏预览  
+- **代码复制按钮**：在 `pre` 内插入按钮  
+- **阅读聚焦/宽屏切换**：切换容器宽度
+
+推荐入口：
+
+```js
+const root = document.querySelector('.markdown-export-content');
+```
+
+### 6) 内置模板清单（带 JS 交互）
+
+- `markdown_default.yaml`：滚动进度条 + 代码复制
+- `markdown_minimal.yaml`：专注/宽屏切换 + 标题锚点复制
+- `markdown_classic.yaml`：返回顶部按钮
+- `markdown_contrast.yaml`：当前标题提示条
+- `markdown_album.yaml`：图片灯箱
+- `markdown_cyber.yaml`：扫描线 + 标题脉冲
+
+### 7) 新增模板流程
+
+1. 在 `temps/` 新增 YAML 文件。  
+2. 填入 `css` / `wrapperClass` / `exportCss` / `customHead` / `customBody`。  
+3. 重启服务后，模板会出现在“外观配置/模板选择”里。
+
+---
+
+## 导出说明书
+
+### Markdown 导出
+
+- **当前页**：导出 Markdown 并打包附件  
+- **全部页**：合并全部笔记导出  
+- **当前页及相关页**：从当前页开始，解析其内部链接并递归收集关联页面（自动去重、避免循环）
+
+Markdown 导出会生成：
+- 一个 `.md` 文件
+- 同包内的附件文件（自动打包为 zip）
+
+### HTML 导出
+
+- HTML 为单文件输出，图片/视频/音频会 **转为 base64** 内嵌。
+- 导出样式严格使用 **当前模板** 的 `exportCss + css + customHead + customBody`。
+
+### 相关页解析规则（链接格式）
+
+系统会解析 Markdown 中的链接（或 HTML 的 `href`/`src`）并识别页面索引或 pageId。
+
+可识别示例：
+
+```
+[link](page-3)
+[link](p3)
+[link](3)
+[link](?page=3)
+[link](?pageIndex=3)
+[link](pageId:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+[link](pageId-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+```
 
 ---
 
 ## AI 助理 & RAG
 
-- **范围与缓存**：仅索引当前已解锁 `.benben` 的 Markdown 笔记，索引与向量存放本机临时目录。
-- **默认向量化**：使用当前 LLM 提供方的 embedding 接口（默认 OpenAI `text-embedding-3-large`）。
-- **自定义**：可通过环境变量覆写 `LLM_BASE_URL`、`LLM_EMBEDDING_PATH`、`LLM_EMBEDDING_MODEL`、`LLM_PROVIDER`、`LLM_CHAT_PATH`、`LLM_MODEL` 等。
-- **前端开关**：导航栏 “AI助理” -> 勾/不勾 “使用 RAG”。
+- **索引范围**：仅索引当前已解锁 `.benben` 的 Markdown 笔记。  
+- **默认向量化**：OpenAI `text-embedding-3-large`。  
+- **可配置项**：`LLM_BASE_URL`、`LLM_EMBEDDING_PATH`、`LLM_EMBEDDING_MODEL`、`LLM_PROVIDER`、`LLM_CHAT_PATH`、`LLM_MODEL`。
 
 ---
 
@@ -150,34 +322,14 @@ gunicorn -w 4 -b 0.0.0.0:5555 benben:app
 
 ---
 
-## 贡献指南
+## 常见问题
 
-1. Fork & 新建分支。
-2. 提交前运行 `python -m compileall benben`。
-3. 如需变更 `.benben` 数据结构，请在 PR 描述说明。
+**Q: 模板改完不生效？**  
+A: 模板读取有缓存，需重启服务。
+
+**Q: HTML 导出样式为什么不对？**  
+A: 导出只读取模板里的 `exportCss` / `customHead` / `customBody`，请确保这些字段完整。
+
+---
 
 欢迎提交 Issue 或 PR 讨论新特性与 AI 工作流。
-
-
-继续执行下面没有完成的指令：
-
-“”“
-现在在导出里新增导出当前页及相关页，也是分为md和html两种。
-当前页和相关页的意思是，以当前页为起点，连同当前页所引用的页及引用页中的引用页等等不断类推下去，类似于这页后面所有的分支页走到头的所有页一并写入导出为一个md或者html文件，注意避免循环重复。
-其中html的图片等媒体是base64嵌入一个html文件中，md的则是一个md连同媒体附件文件一起打包。
-并且优化现在所有导出为html的，当前样式模板中似乎只写了css，我请你把现在补充加css和js等的逻辑改为这些也全部放进样式模版文件中去，然后导出时我当前用的什么样式（模版），就导出为什么样子。相当于每个模版就是一种html册，我可以把一份内容导出渲染为各种各样、不同交互的分享版本。
-”“”
-
-
-优化管理链接的提示词，输入可能为一段描述、可能为多个链接、可能为任何可能包含链接信息的内容，不再是原来的bib了，让ai正确识别出来。
-
-现在的展示不要直接全屏，而是进入网页全屏模式，浏览器全屏需要我自己点击全屏才对。
-
-现在附件管理弹窗中附件未被引用的提示框的css颜色是固定的与可调整的主题色不适配，改为也跟随主题色变动。
-
-现在只有markdown模式了，所以config里面
-COMPONENT_LIBRARY = {
-    "markdown": [
-不需要多余的“  "markdown": [  ”吧。其他的一些多余的markdown的强调似乎也不需要了，可以适当简化优化。
-
-根据使用情况优化插入
