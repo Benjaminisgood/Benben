@@ -254,10 +254,10 @@ const root = document.querySelector('.markdown-export-content');
 
 ### 6) 内置模板清单（带 JS 交互）
 
-- `default.yaml`：默认的，就是按部就班，既不太少也不太花哨
-- `minimal.yaml`：基础模版，只有最基本的必不可少的一些功能
-- `classic.yaml`：复古风格羊纸本，很有质感纸张背景
-- `contrast.yaml`：字体大小对比明暗对比强烈，可以明暗切换
+- `default.yaml`：默认的，就是按部就班，外观功能既不太少也不太花哨
+- `minimal.yaml`：基础模版，只有最基本的必不可少的一些功能，基础款
+- `classic.yaml`：复古风格羊纸本，很有质感纸张背景，阅读有沉浸感觉
+- `contrast.yaml`：字体大小对比、明暗对比强烈，可以明暗切换
 - `album.yaml`：相册风，适用于图片很多且想要美观展示的
 - `cyber.yaml`：赛博朋克风，科技感十足的脉冲动态光影
 
