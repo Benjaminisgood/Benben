@@ -54,15 +54,143 @@ css: |
     border-radius: 0.3rem;
     background: rgba(15, 23, 42, 0.08);
   }
+  .md-album .markdown-img-grid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .md-album .markdown-callout {
+    border: 1px solid rgba(180, 83, 9, 0.25);
+    border-radius: 1rem;
+    padding: 1rem 1.2rem;
+    margin: 1.2rem 0;
+    background: rgba(255, 255, 255, 0.75);
+    box-shadow: var(--md-shadow);
+  }
+  .md-album .markdown-callout-title {
+    font-family: "Space Mono", "Fira Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.82rem;
+    margin-bottom: 0.4rem;
+    color: #b45309;
+  }
+  .md-album .markdown-qa {
+    border: 1px solid rgba(180, 83, 9, 0.22);
+    border-radius: 1rem;
+    padding: 1rem 1.2rem;
+    margin: 1.2rem 0;
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: var(--md-shadow);
+  }
+  .md-album details.markdown-qa summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .md-album details.markdown-qa summary::-webkit-details-marker {
+    display: none;
+  }
+  .md-album .markdown-qa-toggle {
+    margin-left: auto;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(180, 83, 9, 0.8);
+  }
+  .md-album .markdown-media {
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 1rem;
+    padding: 0.9rem;
+    margin: 1.1rem 0;
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: var(--md-shadow);
+  }
+  .md-album .markdown-media audio,
+  .md-album .markdown-media video {
+    width: 100%;
+    display: block;
+    border-radius: 0.8rem;
+  }
   .md-album .markdown-img-grid {
     display: grid;
     gap: 16px;
     margin: 1.1rem 0;
   }
-  .md-album .markdown-img-grid img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  .md-album .markdown-img-grid.two-col,
+  .md-album .markdown-img-grid.two-vertical {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-album .markdown-img-grid.four-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-album .markdown-img-grid.rail {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 1fr);
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  .md-album .markdown-cover {
+    border: 1px solid rgba(180, 83, 9, 0.2);
+    border-radius: 1.2rem;
+    padding: 1.6rem 1.4rem;
+    background: linear-gradient(135deg, rgba(180, 83, 9, 0.12), rgba(255, 255, 255, 0.8));
+  }
+  .md-album .markdown-banner {
+    border-radius: 1rem;
+    padding: 1rem 1.2rem;
+    background: rgba(180, 83, 9, 0.1);
+    border: 1px solid rgba(180, 83, 9, 0.2);
+  }
+  .md-album .markdown-notes {
+    border-left: 3px solid rgba(180, 83, 9, 0.5);
+    padding-left: 0.9rem;
+    color: rgba(55, 65, 81, 0.75);
+  }
+  .md-album .markdown-kpi,
+  .md-album .markdown-features {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    margin: 1.3rem 0;
+  }
+  .md-album .markdown-kpi > *,
+  .md-album .markdown-features > * {
+    border: 1px solid rgba(180, 83, 9, 0.22);
+    border-radius: 1rem;
+    padding: 1rem 1.1rem;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: var(--md-shadow);
+  }
+  .md-album .markdown-cols {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    margin: 1.1rem 0;
+  }
+  .md-album .markdown-code-split {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    margin: 1.3rem 0;
+  }
+  .md-album .markdown-code-split pre {
+    margin: 0;
+  }
+  .md-album .markdown-highlight {
+    background: rgba(180, 83, 9, 0.18);
+    border-radius: 0.25rem;
+    padding: 0 0.25rem;
+  }
+  .md-album .markdown-blur {
+    filter: blur(4px);
+    transition: filter 0.2s ease;
+  }
+  .md-album .markdown-blur:hover,
+  .md-album .markdown-blur:focus {
+    filter: blur(0);
   }
 wrapperClass: md-album
 exportCss: |

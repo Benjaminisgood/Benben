@@ -2041,29 +2041,9 @@ def _enhance_markdown_soup(
             if tag.name == "source" and not tag.get("type"):
                 tag["type"] = mime_type
 
-    for pre in soup.find_all("pre"):
-        code_block = pre.find("code", recursive=False)
-        if not code_block:
-            continue
-        code_classes = list(code_block.get("class") or [])
-        if "hljs" not in code_classes:
-            code_classes.append("hljs")
-        code_block["class"] = code_classes
-        pre_classes = list(pre.get("class") or [])
-        if "hljs" not in pre_classes:
-            pre_classes.append("hljs")
-        pre["class"] = pre_classes
-
     for img in soup.find_all("img"):
         src = img.get("src") or ""
         _inline_media_attr(img, "src", hint=img.get("alt") or src)
-        classes = set(img.get("class") or [])
-        classes.add("markdown-preview-image")
-        img["class"] = list(classes)
-        if not img.has_attr("loading"):
-            img["loading"] = "lazy"
-        if not img.has_attr("decoding"):
-            img["decoding"] = "async"
 
     for media in soup.find_all(["video", "audio"]):
         if media.get("src"):

@@ -217,13 +217,12 @@ customBody: |
 因此导出 CSS 至少覆盖：
 - `body.markdown-export`：页面底色、字体、排版
 - `.markdown-export-content`：内容容器宽度/间距/阴影
-- `.markdown-preview-image`：导出时所有图片都会自动加此 class
 
 ### 4) CSS 清单（建议完整覆盖）
 
 基础元素（Markdown 原生）：
 - `h1..h4`, `p`, `a`, `ul/ol`, `blockquote`, `code`, `pre`, `table`, `hr`, `img`, `figure`, `figcaption`
-- 代码块高亮：`pre.hljs`、`code.hljs`（导出时自动添加）
+- 代码块：`pre`、`code`
 
 Benben 自建语法类：
 - `.markdown-callout`, `.markdown-callout-title`, `.markdown-callout-body`
@@ -232,6 +231,8 @@ Benben 自建语法类：
 - `.markdown-media` + `audio`/`video` + `.markdown-media-caption`
 - `.markdown-kpi`, `.markdown-cols`, `.markdown-features`, `.markdown-cover`, `.markdown-divider`, `.markdown-banner`, `.markdown-notes`, `.markdown-code-split`
 - `.markdown-highlight`, `.markdown-blur`
+
+提示：导出 HTML 不会自动注入额外的 `hljs` / `markdown-preview-image` 类名，如需可在模板 `customBody` 中自行添加。
 
 ### 5) JS 清单（customBody）
 

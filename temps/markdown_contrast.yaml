@@ -67,6 +67,134 @@ css: |
     border-top: 2px solid color-mix(in srgb, var(--md-accent) 30%, transparent);
     margin: 2em 0;
   }
+  .md-contrast .markdown-callout {
+    border: 1px solid color-mix(in srgb, var(--md-accent) 45%, transparent);
+    border-left: 4px solid var(--md-accent);
+    border-radius: 0.6rem;
+    padding: 0.9rem 1.1rem;
+    margin: 1.1rem 0;
+    background: color-mix(in srgb, var(--md-accent) 8%, transparent);
+  }
+  .md-contrast .markdown-callout-title {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.82rem;
+    margin-bottom: 0.4rem;
+    color: var(--md-accent-strong);
+  }
+  .md-contrast .markdown-qa {
+    border: 1px solid color-mix(in srgb, var(--md-accent) 35%, transparent);
+    border-radius: 0.75rem;
+    padding: 0.95rem 1.1rem;
+    margin: 1.1rem 0;
+    background: rgba(14, 165, 233, 0.08);
+  }
+  .md-contrast details.markdown-qa summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .md-contrast details.markdown-qa summary::-webkit-details-marker {
+    display: none;
+  }
+  .md-contrast .markdown-qa-toggle {
+    margin-left: auto;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--md-accent);
+  }
+  .md-contrast .markdown-media {
+    border: 1px solid color-mix(in srgb, var(--md-accent) 30%, transparent);
+    border-radius: 0.7rem;
+    padding: 0.8rem;
+    margin: 1.1rem 0;
+    background: rgba(15, 23, 42, 0.04);
+  }
+  .md-contrast .markdown-media audio,
+  .md-contrast .markdown-media video {
+    width: 100%;
+    display: block;
+    border-radius: 0.6rem;
+  }
+  .md-contrast .markdown-img-grid {
+    display: grid;
+    gap: 14px;
+    margin: 1.1rem 0;
+  }
+  .md-contrast .markdown-img-grid.two-col,
+  .md-contrast .markdown-img-grid.two-vertical {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-contrast .markdown-img-grid.four-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-contrast .markdown-img-grid.rail {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(200px, 1fr);
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  .md-contrast .markdown-cover {
+    border: 1px solid color-mix(in srgb, var(--md-accent) 30%, transparent);
+    border-radius: 1rem;
+    padding: 1.4rem 1.2rem;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(15, 23, 42, 0.02));
+  }
+  .md-contrast .markdown-banner {
+    border-radius: 0.8rem;
+    padding: 0.9rem 1.1rem;
+    background: color-mix(in srgb, var(--md-accent) 12%, transparent);
+  }
+  .md-contrast .markdown-notes {
+    border-left: 3px solid var(--md-accent);
+    padding-left: 0.9rem;
+    color: color-mix(in srgb, currentColor 70%, transparent);
+  }
+  .md-contrast .markdown-kpi,
+  .md-contrast .markdown-features {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin: 1.2rem 0;
+  }
+  .md-contrast .markdown-kpi > *,
+  .md-contrast .markdown-features > * {
+    border: 1px solid color-mix(in srgb, var(--md-accent) 45%, transparent);
+    border-radius: 0.8rem;
+    padding: 1rem 1.1rem;
+    background: rgba(14, 165, 233, 0.08);
+  }
+  .md-contrast .markdown-cols {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin: 1.1rem 0;
+  }
+  .md-contrast .markdown-code-split {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    margin: 1.2rem 0;
+  }
+  .md-contrast .markdown-code-split pre {
+    margin: 0;
+  }
+  .md-contrast .markdown-highlight {
+    background: color-mix(in srgb, var(--md-accent) 24%, transparent);
+    border-radius: 0.25rem;
+    padding: 0 0.25rem;
+  }
+  .md-contrast .markdown-blur {
+    filter: blur(4px);
+    transition: filter 0.2s ease;
+  }
+  .md-contrast .markdown-blur:hover,
+  .md-contrast .markdown-blur:focus {
+    filter: blur(0);
+  }
 wrapperClass: md-contrast
 exportCss: |
   body.markdown-export {

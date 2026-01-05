@@ -193,6 +193,65 @@ css: |
     border-left: 3px solid color-mix(in srgb, var(--md-accent) 30%, currentColor 20%);
     padding: 0.65rem 0.9rem;
   }
+  .markdown-note .markdown-kpi,
+  .markdown-note .markdown-features {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin: 1.2rem 0;
+  }
+  .markdown-note .markdown-kpi > *,
+  .markdown-note .markdown-features > * {
+    background: color-mix(in srgb, var(--md-accent) 8%, #ffffff);
+    border: 1px solid color-mix(in srgb, var(--md-accent) 18%, transparent);
+    border-radius: 0.9rem;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+  }
+  .markdown-note .markdown-cols {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    margin: 1.1rem 0;
+  }
+  .markdown-note .markdown-cols > * {
+    margin: 0;
+  }
+  .markdown-note .markdown-code-split {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    align-items: start;
+    margin: 1.3rem 0;
+  }
+  .markdown-note .markdown-code-split pre {
+    margin: 0;
+  }
+  .markdown-note details.markdown-qa summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  .markdown-note details.markdown-qa summary::-webkit-details-marker {
+    display: none;
+  }
+  .markdown-note .markdown-qa-toggle {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--md-muted);
+  }
+  .markdown-note .markdown-highlight {
+    background: color-mix(in srgb, var(--md-accent) 18%, transparent);
+    border-radius: 0.3rem;
+    padding: 0 0.25rem;
+  }
+  .markdown-note .markdown-blur {
+    filter: blur(4px);
+    transition: filter 0.2s ease;
+  }
+  .markdown-note .markdown-blur:hover,
+  .markdown-note .markdown-blur:focus {
+    filter: blur(0);
+  }
 wrapperClass: markdown-note
 exportCss: |
   body.markdown-export {

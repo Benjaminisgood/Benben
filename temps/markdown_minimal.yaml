@@ -94,6 +94,137 @@ css: |
     border-top: 1px solid var(--md-border);
     margin: 1.6em 0;
   }
+  .md-minimal .markdown-callout {
+    border: 1px solid var(--md-border);
+    border-radius: 0.6rem;
+    padding: 0.8rem 0.95rem;
+    margin: 1rem 0;
+    background: rgba(17, 24, 39, 0.02);
+  }
+  .md-minimal .markdown-callout-title {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
+    color: color-mix(in srgb, currentColor 70%, transparent);
+  }
+  .md-minimal .markdown-qa {
+    border: 1px solid var(--md-border);
+    border-radius: 0.6rem;
+    padding: 0.85rem 0.95rem;
+    margin: 1rem 0;
+    background: #ffffff;
+  }
+  .md-minimal details.markdown-qa summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .md-minimal details.markdown-qa summary::-webkit-details-marker {
+    display: none;
+  }
+  .md-minimal .markdown-qa-toggle {
+    margin-left: auto;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, currentColor 55%, transparent);
+  }
+  .md-minimal .markdown-media {
+    border: 1px solid var(--md-border);
+    border-radius: 0.6rem;
+    padding: 0.7rem;
+    margin: 1rem 0;
+  }
+  .md-minimal .markdown-media audio,
+  .md-minimal .markdown-media video {
+    width: 100%;
+    display: block;
+    border-radius: 0.45rem;
+  }
+  .md-minimal .markdown-img-grid {
+    display: grid;
+    gap: 12px;
+    margin: 1rem 0;
+  }
+  .md-minimal .markdown-img-grid.two-col,
+  .md-minimal .markdown-img-grid.two-vertical {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-minimal .markdown-img-grid.four-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-minimal .markdown-img-grid.rail {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(180px, 1fr);
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  .md-minimal .markdown-cover {
+    border: 1px solid var(--md-border);
+    border-radius: 0.8rem;
+    padding: 1.4rem 1.2rem;
+    background: rgba(17, 24, 39, 0.03);
+  }
+  .md-minimal .markdown-banner {
+    border-radius: 0.6rem;
+    padding: 0.8rem 0.95rem;
+    background: rgba(17, 24, 39, 0.04);
+  }
+  .md-minimal .markdown-notes {
+    border-left: 2px solid var(--md-border);
+    padding-left: 0.8rem;
+    color: color-mix(in srgb, currentColor 65%, transparent);
+  }
+  .md-minimal .markdown-divider {
+    text-align: center;
+    border-top: 1px solid var(--md-border);
+    margin: 1.4rem 0;
+  }
+  .md-minimal .markdown-kpi,
+  .md-minimal .markdown-features {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    margin: 1.1rem 0;
+  }
+  .md-minimal .markdown-kpi > *,
+  .md-minimal .markdown-features > * {
+    border: 1px solid var(--md-border);
+    border-radius: 0.55rem;
+    padding: 0.8rem 0.9rem;
+    background: #ffffff;
+  }
+  .md-minimal .markdown-cols {
+    display: grid;
+    gap: 0.9rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    margin: 1rem 0;
+  }
+  .md-minimal .markdown-code-split {
+    display: grid;
+    gap: 0.9rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin: 1.1rem 0;
+  }
+  .md-minimal .markdown-code-split pre {
+    margin: 0;
+  }
+  .md-minimal .markdown-highlight {
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    border-radius: 0.25rem;
+    padding: 0 0.2rem;
+  }
+  .md-minimal .markdown-blur {
+    filter: blur(3px);
+    transition: filter 0.2s ease;
+  }
+  .md-minimal .markdown-blur:hover,
+  .md-minimal .markdown-blur:focus {
+    filter: blur(0);
+  }
 wrapperClass: md-minimal
 exportCss: |
   body.markdown-export {

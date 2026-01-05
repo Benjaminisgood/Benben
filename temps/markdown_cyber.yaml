@@ -72,6 +72,140 @@ css: |
     border-radius: 1rem;
     box-shadow: 0 18px 50px rgba(0, 245, 255, 0.18);
   }
+  .md-cyber .markdown-callout {
+    border: 1px solid rgba(0, 245, 255, 0.4);
+    border-radius: 0.9rem;
+    padding: 0.9rem 1.1rem;
+    margin: 1.1rem 0;
+    background: rgba(2, 6, 23, 0.7);
+    box-shadow: 0 0 24px rgba(0, 245, 255, 0.12);
+  }
+  .md-cyber .markdown-callout-title {
+    font-family: "Orbitron", "Space Grotesk", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.8rem;
+    margin-bottom: 0.4rem;
+    color: #00f5ff;
+  }
+  .md-cyber .markdown-qa {
+    border: 1px solid rgba(0, 245, 255, 0.35);
+    border-radius: 0.9rem;
+    padding: 0.95rem 1.1rem;
+    margin: 1.1rem 0;
+    background: rgba(2, 6, 23, 0.75);
+    box-shadow: 0 0 20px rgba(0, 245, 255, 0.12);
+  }
+  .md-cyber details.markdown-qa summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .md-cyber details.markdown-qa summary::-webkit-details-marker {
+    display: none;
+  }
+  .md-cyber .markdown-qa-toggle {
+    margin-left: auto;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #00f5ff;
+  }
+  .md-cyber .markdown-media {
+    border: 1px solid rgba(0, 245, 255, 0.35);
+    border-radius: 0.9rem;
+    padding: 0.8rem;
+    margin: 1.1rem 0;
+    background: rgba(2, 6, 23, 0.65);
+    box-shadow: 0 0 24px rgba(0, 245, 255, 0.12);
+  }
+  .md-cyber .markdown-media audio,
+  .md-cyber .markdown-media video {
+    width: 100%;
+    display: block;
+    border-radius: 0.75rem;
+    background: #020617;
+  }
+  .md-cyber .markdown-img-grid {
+    display: grid;
+    gap: 14px;
+    margin: 1.1rem 0;
+  }
+  .md-cyber .markdown-img-grid.two-col,
+  .md-cyber .markdown-img-grid.two-vertical {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-cyber .markdown-img-grid.four-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md-cyber .markdown-img-grid.rail {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(200px, 1fr);
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  .md-cyber .markdown-cover {
+    border: 1px solid rgba(0, 245, 255, 0.35);
+    border-radius: 1rem;
+    padding: 1.4rem 1.2rem;
+    background: linear-gradient(135deg, rgba(0, 245, 255, 0.12), rgba(2, 6, 23, 0.6));
+  }
+  .md-cyber .markdown-banner {
+    border-radius: 0.9rem;
+    padding: 0.9rem 1.1rem;
+    background: rgba(0, 245, 255, 0.08);
+    border: 1px solid rgba(0, 245, 255, 0.35);
+  }
+  .md-cyber .markdown-notes {
+    border-left: 3px solid rgba(0, 245, 255, 0.6);
+    padding-left: 0.9rem;
+    color: rgba(226, 242, 255, 0.7);
+  }
+  .md-cyber .markdown-kpi,
+  .md-cyber .markdown-features {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin: 1.2rem 0;
+  }
+  .md-cyber .markdown-kpi > *,
+  .md-cyber .markdown-features > * {
+    border: 1px solid rgba(0, 245, 255, 0.35);
+    border-radius: 0.9rem;
+    padding: 1rem 1.1rem;
+    background: rgba(2, 6, 23, 0.7);
+    box-shadow: 0 0 24px rgba(0, 245, 255, 0.15);
+  }
+  .md-cyber .markdown-cols {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin: 1.1rem 0;
+  }
+  .md-cyber .markdown-code-split {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    margin: 1.2rem 0;
+  }
+  .md-cyber .markdown-code-split pre {
+    margin: 0;
+  }
+  .md-cyber .markdown-highlight {
+    background: rgba(0, 245, 255, 0.2);
+    border-radius: 0.25rem;
+    padding: 0 0.25rem;
+  }
+  .md-cyber .markdown-blur {
+    filter: blur(3px);
+    transition: filter 0.2s ease;
+  }
+  .md-cyber .markdown-blur:hover,
+  .md-cyber .markdown-blur:focus {
+    filter: blur(0);
+  }
 wrapperClass: md-cyber
 exportCss: |
   body.markdown-export {
