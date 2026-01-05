@@ -260,6 +260,7 @@ const root = document.querySelector('.markdown-export-content');
 - `contrast.yaml`：字体大小对比、明暗对比强烈，可以明暗切换
 - `album.yaml`：相册风，适用于图片很多且想要美观展示的
 - `cyber.yaml`：赛博朋克风，科技感十足的脉冲动态光影
+- 再来一个幻灯片点子本，即导出为html后，根据---划分的区块变成一个个幻灯片，用户甚至可以上下键跳转
 
 ### 7) 新增模板流程
 
