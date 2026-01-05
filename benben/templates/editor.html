@@ -1163,20 +1163,58 @@
       color: var(--shell-text);
       border: 1px solid var(--surface-border);
     }
-    /* 存储选项卡片（附件/资源气泡） */
+    /* 存储选项：轻量化的胶囊切换，避免厚重边框 */
     .storage-inline {
-      background: color-mix(in srgb, var(--surface-1) 96%, var(--accent) 4%);
+      padding: 0.35rem 0.45rem;
+      background: transparent;
       color: var(--shell-text);
-      border: 1px solid var(--surface-border);
+      border: 0;
       border-radius: 0.75rem;
-      box-shadow: 0 10px 30px color-mix(in srgb, var(--surface-border) 40%, transparent);
+      box-shadow: none;
     }
-    .storage-inline .form-check-input:checked {
+    .storage-inline .storage-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.28rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--surface-border) 70%, var(--accent) 30%);
+      background: color-mix(in srgb, var(--surface-1) 90%, var(--accent) 10%);
+      color: color-mix(in srgb, var(--shell-text) 92%, var(--accent-strong) 8%);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+    }
+    .storage-inline .storage-toggle--active {
+      background: color-mix(in srgb, var(--accent) 24%, var(--surface-1));
+      border-color: color-mix(in srgb, var(--accent-strong) 60%, var(--surface-border));
+      box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .storage-inline .storage-toggle-input {
+      width: 0.9rem;
+      height: 0.9rem;
+      margin: 0;
+      float: none;
+      border-radius: 0.25rem;
+      border: 1px solid color-mix(in srgb, var(--surface-border) 70%, var(--accent) 30%);
+      background-color: color-mix(in srgb, var(--surface-1) 92%, var(--accent) 8%);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface-border) 60%, transparent);
+    }
+    .storage-inline .storage-toggle-input:checked {
       background-color: var(--accent);
-      border-color: var(--accent);
+      border-color: var(--accent-strong);
     }
-    .storage-inline .form-check-label {
-      color: var(--shell-text);
+    .storage-inline .storage-toggle-input:focus {
+      box-shadow: 0 0 0 0.14rem color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    .storage-inline .storage-toggle-input:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .storage-inline .storage-toggle-label {
+      user-select: none;
     }
     /* 模型弹窗的折叠区域与内容底色（随主题） */
     #llmModal .accordion-item {
@@ -4045,9 +4083,9 @@
                 <label class="form-label">Markdown 全局 CSS</label>
                 <textarea id="template-markdown-css" class="form-control mb-2" rows="10" placeholder="为预览页面定义全局样式"></textarea>
                 <div class="form-text">CSS 会实时应用于右侧预览，同时随项目一同保存。</div>
-                <label class="form-label">预览容器附加 class（可选）</label>
+                <label class="form-label">预览区根节点 class（可选）</label>
                 <input type="text" id="template-markdown-wrapper" class="form-control mb-2" placeholder="例如：markdown-note prose">
-                <div class="form-text">指定多个 class 时使用空格分隔，将添加在 Markdown 预览根节点上。</div>
+                <div class="form-text">这些 class 会直接加在预览根元素上，便于在 CSS 里通过 .class 选择器生效；多个 class 用空格分隔。</div>
               </div>
             </div>
             <div class="modal-footer">
@@ -4869,6 +4907,8 @@ function jumpToPage(targetIdx) {
     css: '',
     wrapperClass: '',
   };
+  let lastAppliedMarkdownCss = null;
+  let lastAppliedMarkdownWrapper = null;
   const markdownSlideCache = new Map();
   const markdownPageDirty = new Set();
   const MAX_MARKDOWN_CACHE = 8;
@@ -8007,25 +8047,34 @@ function jumpToPage(targetIdx) {
 
   function applyMarkdownStyles() {
     const styleId = 'markdown-template-style';
+    const cssText = markdownTemplate.css || '';
+    const wrapperClass = (markdownTemplate.wrapperClass || '').trim();
     const head = document.head || document.getElementsByTagName('head')[0];
     if (head) {
       let styleEl = document.getElementById(styleId);
+      const created = !styleEl;
       if (!styleEl) {
         styleEl = document.createElement('style');
         styleEl.id = styleId;
         head.appendChild(styleEl);
       }
-      styleEl.textContent = markdownTemplate.css || '';
+      if (created || lastAppliedMarkdownCss !== cssText) {
+        styleEl.textContent = cssText;
+        lastAppliedMarkdownCss = cssText;
+      }
     }
     const previewRoot = document.getElementById('markdown-preview-content');
     if (previewRoot) {
       const baseClasses = ['markdown-preview-content'];
-      const extra = (markdownTemplate.wrapperClass || '').trim();
       const classSet = new Set(baseClasses);
-      if (extra) {
-        extra.split(/\s+/).filter(Boolean).forEach(cls => classSet.add(cls));
+      if (wrapperClass) {
+        wrapperClass.split(/\s+/).filter(Boolean).forEach(cls => classSet.add(cls));
       }
-      previewRoot.className = Array.from(classSet).join(' ');
+      const className = Array.from(classSet).join(' ');
+      if (previewRoot.className !== className || lastAppliedMarkdownWrapper !== wrapperClass) {
+        previewRoot.className = className;
+        lastAppliedMarkdownWrapper = wrapperClass;
+      }
     }
   }
 
@@ -11758,24 +11807,38 @@ function syncMarkdownEditorToPreview(container) {
       promptWorkspaceSelection('请先选择工作区后再保存项目');
       return;
     }
-    const includePages = !!options.includePages || pagesStructureDirty;
-    const payload = {
-      markdownTemplate: {...markdownTemplate},
-      resources: globalResources,
-      llm: getLlmPayload(),
-      clientUpdatedAt: projectUpdatedAt,
+    const waitForPageSaves = () => {
+      if (pageSaveTimer) {
+        clearTimeout(pageSaveTimer);
+        pageSaveTimer = null;
+      }
+      if (pendingPageSaveIds.size) {
+        flushPageSaves();
+      }
+      return pageSaveQueue.catch(() => {});
     };
-    if (includePages) {
-      payload.pages = pagesData;
-    }
+    let includePages = false;
     saveInFlight = true;
     saveRequestQueue = saveRequestQueue
       .catch(() => {})
-      .then(() => fetch(targetEndpoint, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload),
-      }))
+      .then(async () => {
+        await waitForPageSaves();
+        includePages = !!options.includePages || pagesStructureDirty;
+        const payload = {
+          markdownTemplate: {...markdownTemplate},
+          resources: globalResources,
+          llm: getLlmPayload(),
+          clientUpdatedAt: projectUpdatedAt,
+        };
+        if (includePages) {
+          payload.pages = pagesData;
+        }
+        return fetch(targetEndpoint, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload),
+        });
+      })
       .then(async response => {
         let parsed = {};
         try {
@@ -16907,17 +16970,18 @@ applyDefaultWorkspaceIfNeeded();
   function buildStorageInline(file, type = 'attachment') {
     if (!file) return null;
     const wrap = document.createElement('div');
-    wrap.className = 'storage-inline d-flex flex-column align-items-start gap-2 p-2';
+    wrap.className = 'storage-inline d-flex flex-column align-items-start gap-2';
     const row = document.createElement('div');
-    row.className = 'd-flex align-items-center gap-3';
+    row.className = 'd-flex align-items-center gap-2';
     const makeToggle = (label, checked) => {
       const container = document.createElement('label');
-      container.className = 'form-check mb-0 d-flex align-items-center gap-2';
+      container.className = 'storage-toggle';
       const input = document.createElement('input');
       input.type = 'checkbox';
-      input.className = 'form-check-input';
+      input.className = 'form-check-input storage-toggle-input';
       input.checked = !!checked;
       const span = document.createElement('span');
+      span.className = 'storage-toggle-label';
       span.textContent = label;
       container.appendChild(input);
       container.appendChild(span);
@@ -16928,6 +16992,11 @@ applyDefaultWorkspaceIfNeeded();
     row.appendChild(localToggle.container);
     row.appendChild(ossToggle.container);
     wrap.appendChild(row);
+    const setToggleState = () => {
+      localToggle.container.classList.toggle('storage-toggle--active', localToggle.input.checked);
+      ossToggle.container.classList.toggle('storage-toggle--active', ossToggle.input.checked);
+    };
+    setToggleState();
     const spacer = document.createElement('div');
     spacer.className = 'w-100';
     wrap.appendChild(spacer);
@@ -16937,8 +17006,10 @@ applyDefaultWorkspaceIfNeeded();
         const desiredOss = ossToggle.input.checked;
         if (!desiredLocal && !desiredOss) {
           inputEl.checked = true;
+          setToggleState();
           return;
         }
+        setToggleState();
         localToggle.input.disabled = true;
         ossToggle.input.disabled = true;
         try {
@@ -16956,6 +17027,7 @@ applyDefaultWorkspaceIfNeeded();
         } finally {
           localToggle.input.disabled = false;
           ossToggle.input.disabled = false;
+          setToggleState();
         }
       });
     };

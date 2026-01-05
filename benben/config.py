@@ -4,7 +4,7 @@ import os
 import textwrap
 
 # 默认 Markdown 模板文件名，可根据需要在 temps 中新增不同方案
-DEFAULT_MARKDOWN_TEMPLATE_FILENAME = "markdown_default.yaml"
+DEFAULT_MARKDOWN_TEMPLATE_FILENAME = "default.yaml"
 
 # Markdown 预览默认样式配置
 FALLBACK_MARKDOWN_TEMPLATE: dict[str, str] = {
@@ -830,15 +830,15 @@ LEARNING_ASSISTANT_DEFAULT_PROMPTS = [
 
 COMPONENT_LIBRARY = [
         {
-            "group": "现成的模板",
+            "group": "模版",
             "items": [
                 {
                     "name": "Blog Front Matter",
-                    "code": "---\ncover: https://example.com/cover.jpg\ndate: \"2025-01-01\"\nstatus: draft\nsummary: |\n  在这里撰写文章摘要，支持多行描述。\ntags:\n  - 标签一\n  - 标签二\ntitle: \"文章标题\"\ncategories:\n  - 默认分类\nslug: my-blog-post\n---\n\n# 主标题\n\n正文从这里开始……\n",
+                    "code": "---\ncover: https://example.com/cover.jpg\ndate: \"2025-01-01\"\nstatus: draft\nsummary: |\n  在这里撰写文章摘要，支持多行描述。\ntags:\n  - 标签一\n  - 标签二\ntitle: \"文章标题\"\ncategories:\n  - 默认分类\nslug: my-blog-post\n---\n\n# 主标题\n\n正文从这里开始……",
                 },
                 {
                     "name": "日记模板",
-                    "code": "---\ndate: \"2025-01-01\"\nmood: 😊\nweather: 晴\nkeywords:\n  - 生活\n  - 感悟\n---\n\n## 今日亮点\n- \n\n## 遇到的挑战\n- \n\n## 学到的事情\n- \n\n## 明日计划\n- \n",
+                    "code": "---\ndate: \"2025-01-01\"\nmood: 😊\nweather: 晴\nkeywords:\n  - 生活\n  - 感悟\n---\n\n## 今日亮点\n- \n\n## 遇到的挑战\n- \n\n## 学到的事情\n- \n\n## 明日计划\n- ",
                 },
                 {
                     "name": "记账模板",
@@ -876,7 +876,7 @@ COMPONENT_LIBRARY = [
                         "\n"
                         "## 财务反思\n"
                         "- 今日洞察：\n"
-                        "- 明日行动：\n"
+                        "- 明日行动："
                     ),
                 },
                 {
@@ -895,8 +895,7 @@ COMPONENT_LIBRARY = [
                         "objective: |\n"
                         "  \n"
                         "context: \"\"\n"
-                        "---\n"
-                        "\n"
+                        "---"
                     ),
                 },
                 {
@@ -931,7 +930,7 @@ COMPONENT_LIBRARY = [
                         "## 应用与行动\n"
                         "- 场景假设：\n"
                         "- 行动实验：\n"
-                        "- 复盘指标：\n"
+                        "- 复盘指标："
                     ),
                 },
                 {
@@ -968,7 +967,7 @@ COMPONENT_LIBRARY = [
                         "## 日终复盘\n"
                         "- 完成度：\n"
                         "- 情绪/能量观察：\n"
-                        "- 明日微调：\n"
+                        "- 明日微调："
                     ),
                 },
                 {
@@ -997,13 +996,13 @@ COMPONENT_LIBRARY = [
                         "\n"
                         "## 复盘要点\n"
                         "- 成果指标：到场人数 / NPS / 成交\n"
-                        "- 学习与改进：\n"
+                        "- 学习与改进："
                     ),
                 },
             ],
         },
         {
-            "group": "md基础简单语法",
+            "group": "基础语法",
             "items": [
                 {"name": "二级标题", "code": "## 小节标题\n\n这里是内容简介。"},
                 {"name": "加粗", "code": "**加粗文本**"},
@@ -1019,58 +1018,16 @@ COMPONENT_LIBRARY = [
                 },
                 {
                     "name": "分割线",
-                    "code": "---\n",
+                    "code": "---",
+                },
+                {
+                    "name": "嵌入链接",
+                    "code": "[相关链接](https://example.com)",
                 },
             ],
         },
         {
-            "group": "补充特殊卡片",
-            "items": [
-                {
-                    "name": "指标卡（KPI）（自建）",
-                    "code": ":::kpi\n- **指标一**: 95%\n- **指标二**: 120\n- **指标三**: 完成\n:::\n",
-                },
-                {
-                    "name": "封面卡（自建）",
-                    "code": ":::cover\n# 演示标题\n副标题或作者 / 日期\n:::\n",
-                },
-                {
-                    "name": "横幅卡片（自建）",
-                    "code": ":::banner\n**要点**：在这里写一段醒目的提示文本。\n:::\n",
-                },
-                {
-                    "name": "备注卡片（仅显示在编辑器，导出为小字）（自建）",
-                    "code": ":::notes\n讲者备注：仅供备忘，不作为正文展示。\n:::\n",
-                },
-                {
-                    "name": "代码解析卡片（自建）",
-                    "code": ":::code-split\n```python\nprint('示例')\n```\n\n说明：在右侧写解释文本。\n:::\n",
-                },
-                {
-                    "name": "问题卡片（展开显示答案）（自建）",
-                    "code": ":::qa 这里是问题？\n这里写展开即见的答案或提示。\n:::\n",
-                },
-                {
-                    "name": "答案卡片（点击才会显示的答案）（自建）",
-                    "code": ":::qa 这里是问题？ | collapse\n这里写默认隐藏、点击展开的答案。\n:::\n",
-                },
-            ],
-        },
-        {
-            "group": "补充布局优化",
-            "items": [
-                {
-                    "name": "左右两栏布局（自建）",
-                    "code": ":::cols\n左侧内容\n\n右侧内容\n:::\n",
-                },
-                {
-                    "name": "三栏特性（自建）",
-                    "code": ":::features\n- 特性一\n- 特性二\n- 特性三\n:::\n",
-                },
-            ],
-        },
-        {
-            "group": "列表与表格",
+            "group": "基础排版",
             "items": [
                 {
                     "name": "嵌套列表",
@@ -1084,31 +1041,96 @@ COMPONENT_LIBRARY = [
                     "name": "简单表格",
                     "code": "| 项目 | 指标 | 说明 |\n| ---- | ---- | ---- |\n| A    | 95   | 描述A |\n| B    | 88   | 描述B |",
                 },
-            ],
-        },
-        {
-            "group": "补充辅助块",
-            "items": [
                 {
                     "name": "代码块",
                     "code": "```python\nprint('Hello World')\n```",
                 },
+            ],
+        },
+        {
+            "group": "自建语法",
+            "items": [
                 {
                     "name": "提示块",
-                    "code": ":::tip\n关键提示写在这里。\n:::\n",
+                    "code": ":::tip\n关键提示写在这里。\n:::",
                 },
                 {
                     "name": "警告块",
-                    "code": ":::warning\n需要注意的内容。\n:::\n",
+                    "code": ":::warning\n需要注意的内容。\n:::",
                 },
                 {
                     "name": "信息块（自建）",
-                    "code": ":::info\n标题\n\n说明内容。\n:::\n",
+                    "code": ":::info\n标题\n\n说明内容。\n:::",
+                },
+                {
+                    "name": "问题卡片（展开显示答案）（自建）",
+                    "code": ":::qa 这里是问题？\n这里写展开即见的答案或提示。\n:::",
+                },
+                {
+                    "name": "答案卡片（点击才会显示的答案）（自建）",
+                    "code": ":::qa 这里是问题？ | collapse\n这里写默认隐藏、点击展开的答案。\n:::",
                 },
             ],
         },
         {
-            "group": "媒体文件（Markdown）",
+            "group": "自建排版",
+            "items": [
+                {
+                    "name": "指标卡（KPI）（自建）",
+                    "code": ":::kpi\n- **指标一**: 95%\n- **指标二**: 120\n- **指标三**: 完成\n:::",
+                },
+                {
+                    "name": "封面卡（自建）",
+                    "code": ":::cover\n# 演示标题\n副标题或作者 / 日期\n:::",
+                },
+                {
+                    "name": "横幅卡片（自建）",
+                    "code": ":::banner\n**要点**：在这里写一段醒目的提示文本。\n:::",
+                },
+                {
+                    "name": "备注卡片（仅显示在编辑器，导出为小字）（自建）",
+                    "code": ":::notes\n讲者备注：仅供备忘，不作为正文展示。\n:::",
+                },
+                {
+                    "name": "代码解析卡片（自建）",
+                    "code": ":::code-split\n```python\nprint('示例')\n```\n\n说明：在右侧写解释文本。\n:::",
+                },
+                {
+                    "name": "左右两栏布局（自建）",
+                    "code": ":::cols\n左侧内容\n\n右侧内容\n:::",
+                },
+                {
+                    "name": "三栏特性（自建）",
+                    "code": ":::features\n- 特性一\n- 特性二\n- 特性三\n:::",
+                },
+                {
+                    "name": "章节分隔（自建）",
+                    "code": ":::divider\n## 第二章：方法\n:::",
+                },
+                {
+                    "name": "箭头引出布局（自建）",
+                    "code": ":::banner\n<div style=\"display:flex;flex-wrap:wrap;align-items:center;gap:12px;\">\n  <div style=\"padding:10px 14px;border:1px solid rgba(59,130,246,0.35);border-radius:10px;background:rgba(59,130,246,0.08);\">现状洞察</div>\n  <div style=\"font-size:18px;\">→</div>\n  <div style=\"padding:10px 14px;border:1px solid rgba(16,185,129,0.35);border-radius:10px;background:rgba(16,185,129,0.08);\">行动方案</div>\n  <div style=\"font-size:18px;\">→</div>\n  <div style=\"padding:10px 14px;border:1px solid rgba(234,179,8,0.35);border-radius:10px;background:rgba(234,179,8,0.08);\">关键结果</div>\n</div>\n:::",
+                },
+                {
+                    "name": "金字塔层级（自建）",
+                    "code": ":::banner\n<div style=\"display:flex;flex-direction:column;align-items:center;gap:8px;\">\n  <div style=\"width:42%;min-width:160px;padding:8px 10px;border-radius:10px;background:rgba(59,130,246,0.12);text-align:center;\">顶层目标</div>\n  <div style=\"width:62%;min-width:200px;padding:8px 10px;border-radius:10px;background:rgba(16,185,129,0.12);text-align:center;\">核心策略</div>\n  <div style=\"width:82%;min-width:240px;padding:8px 10px;border-radius:10px;background:rgba(234,179,8,0.12);text-align:center;\">执行动作</div>\n</div>\n:::",
+                },
+                {
+                    "name": "倒金字塔层级（自建）",
+                    "code": ":::banner\n<div style=\"display:flex;flex-direction:column;align-items:center;gap:8px;\">\n  <div style=\"width:82%;min-width:240px;padding:8px 10px;border-radius:10px;background:rgba(99,102,241,0.12);text-align:center;\">输入范围</div>\n  <div style=\"width:62%;min-width:200px;padding:8px 10px;border-radius:10px;background:rgba(14,165,233,0.12);text-align:center;\">筛选条件</div>\n  <div style=\"width:42%;min-width:160px;padding:8px 10px;border-radius:10px;background:rgba(16,185,129,0.12);text-align:center;\">最终结论</div>\n</div>\n:::",
+                },
+                {
+                    "name": "引文卡片（自建）",
+                    "code": ":::banner\n<figure style=\"margin:0;\">\n  <blockquote style=\"margin:0;font-size:1.05em;font-style:italic;line-height:1.6;\">“在这里写引文内容，突出核心观点或原文。”</blockquote>\n  <figcaption style=\"margin-top:8px;text-align:right;color:#6b7280;\">— 作者 / 来源 / 年份</figcaption>\n</figure>\n:::",
+                },
+                {
+                    "name": "海报三栏（自建）",
+                    "code": ":::cols\n<div>\n  <h3>背景</h3>\n  <ul>\n    <li>研究问题</li>\n    <li>关键挑战</li>\n    <li>目标与范围</li>\n  </ul>\n</div>\n\n<div>\n  <h3>方法</h3>\n  <ul>\n    <li>数据来源</li>\n    <li>实验设计</li>\n    <li>评估指标</li>\n  </ul>\n</div>\n\n<div>\n  <h3>结果</h3>\n  <ul>\n    <li>主要发现</li>\n    <li>指标提升</li>\n    <li>局限与下一步</li>\n  </ul>\n</div>\n:::",
+                },
+            ],
+        },
+        {
+            "group": "媒体文件",
             "items": [
                 {
                     "name": "插入图片",
@@ -1116,68 +1138,84 @@ COMPONENT_LIBRARY = [
                 },
                 {
                     "name": "插入视频（自建语法）",
-                    "code": ":::video https://example.com/video.mp4\n可选：这里写视频说明。\n:::\n",
+                    "code": ":::video https://example.com/video.mp4\n可选：这里写视频说明。\n:::",
                 },
                 {
                     "name": "插入音频（自建语法）",
-                    "code": ":::audio https://example.com/audio.mp3\n可选：这里写音频说明。\n:::\n",
-                },
-                {
-                    "name": "嵌入链接",
-                    "code": "[相关链接](https://example.com)",
+                    "code": ":::audio https://example.com/audio.mp3\n可选：这里写音频说明。\n:::",
                 },
                 {
                     "name": "左右两列图片（自建）",
-                    "code": ":::img-2\n![](图片1地址)\n\n![](图片2地址)\n:::\n",
+                    "code": ":::img-2\n![](图片1地址)\n\n![](图片2地址)\n:::",
                 },
                 {
                     "name": "上下两列图片（自建）",
-                    "code": ":::img-2v\n![](图片1地址)\n\n![](图片2地址)\n:::\n",
+                    "code": ":::img-2v\n![](图片1地址)\n\n![](图片2地址)\n:::",
                 },
                 {
                     "name": "田字四图（自建）",
-                    "code": ":::img-4\n![](图片1地址)\n![](图片2地址)\n\n![](图片3地址)\n![](图片4地址)\n:::\n",
+                    "code": ":::img-4\n![](图片1地址)\n![](图片2地址)\n\n![](图片3地址)\n![](图片4地址)\n:::",
                 },
                 {
                     "name": "滚动画廊（自建）",
-                    "code": ":::img-scroll\n![](图片1地址)\n![](图片2地址)\n![](图片3地址)\n![](图片4地址)\n:::\n",
+                    "code": ":::img-scroll\n![](图片1地址)\n![](图片2地址)\n![](图片3地址)\n![](图片4地址)\n:::",
                 },
             ],
         },
         {
-            "group": "HTML 直接插入",
+            "group": "HTML",
             "items": [
                 {
                     "name": "两列对比表格",
-                    "code": "<table>\n  <tr>\n    <th>优势</th>\n    <th>劣势</th>\n  </tr>\n  <tr>\n    <td>内容 A</td>\n    <td>内容 B</td>\n  </tr>\n</table>\n",
+                    "code": "<table>\n  <tr>\n    <th>优势</th>\n    <th>劣势</th>\n  </tr>\n  <tr>\n    <td>内容 A</td>\n    <td>内容 B</td>\n  </tr>\n</table>",
                 },
                 {
                     "name": "插入视频",
-                    "code": "<video controls width=\"640\">\n  <source src=\"path/to/video.mp4\" type=\"video/mp4\">\n  您的浏览器不支持 HTML5 视频。\n</video>\n",
+                    "code": "<video controls width=\"640\">\n  <source src=\"path/to/video.mp4\" type=\"video/mp4\">\n  您的浏览器不支持 HTML5 视频。\n</video>",
                 },
                 {
                     "name": "插入音频",
-                    "code": "<audio controls>\n  <source src=\"path/to/audio.mp3\" type=\"audio/mpeg\">\n  您的浏览器不支持音频播放。\n</audio>\n",
+                    "code": "<audio controls>\n  <source src=\"path/to/audio.mp3\" type=\"audio/mpeg\">\n  您的浏览器不支持音频播放。\n</audio>",
                 },
                 {
                     "name": "折叠区块（details/summary）",
-                    "code": "<details>\n  <summary>点击展开/收起</summary>\n  <p>这里放置可折叠的详细说明。</p>\n</details>\n",
+                    "code": "<details>\n  <summary>点击展开/收起</summary>\n  <p>这里放置可折叠的详细说明。</p>\n</details>",
                 },
                 {
                     "name": "提示条（alert）",
-                    "code": "<div class=\"alert alert-warning\" role=\"alert\">\n  <strong>提示：</strong> 这里是强调的说明或风险提醒。\n</div>\n",
+                    "code": "<div class=\"alert alert-warning\" role=\"alert\">\n  <strong>提示：</strong> 这里是强调的说明或风险提醒。\n</div>",
                 },
                 {
                     "name": "卡片容器",
-                    "code": "<div class=\"card\" style=\"max-width:640px;\">\n  <div class=\"card-body\">\n    <h5 class=\"card-title\">卡片标题</h5>\n    <p class=\"card-text\">简短内容描述，支持<b>加粗</b>与链接。</p>\n    <a href=\"#\" class=\"btn btn-primary\">操作按钮</a>\n  </div>\n</div>\n",
+                    "code": "<div class=\"card\" style=\"max-width:640px;\">\n  <div class=\"card-body\">\n    <h5 class=\"card-title\">卡片标题</h5>\n    <p class=\"card-text\">简短内容描述，支持<b>加粗</b>与链接。</p>\n    <a href=\"#\" class=\"btn btn-primary\">操作按钮</a>\n  </div>\n</div>",
+                },
+                {
+                    "name": "定价卡片",
+                    "code": "<div class=\"card shadow-sm\" style=\"max-width: 420px;\">\n  <div class=\"card-body\">\n    <div class=\"d-flex align-items-baseline gap-2\">\n      <h5 class=\"card-title mb-0\">专业版</h5>\n      <span class=\"badge text-bg-success\">推荐</span>\n    </div>\n    <div class=\"display-6 mt-2\">￥99</div>\n    <div class=\"text-muted\">每月 / 3 人以内</div>\n    <ul class=\"mt-3 mb-4\">\n      <li>10 个项目</li>\n      <li>团队协作</li>\n      <li>优先支持</li>\n    </ul>\n    <button class=\"btn btn-primary w-100\">开始试用</button>\n  </div>\n</div>",
+                },
+                {
+                    "name": "数据概览",
+                    "code": "<div class=\"row g-2\" style=\"max-width: 420px;\">\n  <div class=\"col-6\">\n    <div class=\"border rounded p-2\">\n      <div class=\"text-muted small\">活跃用户</div>\n      <div class=\"h4 mb-0\">1280</div>\n      <div class=\"text-success small\">+12%</div>\n    </div>\n  </div>\n  <div class=\"col-6\">\n    <div class=\"border rounded p-2\">\n      <div class=\"text-muted small\">转化率</div>\n      <div class=\"h4 mb-0\">8.4%</div>\n      <div class=\"text-danger small\">-0.6%</div>\n    </div>\n  </div>\n</div>",
                 },
                 {
                     "name": "按钮组",
-                    "code": "<div class=\"btn-group\" role=\"group\" aria-label=\"操作\">\n  <button type=\"button\" class=\"btn btn-outline-primary\">操作一</button>\n  <button type=\"button\" class=\"btn btn-outline-secondary\">操作二</button>\n  <button type=\"button\" class=\"btn btn-outline-success\">操作三</button>\n</div>\n",
+                    "code": "<div class=\"btn-group\" role=\"group\" aria-label=\"操作\">\n  <button type=\"button\" class=\"btn btn-outline-primary\">操作一</button>\n  <button type=\"button\" class=\"btn btn-outline-secondary\">操作二</button>\n  <button type=\"button\" class=\"btn btn-outline-success\">操作三</button>\n</div>",
+                },
+                {
+                    "name": "进度条",
+                    "code": "<div class=\"mb-2 fw-semibold\">项目进度</div>\n<div class=\"progress\" role=\"progressbar\" aria-label=\"进度\" aria-valuenow=\"72\" aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"height: 18px;\">\n  <div class=\"progress-bar bg-success progress-bar-striped\" style=\"width: 72%;\">72%</div>\n</div>\n<small class=\"text-muted\">预计完成：2 天后</small>",
+                },
+                {
+                    "name": "徽章组",
+                    "code": "<div class=\"d-flex flex-wrap gap-2\">\n  <span class=\"badge rounded-pill text-bg-primary\">OKR</span>\n  <span class=\"badge rounded-pill text-bg-success\">已完成</span>\n  <span class=\"badge rounded-pill text-bg-warning\">待评审</span>\n  <span class=\"badge rounded-pill text-bg-info\">里程碑</span>\n  <span class=\"badge rounded-pill text-bg-secondary\">草稿</span>\n</div>",
+                },
+                {
+                    "name": "时间线",
+                    "code": "<div class=\"border-start ps-3\">\n  <div class=\"position-relative mb-3\">\n    <span class=\"position-absolute top-0 start-0 translate-middle bg-primary rounded-circle\" style=\"width:10px;height:10px;\"></span>\n    <div class=\"fw-semibold\">阶段一：调研</div>\n    <div class=\"text-muted small\">用户访谈与范围确认</div>\n  </div>\n  <div class=\"position-relative mb-3\">\n    <span class=\"position-absolute top-0 start-0 translate-middle bg-warning rounded-circle\" style=\"width:10px;height:10px;\"></span>\n    <div class=\"fw-semibold\">阶段二：设计</div>\n    <div class=\"text-muted small\">原型与交互评审</div>\n  </div>\n  <div class=\"position-relative\">\n    <span class=\"position-absolute top-0 start-0 translate-middle bg-success rounded-circle\" style=\"width:10px;height:10px;\"></span>\n    <div class=\"fw-semibold\">阶段三：交付</div>\n    <div class=\"text-muted small\">上线与复盘</div>\n  </div>\n</div>",
                 },
                 {
                     "name": "嵌入 iframe",
-                    "code": "<div style=\"position:relative;padding-top:56.25%;\">\n  <iframe src=\"https://example.com\" title=\"嵌入页面\"\n    style=\"position:absolute;top:0;left:0;width:100%;height:100%;border:0;\"\n    allowfullscreen loading=\"lazy\"></iframe>\n</div>\n",
+                    "code": "<div style=\"position:relative;padding-top:56.25%;\">\n  <iframe src=\"https://example.com\" title=\"嵌入页面\"\n    style=\"position:absolute;top:0;left:0;width:100%;height:100%;border:0;\"\n    allowfullscreen loading=\"lazy\"></iframe>\n</div>",
                 },
             ],
         },

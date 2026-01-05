@@ -178,7 +178,7 @@ Benben 内置多种自定义块语法（通过 container 插件实现），你�
 ### 1) 模板位置与加载规则
 
 - **模板库目录**：`temps/`  
-  默认模板：`temps/markdown_default.yaml`
+  默认模板：`temps/default.yaml`
 - **命名规则**：任意 `*.yaml` 文件都会被识别为可选模板。
 - **缓存**：模板读取有 LRU 缓存，直接改动文件后需要 **重启服务** 才能刷新。
 
@@ -254,12 +254,12 @@ const root = document.querySelector('.markdown-export-content');
 
 ### 6) 内置模板清单（带 JS 交互）
 
-- `markdown_default.yaml`：滚动进度条 + 代码复制
-- `markdown_minimal.yaml`：专注/宽屏切换 + 标题锚点复制
-- `markdown_classic.yaml`：返回顶部按钮
-- `markdown_contrast.yaml`：当前标题提示条
-- `markdown_album.yaml`：图片灯箱
-- `markdown_cyber.yaml`：扫描线 + 标题脉冲
+- `default.yaml`：默认的，就是按部就班，既不太少也不太花哨
+- `minimal.yaml`：基础模版，只有最基本的必不可少的一些功能
+- `classic.yaml`：复古风格羊纸本，很有质感纸张背景
+- `contrast.yaml`：字体大小对比明暗对比强烈，可以明暗切换
+- `album.yaml`：相册风，适用于图片很多且想要美观展示的
+- `cyber.yaml`：赛博朋克风，科技感十足的脉冲动态光影
 
 ### 7) 新增模板流程
 
